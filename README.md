@@ -19,13 +19,13 @@
 
 <br>
 
-# WARNING
-
-This project was made majorly for a personal problem, not with the intent of public release. Therefore, give the project a read, analyze it and try it carefully.
+DevDock is a keyboard-driven TUI that allows you to easily start working on your projects by automating the creation of TMUX Sessions with your desired layout, the creation of new projects and your project's scaffolding tool command all in one go. It works out of the box, no manual configuration needed!
 
 <br>
 
-DevDock is a keyboard-driven TUI that allows you to easily start working on your projects by automating the creation of TMUX Sessions with your desired layout, the creation of new projects and your project's scaffolding tool command all in one go. It works out of the box, no manual configuration needed!
+# WARNING
+
+This project was made majorly for a personal problem, not with the intent of public release. Therefore, give the project a read, analyze it and try it carefully.
 
 <br>
 
