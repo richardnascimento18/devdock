@@ -19,6 +19,12 @@
 
 <br>
 
+# WARNING
+
+This project was made majorly for a personal problem, not with the intent of public release. Therefore, give the project a read, analyze it and try it carefully.
+
+<br>
+
 DevDock is a keyboard-driven TUI that allows you to easily start working on your projects by automating the creation of TMUX Sessions with your desired layout, the creation of new projects and your project's scaffolding tool command all in one go. It works out of the box, no manual configuration needed!
 
 <br>
@@ -27,7 +33,7 @@ DevDock is a keyboard-driven TUI that allows you to easily start working on your
 
 ## Building from source
 
-> DevDock's GitHub integration requires a **GitHub OAuth App Client ID** injected at build time. Although I personally recommend installing one of the releases to use DevDock's official OAuth App, you can use your own OAuth App at build time, by using the exact command below:
+> DevDock's GitHub integration requires a **GitHub OAuth App Client ID** injected at build time. Although I personally recommend downloading one of the releases to use DevDock's official OAuth App, you can use your own OAuth App at build time, by using the exact command below:
 
 ```sh
 go build \
