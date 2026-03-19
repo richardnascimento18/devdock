@@ -189,6 +189,6 @@ The config directory is created automatically on first run. You should never nee
 
 <div align="center">
 
-*Built for developers who live in the terminal.*
+*Built for fun as a hobby project.*
 
 </div>
