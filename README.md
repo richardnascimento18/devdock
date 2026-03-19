@@ -15,6 +15,8 @@
 [![tmux](https://img.shields.io/badge/tmux-required-A78BFA?style=flat-square&logo=tmux&logoColor=white)](https://github.com/tmux/tmux)
 [![License](https://img.shields.io/badge/license-MIT-C4B5FD?style=flat-square)](LICENSE)
 
+![devdock](https://github.com/user-attachments/assets/853d05ac-704b-4458-8909-c175de4a5055)
+
 </div>
 
 <br>
