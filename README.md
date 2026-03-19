@@ -23,9 +23,9 @@ DevDock is a keyboard-driven TUI that allows you to easily start working on your
 
 <br>
 
-# WARNING
+# WARNING/DISCLAIMER
 
-This project was made majorly for a personal problem, not with the intent of public release. Therefore, give the project a read, analyze it and try it carefully.
+This project was made majorly for a personal problem, not with the intent of public release. Therefore, give the project a read, analyze it and try it carefully. I may maintain it from time to time, but keep in mind this is a hobby project. Also, this tool only works in Linux systems, with TMUX being a required library for it to work (as it revolves around terminal users).
 
 <br>
 
@@ -165,7 +165,9 @@ All configuration lives in `~/.config/devdock/`:
 | `presets.json` | tmux workspace presets |
 | `templates.json` | Project scaffolding templates |
 
-The config directory is created automatically on first run. You should never need to edit `config.toml` by hand — everything is manageable from within the TUI.
+The config directory is created automatically on first run. You should never need to edit `config.toml` by hand; everything is manageable from within the TUI.
+
+> DO NOT under any circumstance share the `config.toml` file with third-parties, nor commit it during reports.
 
 ---
 
