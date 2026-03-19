@@ -1,12 +1,12 @@
 <div align="center">
 
 ```
-                                        ██████╗ ███████╗██╗   ██╗██████╗  ██████╗  ██████╗██╗  ██╗
-                                        ██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗██╔════╝██║ ██╔╝
-                                        ██║  ██║█████╗  ██║   ██║██║  ██║██║   ██║██║     █████╔╝ 
-                                        ██║  ██║██╔══╝  ╚██╗ ██╔╝██║  ██║██║   ██║██║     ██╔═██╗ 
-                                        ██████╔╝███████╗ ╚████╔╝ ██████╔╝╚██████╔╝╚██████╗██║  ██╗
-                                        ╚═════╝ ╚══════╝  ╚═══╝  ╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝
+                                    ██████╗ ███████╗██╗   ██╗██████╗  ██████╗  ██████╗██╗  ██╗
+                                    ██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗██╔════╝██║ ██╔╝
+                                    ██║  ██║█████╗  ██║   ██║██║  ██║██║   ██║██║     █████╔╝ 
+                                    ██║  ██║██╔══╝  ╚██╗ ██╔╝██║  ██║██║   ██║██║     ██╔═██╗ 
+                                    ██████╔╝███████╗ ╚████╔╝ ██████╔╝╚██████╔╝╚██████╗██║  ██╗
+                                    ╚═════╝ ╚══════╝  ╚═══╝  ╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝
 ```
 
 *your terminal workspace manager*
@@ -19,15 +19,15 @@
 
 <br>
 
-DevDock scans your project roots, lets you navigate your entire workspace in a keyboard-driven TUI, and drops you straight into a fully configured **tmux session** — windows, panes, and commands ready to go. No config files to edit, no scripts to maintain.
+DevDock is a keyboard-driven TUI that allows you to easily start working on your projects by automating the creation of TMUX Sessions with your desired layout, the creation of new projects and your project's scaffolding tool command all in one go. It works out of the box, no manual configuration needed!
 
 <br>
 
 ---
 
-## ⚠️ Building from source
+## Building from source
 
-> DevDock's GitHub integration requires a **GitHub OAuth App Client ID** injected at build time. Building without it will produce a binary where all GitHub features — connecting an account, creating repos, cloning — silently fail.
+> DevDock's GitHub integration requires a **GitHub OAuth App Client ID** injected at build time. Although I personally recommend installing one of the releases to use DevDock's official OAuth App, you can use your own OAuth App at build time, by using the exact command below:
 
 ```sh
 go build \
@@ -35,12 +35,7 @@ go build \
   -o devdock .
 ```
 
-**To get a Client ID:**
-
-1. Go to **GitHub → Settings → Developer settings → OAuth Apps → New OAuth App**
-2. Set the callback URL to anything (e.g. `http://localhost`) — DevDock uses the device flow, so it is never called
-3. Enable **Device Flow** on the app settings page
-4. Copy the **Client ID** and pass it to the build command above
+Building without it will produce a binary where all GitHub features, such as connecting an account, creating repos, cloning, will silently fail.
 
 Alternatively, skip the build flag and export the variable instead:
 
@@ -52,21 +47,19 @@ export DEVDOCK_GITHUB_CLIENT_ID=your_client_id
 
 <br>
 
-## ✦ Features
+## Features in DevDock
 
 <br>
 
-### 🔍 &nbsp;Smart project discovery
+### 🔍 &nbsp;Project discovery
 
-DevDock scans your roots and classifies directories automatically — no manual registration. A directory becomes a **project** when it contains known markers (`go.mod`, `package.json`, `Cargo.toml`, `pyproject.toml`, `requirements.txt`, and many more). **Groups** and **subgroups** give you nested organisation inside a domain without any extra config. Override automatic detection anytime with `.devdock` or `.ddgroup` marker files.
-
-Detection results are **cached in memory** after the first scan — navigating between roots and toggling groups is instant. Press `r` to force a fresh re-scan from disk.
+By following a folder structure (root > category/domain > project), DevDock scans your roots and classifies directories automatically. It also supports grouping and subgrouping, to allow for projects that relate to each other to live together, without being scattered in domains (root > domain > group > project[s]). Override automatic detection anytime with `.devdock` or `.ddgroup` marker files.
 
 <br>
 
 ### 🖥️ &nbsp;tmux workspace presets
 
-When you open a project, DevDock creates (or re-attaches to) a tmux session named after it. The layout is driven by a **preset** — a named configuration that defines windows, pane splits, and the command to run in each.
+When you select a project from the list, DevDock creates (or re-attaches to) a tmux session named after it. The layout is driven by a **preset** (a named configuration that defines windows, pane splits, and the command to run in each).
 
 Built-in presets:
 
@@ -76,13 +69,13 @@ Built-in presets:
 | `nvim` | `nvim` · `terminal` |
 | `dev-split` | Editor + two side terminals in a single window |
 
-Customise presets freely in `~/.config/devdock/presets.json`. They support any number of windows, horizontal/vertical splits, sized panes, and per-pane commands. Cycle through presets from the launcher itself with `p` / `P` — no need to leave.
+Customise presets freely in `~/.config/devdock/presets.json`. They support any number of windows, horizontal/vertical splits, sized panes, and per-pane commands.
 
 <br>
 
 ### 🧱 &nbsp;Project templates
 
-Scaffold new projects from **templates** — sequences of commands and filesystem operations (`touch`, `mkdir`) that run in a PTY, so interactive CLIs work correctly out of the box.
+Scaffold new projects from **templates**. These are sequences of commands and/or filesystem operations (`touch`, `mkdir`) that run in a PTY, so interactive CLIs work correctly out of the box.
 
 Built-in templates:
 
@@ -105,18 +98,12 @@ Define your own templates in `~/.config/devdock/templates.json` using the same s
 
 ### 🐙 &nbsp;GitHub integration
 
-Connect a GitHub account once with `g` via the **device OAuth flow** — just open a URL and enter a code, no token copy-pasting. After authenticating, DevDock:
+Connect a GitHub account once with `g` via the **device OAuth flow**. After authenticating, DevDock:
 
 - Loads all your repositories and shows uncloned ones inline in the project list
 - Matches local projects to their remote repos and badges them in the UI
 - Creates a **new GitHub repo** (public or private) during project creation and pushes an initial commit automatically
 - **Clones any of your repos** directly into a chosen domain from the TUI
-
-<br>
-
-### 🌲 &nbsp;Tree & flat views
-
-Press `v` to toggle between **tree view** — projects nested under collapsible group headers — and **flat view** — every project on a single line with a breadcrumb prefix. Collapse and expand groups with `space` or `enter`. Your preferred view is remembered across sessions.
 
 <br>
 
@@ -132,7 +119,7 @@ Everything you need, without leaving the TUI:
 
 - `n` — create a new project (optionally with a template and a GitHub repo)
 - `x` / `X` — delete a project or an entire domain (with confirmation)
-- `m` — move a project to a different root, domain, or group — across roots if needed
+- `m` — move a project to a different root, domain, or group
 - `N` — create a new domain in any root
 - `G` / `ctrl+g` — create or delete groups
 - `a` / `A` — add or remove root directories
@@ -140,15 +127,8 @@ Everything you need, without leaving the TUI:
 
 <br>
 
-### 🔎 &nbsp;Search & filter
 
-Press `/` in the Search tab to fuzzy-filter the project list. Confirm with `enter` to lock the filter; clear it with `c` or `esc`. If you search for a name with no match, a **create project** shortcut appears inline — go from idea to scaffold in seconds.
-
----
-
-<br>
-
-## 🚀 &nbsp;Installation
+## Installation
 
 **Requirements:** Go 1.21+, tmux
 
@@ -169,7 +149,7 @@ On first run, DevDock will ask for a root directory and write its config to `~/.
 
 <br>
 
-## ⚙️ &nbsp;Configuration
+## Configuration
 
 All configuration lives in `~/.config/devdock/`:
 
@@ -185,37 +165,7 @@ The config directory is created automatically on first run. You should never nee
 
 <br>
 
-## ⌨️ &nbsp;Keybindings
-
-| Key | Action |
-|---|---|
-| `enter` | Open project · toggle group |
-| `tab` / `shift+tab` | Cycle root |
-| `[` / `]` | Cycle tab (Search · Recents · Favorites) |
-| `space` | Collapse / expand group |
-| `v` | Toggle tree / flat view |
-| `n` | New project |
-| `N` | New domain |
-| `x` | Delete project |
-| `X` | Delete domain |
-| `m` | Move project |
-| `f` | Toggle favorite |
-| `p` / `P` | Cycle preset forward / back |
-| `g` | Connect GitHub · refresh repos |
-| `G` | Create group |
-| `ctrl+g` | Delete group |
-| `r` | Refresh (re-scan from disk) |
-| `a` / `A` | Add / remove root |
-| `/` | Filter (Search tab) |
-| `c` / `esc` | Clear filter |
-| `?` | Help |
-| `ctrl+c` | Quit |
-
----
-
-<br>
-
-## 🛠️ &nbsp;Tech stack
+## Tech stack
 
 | | |
 |---|---|
