@@ -1,0 +1,432 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/richardnascimento18/devdock/internal/config"
+	"github.com/richardnascimento18/devdock/internal/core"
+	gh "github.com/richardnascimento18/devdock/internal/github"
+	"github.com/richardnascimento18/devdock/internal/preset"
+	tmpl "github.com/richardnascimento18/devdock/internal/template"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+// ---------------------------------------------------------------------------
+// Async message types
+// ---------------------------------------------------------------------------
+
+type moveProjectDoneMsg struct {
+	newProject core.Project
+	err        error
+}
+
+func CmdMoveProject(p core.Project, destRoot, destDomain string) tea.Cmd {
+	return func() tea.Msg {
+		destDomainPath := filepath.Join(destRoot, destDomain)
+		if err := os.MkdirAll(destDomainPath, 0o755); err != nil {
+			return moveProjectDoneMsg{err: err}
+		}
+		destPath := filepath.Join(destDomainPath, p.Name)
+		if err := os.Rename(p.Path, destPath); err != nil {
+			if err2 := copyDir(p.Path, destPath); err2 != nil {
+				return moveProjectDoneMsg{err: fmt.Errorf("move failed: %v (copy: %v)", err, err2)}
+			}
+			_ = os.RemoveAll(p.Path)
+		}
+		newP := p
+		newP.Path = destPath
+		newP.Domain = destDomain
+		newP.Root = destRoot
+		return moveProjectDoneMsg{newProject: newP}
+	}
+}
+
+func CmdMoveProjectToPath(p core.Project, destPath string, destRoot, destDomain string) tea.Cmd {
+	return func() tea.Msg {
+		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+			return moveProjectDoneMsg{err: err}
+		}
+		if err := os.Rename(p.Path, destPath); err != nil {
+			if err2 := copyDir(p.Path, destPath); err2 != nil {
+				return moveProjectDoneMsg{err: fmt.Errorf("move failed: %v (copy: %v)", err, err2)}
+			}
+			_ = os.RemoveAll(p.Path)
+		}
+		newP := p
+		newP.Path = destPath
+		newP.Domain = destDomain
+		newP.Root = destRoot
+		return moveProjectDoneMsg{newProject: newP}
+	}
+}
+
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		// Check for symlinks before doing anything with the file.
+		// filepath.Walk resolves symlinks for directory entries, so we use
+		// Lstat on the original path to detect them.
+		linfo, lerr := os.Lstat(path)
+		if lerr != nil {
+			return lerr
+		}
+		if linfo.Mode()&os.ModeSymlink != 0 {
+			// Skip symlinks entirely to prevent following them outside the project.
+			return nil
+		}
+		rel, _ := filepath.Rel(src, path)
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, info.Mode())
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, info.Mode())
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Update dispatcher
+// ---------------------------------------------------------------------------
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if sz, ok := msg.(tea.WindowSizeMsg); ok {
+		m.termW = sz.Width
+		m.termH = sz.Height
+		m.list.SetWidth(min(sz.Width-10, 100))
+		m.list.SetHeight(m.listHeight())
+		return m, nil
+	}
+
+	switch msg := msg.(type) {
+	case gh.ReposLoadedMsg:
+		return m.handleGitHubReposLoaded(msg)
+	case gh.AuthDoneMsg:
+		return m.handleGitHubAuthDone(msg)
+	case gh.RepoCreatedMsg:
+		return m.handleGitHubRepoCreated(msg)
+	case gh.CloneDoneMsg:
+		return m.handleGitCloneDone(msg)
+	case moveProjectDoneMsg:
+		return m.handleMoveProjectDone(msg)
+	case spinnerTickMsg:
+		m.spinnerScr.frame = (m.spinnerScr.frame + 1) % len(m.spinnerScr.frames)
+		return m, spinnerTick()
+	}
+
+	switch m.state {
+	case stateNewProjectName:
+		return m.updateNewProjectName(msg)
+	case statePickRoot:
+		return m.updatePickRoot(msg)
+	case statePickDomain:
+		return m.updateDomainPicker(msg)
+	case stateNewDomainName:
+		return m.updateNewDomainName(msg)
+	case stateCreateDomainOnly:
+		return m.updateCreateDomainOnly(msg)
+	case statePickRootForDomain:
+		return m.updatePickRootForDomain(msg)
+	case statePickPreset:
+		return m.updatePickPreset(msg)
+	case stateAskCreateGitHub:
+		return m.updateAskCreateGitHub(msg)
+	case stateAskRepoPrivacy:
+		return m.updateAskRepoPrivacy(msg)
+	case stateCreatingGitHub, stateCloningRepo:
+		return m, nil
+	case statePickTemplate:
+		return m.updatePickTemplate(msg)
+	case statePTYExecution:
+		return m.updatePTYExecution(msg)
+	case stateDeleteProject:
+		return m.updateDeleteProject(msg)
+	case stateDeleteDomain:
+		return m.updateDeleteDomain(msg)
+	case stateAddRoot:
+		return m.updateAddRoot(msg)
+	case stateRemoveRoot:
+		return m.updateRemoveRoot(msg)
+	case stateGitHubAuth:
+		return m.updateGitHubAuth(msg)
+	case statePickRootForClone:
+		return m.updatePickRootForClone(msg)
+	case statePickDomainForClone:
+		return m.updatePickDomainForClone(msg)
+	case stateMovePickRoot:
+		return m.updateMovePickRoot(msg)
+	case stateMovePickDomain:
+		return m.updateMovePickDomain(msg)
+	case stateMovePickPlacement:
+		return m.updateMovePickPlacement(msg)
+	case stateHelp:
+		return m.updateHelp(msg)
+	case stateCreateGroup:
+		return m.updateCreateGroup(msg)
+	case stateDeleteGroup:
+		return m.updateDeleteGroup(msg)
+	default:
+		return m.updateList(msg)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Background message handlers
+// ---------------------------------------------------------------------------
+
+func (m model) handleGitHubReposLoaded(msg gh.ReposLoadedMsg) (tea.Model, tea.Cmd) {
+	if msg.Err != nil {
+		m.statusMsg = errorStyle.Render("✗  GitHub: " + msg.Err.Error())
+		return m, nil
+	}
+	m.githubRepos = msg.Repos
+	linked := gh.LinkProjectsToRepos(m.rawProjects, msg.Repos)
+	m.githubIndex = core.BuildGitHubIndex(linked)
+	m.nameIndex = core.BuildNameIndex(linked)
+	m.rawProjects = linked
+	m = m.rebuildList(true)
+	m.statusMsg = successStyle.Render(fmt.Sprintf("✓  GitHub: %d repos loaded", len(msg.Repos)))
+	if m.state == stateGitHubAuth {
+		m.state = stateList
+	}
+	return m, nil
+}
+
+func (m model) handleGitHubAuthDone(msg gh.AuthDoneMsg) (tea.Model, tea.Cmd) {
+	if msg.Err != nil {
+		m.githubAuthScr.err = msg.Err.Error()
+		return m, nil
+	}
+	m.githubAuthScr.done = true
+	m.cfg.GitHubToken = msg.Token
+	m.cfg.GitHubUsername = msg.Username
+	_ = config.Save(m.cfg)
+	return m, gh.CmdFetchRepos(msg.Token)
+}
+
+func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cmd) {
+	if msg.Err != nil {
+		m.statusMsg = errorStyle.Render("✗  GitHub repo creation failed: " + msg.Err.Error())
+		m.state = stateList
+		return m, nil
+	}
+
+	m.pendingGHRepo = msg.Repo
+
+	if m.pendingTemplate != nil {
+		domainPath := filepath.Join(m.pendingRoot, m.pendingDomain)
+		vars := tmpl.Vars{
+			ProjectName: m.pendingProjectName,
+			Domain:      m.pendingDomain,
+			Root:        m.pendingRoot,
+		}
+		var projectPath, workDir string
+		if m.pendingTemplate.CreatesProjectFolder {
+			vars.ProjectPath = filepath.Join(domainPath, m.pendingProjectName)
+			projectPath = vars.ProjectPath
+			workDir = domainPath
+		} else {
+			projectPath = filepath.Join(domainPath, m.pendingProjectName)
+			if err := os.MkdirAll(projectPath, 0o755); err != nil {
+				m.statusMsg = errorStyle.Render(fmt.Sprintf("✗  Could not create project directory: %v", err))
+				m.state = stateList
+				return m, nil
+			}
+			vars.ProjectPath = projectPath
+			workDir = projectPath
+		}
+		m.ptyScr = newPTYScreen(m.termW, m.termH, m.pendingTemplate, projectPath, vars,
+			m.pendingTemplate.Steps, workDir, msg.Repo)
+		m.state = statePTYExecution
+		return m, m.ptyScr.startNextStep()
+	}
+
+	p, err := core.CreateProject(m.pendingRoot, m.pendingDomain, m.pendingProjectName)
+	if err != nil {
+		m.statusMsg = errorStyle.Render("✗  project create error: " + err.Error())
+		m.state = stateList
+		return m, nil
+	}
+	if err := gh.InitRepoWithRemote(p.Path, msg.Repo.CloneURL); err != nil {
+		m.statusMsg = errorStyle.Render("✗  git init error: " + err.Error())
+	}
+	p.GitHubRepo = msg.Repo.FullName
+	m = m.rescan()
+	m.state = stateList
+	m.uiState.AddRecent(p)
+	m.saveState()
+	m.pendingLaunch = p
+	m.pendingLaunchReady = true
+	m.pendingLaunchPreset = m.pendingPreset
+	return m, tea.Quit
+}
+
+func (m model) handleGitCloneDone(msg gh.CloneDoneMsg) (tea.Model, tea.Cmd) {
+	if msg.Err != nil {
+		m.statusMsg = errorStyle.Render("✗  clone failed: " + msg.Err.Error())
+		m.state = stateList
+		return m, nil
+	}
+	m = m.rescan()
+	m.state = stateList
+	m.uiState.AddRecent(msg.Project)
+	m.saveState()
+	m.pendingLaunch = msg.Project
+	m.pendingLaunchReady = true
+	m.pendingLaunchPreset = preset.ByName(m.presets, m.presetSel.SelectedName())
+	return m, tea.Quit
+}
+
+func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		m.statusMsg = errorStyle.Render("✗  move failed: " + msg.err.Error())
+		m.state = stateList
+		return m, nil
+	}
+	m = m.rescan()
+	m.statusMsg = successStyle.Render(fmt.Sprintf("✓  moved \"%s\"", msg.newProject.Name))
+	m.state = stateList
+	return m, nil
+}
+
+// ---------------------------------------------------------------------------
+// Open action handlers
+// ---------------------------------------------------------------------------
+
+func (m model) openMoveDestDomainPicker() model {
+	domains, _ := core.ScanDomainsInRoot(m.pendingRoot)
+	opts := append(append([]string{}, domains...), createNewDomainOption)
+	m.genericPicker = newGenericPicker(
+		fmt.Sprintf("Move \"%s\" — destination domain:", m.moveTarget.Name),
+		opts, "↑/↓  •  enter  •  esc",
+	)
+	m.state = stateMovePickDomain
+	return m
+}
+
+func (m model) openMovePlacementPicker(destRoot, destDomain string) model {
+	domainPath := filepath.Join(destRoot, destDomain)
+	groups := core.ScanGroupsInDomain(domainPath, classifyFn)
+
+	var opts []movePlacementOption
+	opts = append(opts, movePlacementOption{
+		label:    "(place directly in domain)",
+		destPath: filepath.Join(domainPath, m.moveTarget.Name),
+		domain:   destDomain,
+	})
+	for _, g := range groups {
+		opts = append(opts, movePlacementOption{
+			label:    g.Name,
+			destPath: filepath.Join(g.Path, m.moveTarget.Name),
+			domain:   destDomain,
+		})
+		for _, sg := range g.Subgroups {
+			opts = append(opts, movePlacementOption{
+				label:    g.Name + " > " + sg.Name,
+				destPath: filepath.Join(sg.Path, m.moveTarget.Name),
+				domain:   destDomain,
+			})
+			for _, nested := range sg.Subgroups {
+				opts = append(opts, movePlacementOption{
+					label:    g.Name + " > " + sg.Name + " > " + nested.Name,
+					destPath: filepath.Join(nested.Path, m.moveTarget.Name),
+					domain:   destDomain,
+				})
+			}
+		}
+	}
+	labels := make([]string, len(opts))
+	for i, o := range opts {
+		labels[i] = o.label
+	}
+	m.movePlacementOpts = opts
+	m.genericPicker = newGenericPicker(
+		fmt.Sprintf("Move \"%s\" — place in:", m.moveTarget.Name),
+		labels, "↑/↓  •  enter  •  esc",
+	)
+	m.state = stateMovePickPlacement
+	return m
+}
+
+func (m model) openDomainPickerForClone() model {
+	domains, _ := core.ScanDomainsInRoot(m.pendingRoot)
+	opts := append(append([]string{}, domains...), createNewDomainOption)
+	m.genericPicker = newGenericPicker(
+		fmt.Sprintf("Clone \"%s\" — select domain:", m.pendingGHRepo.Name),
+		opts, "↑/↓  •  enter  •  esc",
+	)
+	m.state = statePickDomainForClone
+	return m
+}
+
+func (m model) openDomainPicker(root, projectName string) (model, tea.Cmd) {
+	domains, _ := core.ScanDomainsInRoot(root)
+	existing := map[string]bool{}
+	for _, it := range m.allItems {
+		if p, ok := it.(item); ok && p.project.Name == projectName && p.project.Root == root {
+			existing[p.project.Domain] = true
+		}
+	}
+	m.pendingProjectName = projectName
+	m.pendingRoot = root
+	m.domainPicker = newDomainPickerScreen(projectName, domains, existing)
+	m.state = statePickDomain
+	return m, nil
+}
+
+func (m model) openRootPickerForProject(projectName string) model {
+	m.pendingProjectName = projectName
+	opts := make([]string, len(m.cfg.ActiveRoots()))
+	for i, r := range m.cfg.ActiveRoots() {
+		opts[i] = config.RootName(r)
+	}
+	m.genericPicker = newGenericPicker(
+		fmt.Sprintf("Select root for \"%s\":", projectName),
+		opts, "↑/↓  •  enter  •  esc",
+	)
+	m.state = statePickRoot
+	return m
+}
+
+func (m model) openPresetPicker() model {
+	m.presetPicker = newPresetPicker(m.presets, m.presetSel.SelectedName())
+	m.state = statePickPreset
+	return m
+}
+
+func navPicker(g *genericPickerScreen, key string) bool {
+	switch key {
+	case "up", "k":
+		if g.cursor > 0 {
+			g.cursor--
+		}
+		return true
+	case "down", "j":
+		if g.cursor < len(g.options)-1 {
+			g.cursor++
+		}
+		return true
+	}
+	return false
+}
+
+// isSafePathName returns true if name is safe to use as a filesystem path component.
+// It rejects empty names, dot-only names, and anything containing path separators
+// or backslashes that could be used to escape the intended directory.
+func isSafePathName(name string) bool {
+	if name == "" || name == "." || name == ".." {
+		return false
+	}
+	if strings.ContainsAny(name, "/\\") {
+		return false
+	}
+	return true
+}
