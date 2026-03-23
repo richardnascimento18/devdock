@@ -1,3 +1,4 @@
+/* Package config stores all config related functions and methods. */
 package config
 
 import (

@@ -168,6 +168,7 @@ var helpSections = []struct {
 			{"r", "rescan projects"},
 			{"G", "new group"},
 			{"ctrl+g", "delete group"},
+			{"e", "open preset/template editor"},
 		},
 	},
 	{

@@ -375,3 +375,48 @@ func (s confirmDeleteDomainScreen) View(termW, termH int) string {
 	content := lipgloss.JoinVertical(lipgloss.Left, RenderTitle(), wrapInWarningBox("Danger Zone — Delete Domain", inner.String()))
 	return centerInTerminal(termW, termH, content)
 }
+
+// ---------------------------------------------------------------------------
+// confirmDeleteTmuxScreen
+// ---------------------------------------------------------------------------
+
+type confirmDeleteTmuxScreen struct {
+	sessionName string
+	input       textinput.Model
+	err         string
+}
+
+func newConfirmDeleteTmuxScreen(sessionName string) confirmDeleteTmuxScreen {
+	ti := textinput.New()
+	ti.Placeholder = sessionName
+	ti.Focus()
+	ti.CharLimit = 80
+	ti.Width = 52
+	ti.Cursor.Style = cursorStyle
+	ti.PromptStyle = promptStyle
+	ti.TextStyle = lipgloss.NewStyle().Foreground(colorWhite)
+	return confirmDeleteTmuxScreen{sessionName: sessionName, input: ti}
+}
+
+func (s confirmDeleteTmuxScreen) Update(msg tea.Msg) (confirmDeleteTmuxScreen, tea.Cmd) {
+	var cmd tea.Cmd
+	s.input, cmd = s.input.Update(msg)
+	return s, cmd
+}
+
+func (s confirmDeleteTmuxScreen) View(termW, termH int) string {
+	var inner strings.Builder
+	inner.WriteString(warningStyle.Render(fmt.Sprintf(
+		"Kill tmux session \"%s\"? All windows and panes will be lost.", s.sessionName,
+	)) + "\n\n")
+	inner.WriteString(lipgloss.NewStyle().Foreground(colorGray).Render(
+		fmt.Sprintf("Type \"%s\" to confirm:", s.sessionName),
+	) + "\n\n")
+	inner.WriteString(s.input.View())
+	if s.err != "" {
+		inner.WriteString("\n\n" + errorStyle.Render("✗  "+s.err))
+	}
+	inner.WriteString("\n\n" + hintStyle.Render("enter confirm  •  esc cancel"))
+	content := lipgloss.JoinVertical(lipgloss.Left, RenderTitle(), wrapInWarningBox("Kill tmux Session", inner.String()))
+	return centerInTerminal(termW, termH, content)
+}

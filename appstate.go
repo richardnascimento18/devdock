@@ -31,12 +31,15 @@ const (
 	statePTYExecution
 	stateCreateGroup
 	stateDeleteGroup
+	stateEditor
+	stateDeleteTmuxSession
 )
 
 const (
 	TabSearch    = 0
 	TabRecents   = 1
 	TabFavorites = 2
+	TabTmux      = 3
 )
 
-var tabNames = []string{"Search", "Recents", "Favorites"}
+var tabNames = []string{"Search", "Recents", "Favorites", "tmux-sessions"}

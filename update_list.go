@@ -30,18 +30,24 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "[":
 			if !m.list.SettingFilter() {
-				m.activeTab = (m.activeTab + 2) % 3
+				m.activeTab = (m.activeTab + len(tabNames) - 1) % len(tabNames)
 				m.uiState.ActiveTab = m.activeTab
 				m.saveState()
+				if m.activeTab == TabTmux {
+					m = m.refreshTmuxSessions()
+				}
 				m = m.refreshTabList()
 				return m, nil
 			}
 
 		case "]":
 			if !m.list.SettingFilter() {
-				m.activeTab = (m.activeTab + 1) % 3
+				m.activeTab = (m.activeTab + 1) % len(tabNames)
 				m.uiState.ActiveTab = m.activeTab
 				m.saveState()
+				if m.activeTab == TabTmux {
+					m = m.refreshTmuxSessions()
+				}
 				m = m.refreshTabList()
 				return m, nil
 			}
@@ -143,6 +149,10 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !m.list.SettingFilter() {
 				return m.startDeleteGroup()
 			}
+		case "e":
+			if !m.list.SettingFilter() {
+				return m.startEditor()
+			}
 
 		case "r":
 			if !m.list.SettingFilter() {
@@ -179,6 +189,9 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "x":
 			if !m.list.SettingFilter() {
+				if m.activeTab == TabTmux {
+					return m.startDeleteTmuxSession()
+				}
 				return m.startDeleteProject()
 			}
 		case "X":
@@ -282,6 +295,10 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if gi, ok := sel.(githubItem); ok {
 				return m.startCloneFlow(gi.repo), nil
+			}
+			if ts, ok := sel.(tmuxSessionItem); ok {
+				m.pendingTmuxAttach = ts.name
+				return m, tea.Quit
 			}
 		}
 	}
@@ -452,4 +469,21 @@ func (m model) startCloneFlow(repo gh.Repo) model {
 	)
 	m.state = statePickRootForClone
 	return m
+}
+
+func (m model) startEditor() (tea.Model, tea.Cmd) {
+	m.editorScr = newEditorScreen(m.presets, m.templates, m.termW, m.termH)
+	m.state = stateEditor
+	return m, nil
+}
+
+func (m model) startDeleteTmuxSession() (tea.Model, tea.Cmd) {
+	sel := m.list.SelectedItem()
+	ts, ok := sel.(tmuxSessionItem)
+	if !ok {
+		return m, nil
+	}
+	m.confirmDelTmux = newConfirmDeleteTmuxScreen(ts.name)
+	m.state = stateDeleteTmuxSession
+	return m, nil
 }

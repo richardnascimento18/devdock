@@ -120,3 +120,34 @@ func sanitizeTmuxName(s string) string {
 	}
 	return b.String()
 }
+
+// ListSessions returns the names of all active tmux sessions, or nil if tmux
+// is not running or not installed.
+func ListSessions() []string {
+	out, err := runOutput("list-sessions", "-F", "#{session_name}")
+	if err != nil {
+		return nil
+	}
+	var sessions []string
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		if line != "" {
+			sessions = append(sessions, line)
+		}
+	}
+	return sessions
+}
+
+// AttachSession attaches the current terminal to the named tmux session.
+// This replaces the current process image, so it must be called after the TUI
+// has fully torn down its alt-screen.
+func AttachSession(name string) {
+	run("attach-session", "-t", name)
+}
+
+// KillSession destroys the named tmux session and all its windows.
+func KillSession(name string) error {
+	cmd := exec.Command("tmux", "kill-session", "-t", name)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}

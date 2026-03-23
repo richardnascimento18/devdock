@@ -11,6 +11,7 @@ import (
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
+	"github.com/richardnascimento18/devdock/internal/tmux"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -173,6 +174,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateCreateGroup(msg)
 	case stateDeleteGroup:
 		return m.updateDeleteGroup(msg)
+	case stateEditor:
+		return m.updateEditor(msg)
+	case stateDeleteTmuxSession:
+		return m.updateDeleteTmuxSession(msg)
 	default:
 		return m.updateList(msg)
 	}
@@ -418,6 +423,39 @@ func navPicker(g *genericPickerScreen, key string) bool {
 	return false
 }
 
+// ---------------------------------------------------------------------------
+// Editor state handler
+// ---------------------------------------------------------------------------
+
+func (m model) updateEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// ESC at the list layer returns to stateList
+	if k, ok := msg.(tea.KeyMsg); ok {
+		if k.String() == "esc" && m.editorScr.layer == editorLayerList {
+			m.state = stateList
+			return m, nil
+		}
+		if k.String() == "ctrl+c" {
+			m.state = stateList
+			return m, nil
+		}
+	}
+
+	// Handle a completed save that was previously dispatched back to us
+	if saved, ok := msg.(editorSavedMsg); ok {
+		_ = saved
+		// Sync the live model with what was written to disk
+		m.presets = deepCopyPresets(m.editorScr.presets)
+		m.presetSel.SetPresets(m.presets)
+		m.templates = deepCopyTemplates(m.editorScr.tmpls)
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.editorScr, cmd = m.editorScr.Update(msg)
+
+	return m, cmd
+}
+
 // isSafePathName returns true if name is safe to use as a filesystem path component.
 // It rejects empty names, dot-only names, and anything containing path separators
 // or backslashes that could be used to escape the intended directory.
@@ -429,4 +467,42 @@ func isSafePathName(name string) bool {
 		return false
 	}
 	return true
+}
+
+// ---------------------------------------------------------------------------
+// Tmux-sessions tab handlers
+// ---------------------------------------------------------------------------
+
+func (m model) refreshTmuxSessions() model {
+	m.tmuxSessions = tmux.ListSessions()
+	return m
+}
+
+func (m model) updateDeleteTmuxSession(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if k, ok := msg.(tea.KeyMsg); ok {
+		switch k.String() {
+		case "esc":
+			m.state = stateList
+			return m, nil
+		case "enter":
+			typed := strings.TrimSpace(m.confirmDelTmux.input.Value())
+			if typed != m.confirmDelTmux.sessionName {
+				m.confirmDelTmux.err = "name does not match — try again or esc to cancel"
+				m.confirmDelTmux.input.SetValue("")
+				return m, nil
+			}
+			if err := tmux.KillSession(m.confirmDelTmux.sessionName); err != nil {
+				m.confirmDelTmux.err = fmt.Sprintf("error: %v", err)
+				return m, nil
+			}
+			m = m.refreshTmuxSessions()
+			m = m.refreshTabList()
+			m.statusMsg = successStyle.Render(fmt.Sprintf("✓  session \"%s\" killed", m.confirmDelTmux.sessionName))
+			m.state = stateList
+			return m, nil
+		}
+	}
+	var cmd tea.Cmd
+	m.confirmDelTmux, cmd = m.confirmDelTmux.Update(msg)
+	return m, cmd
 }

@@ -85,6 +85,9 @@ func main() {
 	if fm.pendingLaunchReady {
 		tmux.LaunchWorkspace(fm.pendingLaunch, fm.pendingLaunchPreset)
 	}
+	if fm.pendingTmuxAttach != "" {
+		tmux.AttachSession(fm.pendingTmuxAttach)
+	}
 }
 
 // runSetup is the first-run configuration wizard.

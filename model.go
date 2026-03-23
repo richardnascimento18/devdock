@@ -50,6 +50,12 @@ type model struct {
 	spinnerScr       spinnerScreen
 	ptyScr           ptyScreen
 	confirmDelDomain confirmDeleteDomainScreen
+	editorScr        editorScreen
+	confirmDelTmux   confirmDeleteTmuxScreen
+
+	// tmux-sessions tab
+	tmuxSessions      []string
+	pendingTmuxAttach string // session name to attach after TUI exits
 
 	pendingProjectName string
 	pendingDomainName  string
@@ -137,6 +143,7 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 			key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "cycle root")),
 			key.NewBinding(key.WithKeys("p"), key.WithHelp("p/P", "preset")),
 			key.NewBinding(key.WithKeys("g"), key.WithHelp("g", "github")),
+			key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "editor")),
 		}
 	}
 	m.list = l
@@ -226,6 +233,12 @@ func (m model) refreshTabList() model {
 			if m.uiState.Favorites[p.Path] {
 				items = append(items, favoriteItem{project: p, showRoot: showRoot, verified: verified})
 			}
+		}
+		m.list.SetItems(items)
+	case TabTmux:
+		var items []list.Item
+		for _, s := range m.tmuxSessions {
+			items = append(items, tmuxSessionItem{name: s})
 		}
 		m.list.SetItems(items)
 	default: // TabSearch

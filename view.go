@@ -44,6 +44,10 @@ func (m model) View() string {
 		return m.inputScr.View(w, h)
 	case stateDeleteGroup:
 		return m.genericPicker.View(w, h)
+	case stateEditor:
+		return m.editorScr.View()
+	case stateDeleteTmuxSession:
+		return m.confirmDelTmux.View(w, h)
 	default:
 		return m.viewList(w, h)
 	}

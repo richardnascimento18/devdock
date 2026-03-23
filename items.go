@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/state"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type item struct {
@@ -192,3 +192,14 @@ func (e emptyGroupFlatItem) Title() string {
 }
 func (e emptyGroupFlatItem) Description() string { return "" }
 func (e emptyGroupFlatItem) FilterValue() string { return e.name }
+
+// tmuxSessionItem represents a live tmux session in the TabTmux list.
+type tmuxSessionItem struct{ name string }
+
+func (t tmuxSessionItem) Title() string {
+	bullet := lipgloss.NewStyle().Foreground(colorGreen).Bold(true).Render("● ")
+	name := lipgloss.NewStyle().Bold(true).Foreground(colorWhite).Render(t.name)
+	return bullet + name
+}
+func (t tmuxSessionItem) Description() string { return "" }
+func (t tmuxSessionItem) FilterValue() string { return t.name }
