@@ -11,3 +11,7 @@ Initial staging bootstrap CI run [36932002634](https://github.com/richardnascime
 Pre-flight found existing v1.1.0-beta in addition to v1.0.0-beta. The owner explicitly chose 1.1.0-beta.1 for the rehearsal, preserving both tags/releases. Publication remains disabled for the production bootstrap.
 
 The live rejection probe exposed shared check-context results on two PRs with the same head. Integration and production now use separate source/aggregate names; production requires Production validation plus Production source validation. The diagnostic was closed without merging, and the correction uses another protected hardening PR.
+
+## Completed live rehearsal
+
+The preceding candidate logs are historical bootstrap validation (VERSION was 0.1.0-dev.1; that version was never published). The live rehearsal published v1.1.0-beta.1 from exact commit e61a26f5b4ad69b0d7c0891e28532d7577f64e1b. Refreshed local logs under `live/` validate that released checkout; hosted run JSON records exact candidate SHAs for subsequent PRs. Publication was skipped during production bootstrap, then enabled after protection/environment/OAuth setup. The final default is production and legacy main has been deleted. Downloaded GitHub assets, checksums, metadata, rulesets and PR/run outcomes are preserved in `live/`; no Client ID value or Client Secret is included. See the live engineering report for sequencing and limitations.

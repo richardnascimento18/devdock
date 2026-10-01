@@ -1,0 +1,30 @@
+{
+  "amd64": {
+    "sha256": "99454b86788d89f0d0e49dcecfe4057f8f6c6469887bd5c6fc42e69e55aa154c",
+    "go": "go1.27.1",
+    "os": "linux",
+    "arch": "amd64",
+    "static": true,
+    "trimpath": true,
+    "public_client_id_embedded": true,
+    "version": "1.1.0-beta.1",
+    "commit": "e61a26f5b4ad69b0d7c0891e28532d7577f64e1b",
+    "build_date": "2026-10-01T23:07:20Z",
+    "native_execution": true,
+    "version_output": "DevDock 1.1.0-beta.1 (commit e61a26f5b4ad69b0d7c0891e28532d7577f64e1b, built 2026-10-01T23:07:20Z)",
+    "smoke": "PASS: isolated TUI startup, project rendering, flat view, root switching, favorite toggle, editor, OAuth screen, cancellation, shutdown\nCaptured terminal bytes: 29612"
+  },
+  "arm64": {
+    "sha256": "a4f2e933a6e0eb653a0c95f95f22badbd3eb1123036043541187dfc829b2b445",
+    "go": "go1.27.1",
+    "os": "linux",
+    "arch": "arm64",
+    "static": true,
+    "trimpath": true,
+    "public_client_id_embedded": true,
+    "version": "1.1.0-beta.1",
+    "commit": "e61a26f5b4ad69b0d7c0891e28532d7577f64e1b",
+    "build_date": "2026-10-01T23:07:20Z",
+    "native_execution": false
+  }
+}

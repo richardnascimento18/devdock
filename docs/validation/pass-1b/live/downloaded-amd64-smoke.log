@@ -1,0 +1,2 @@
+PASS: isolated TUI startup, project rendering, flat view, root switching, favorite toggle, editor, OAuth screen, cancellation, shutdown
+Captured terminal bytes: 29612
