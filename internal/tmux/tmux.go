@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,143 +12,171 @@ import (
 	"github.com/richardnascimento18/devdock/internal/preset"
 )
 
-func run(args ...string) error {
+var ErrNoSession = errors.New("no tmux session")
+
+type Runner interface {
+	Run(...string) error
+	Output(...string) (string, error)
+}
+type Client struct{ Runner Runner }
+type processRunner struct{}
+
+func (processRunner) Run(args ...string) error {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		return fmt.Errorf("tmux is required: %w", err)
+	}
 	cmd := exec.Command("tmux", args...)
+	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
 	return cmd.Run()
 }
-
-func runOutput(args ...string) (string, error) {
-	cmd := exec.Command("tmux", args...)
-	out, err := cmd.Output()
+func (processRunner) Output(args ...string) (string, error) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		return "", fmt.Errorf("tmux is required: %w", err)
+	}
+	out, err := exec.Command("tmux", args...).CombinedOutput()
+	if err != nil && len(args) > 0 && (args[0] == "has-session" || args[0] == "list-sessions") {
+		message := string(out)
+		if strings.Contains(message, "can't find session") || strings.Contains(message, "no server running") || strings.Contains(message, "No such file or directory") {
+			return "", ErrNoSession
+		}
+	}
 	return string(out), err
 }
-
-func LaunchWorkspace(p core.Project, ps preset.Preset) {
-	if len(ps.Windows) == 0 {
-		ps = preset.DefaultPresets[0]
+func NewClient() Client { return Client{Runner: processRunner{}} }
+func (c Client) run(args ...string) error {
+	if err := c.Runner.Run(args...); err != nil {
+		return fmt.Errorf("tmux %s: %w", args[0], err)
 	}
-	session := sanitizeTmuxName(fmt.Sprintf("%s-%s", p.Domain, p.Name))
-	if exec.Command("tmux", "has-session", "-t", session).Run() == nil {
-		run("attach-session", "-t", session)
-		return
+	return nil
+}
+func (c Client) output(args ...string) (string, error) {
+	out, err := c.Runner.Output(args...)
+	if err != nil {
+		return "", fmt.Errorf("tmux %s: %w", args[0], err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+func LaunchWorkspace(p core.Project, ps preset.Preset) error {
+	return NewClient().LaunchWorkspace(p, ps)
+}
+func (c Client) LaunchWorkspace(p core.Project, ps preset.Preset) error {
+	if err := preset.ValidatePreset(ps); err != "" {
+		return fmt.Errorf("invalid preset: %s", err)
+	}
+	session := sanitizeTmuxName(p.Domain + "-" + p.Name)
+	_, err := c.output("has-session", "-t", "="+session)
+	if err == nil {
+		return c.AttachSession(session)
+	}
+	if !errors.Is(err, ErrNoSession) {
+		return err
 	}
 	first := ps.Windows[0]
-	firstName := sanitizeTmuxName(first.Name)
-	run("new-session", "-d", "-s", session, "-n", firstName, "-c", p.Path)
-	buildWindowLayout(session, first, p.Path)
-	for _, w := range ps.Windows[1:] {
-		run("new-window", "-t", session, "-n", sanitizeTmuxName(w.Name), "-c", p.Path)
-		buildWindowLayout(session, w, p.Path)
-	}
-	run("select-window", "-t", session+":"+firstName)
-	run("attach-session", "-t", session)
-}
-
-func buildWindowLayout(session string, w preset.Window, projectPath string) {
-	target := session + ":" + sanitizeTmuxName(w.Name)
-	if w.Layout != nil {
-		buildPaneTree(target, *w.Layout, projectPath, true)
-		run("select-layout", "-t", target, "tiled")
-		return
-	}
-	if w.Command != "" {
-		run("send-keys", "-t", target, w.Command, "C-m")
-	}
-}
-
-func buildPaneTree(target string, pl preset.PaneLayout, projectPath string, isFirst bool) {
-	if pl.IsLeaf() {
-		if pl.Command != "" {
-			run("send-keys", "-t", target, pl.Command, "C-m")
-		}
-		return
-	}
-	for i, child := range pl.Panes {
-		var paneTarget string
-		if i == 0 {
-			paneTarget = target
-		} else {
-			splitFlag := "-h"
-			if pl.Direction == "vertical" {
-				splitFlag = "-v"
-			}
-			args := []string{"split-window", splitFlag, "-t", target, "-c", projectPath}
-			if child.Size > 0 && child.Size < 100 {
-				args = append(args, "-p", strconv.Itoa(child.Size))
-			}
-			run(args...)
-			id, err := runOutput("display-message", "-t", target, "-p", "#{pane_id}")
-			if err == nil && len(id) > 0 {
-				paneTarget = sessionPart(target) + "." + trimNewline(id)
-			} else {
-				paneTarget = target
-			}
-		}
-		buildPaneTree(paneTarget, child, projectPath, i == 0)
-	}
-}
-
-func sessionPart(target string) string {
-	for i, c := range target {
-		if c == '.' {
-			return target[:i]
-		}
-	}
-	return target
-}
-
-func trimNewline(s string) string {
-	if len(s) > 0 && s[len(s)-1] == '\n' {
-		return s[:len(s)-1]
-	}
-	return s
-}
-
-// sanitizeTmuxName replaces characters that tmux interprets specially in target
-// names (. and :) with underscores so session and window names are unambiguous.
-func sanitizeTmuxName(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
-	for _, r := range s {
-		if r == '.' || r == ':' {
-			b.WriteRune('_')
-		} else {
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
-}
-
-// ListSessions returns the names of all active tmux sessions, or nil if tmux
-// is not running or not installed.
-func ListSessions() []string {
-	out, err := runOutput("list-sessions", "-F", "#{session_name}")
+	pane, err := c.output("new-session", "-d", "-P", "-F", "#{pane_id}", "-s", session, "-n", sanitizeTmuxName(first.Name), "-c", p.Path)
 	if err != nil {
+		return err
+	}
+	if err := c.buildWindow(first, pane, p.Path); err != nil {
+		return err
+	}
+	for _, w := range ps.Windows[1:] {
+		pane, err := c.output("new-window", "-P", "-F", "#{pane_id}", "-t", "="+session, "-n", sanitizeTmuxName(w.Name), "-c", p.Path)
+		if err != nil {
+			return err
+		}
+		if err := c.buildWindow(w, pane, p.Path); err != nil {
+			return err
+		}
+	}
+	if err := c.run("select-window", "-t", "="+session+":"+sanitizeTmuxName(first.Name)); err != nil {
+		return err
+	}
+	return c.AttachSession(session)
+}
+func (c Client) buildWindow(w preset.Window, pane, path string) error {
+	if !validPaneID(pane) {
+		return fmt.Errorf("tmux returned invalid pane ID")
+	}
+	if w.Layout != nil {
+		return c.buildPaneTree(pane, *w.Layout, path)
+	}
+	return c.sendCommand(pane, w.Command)
+}
+func (c Client) sendCommand(pane, command string) error {
+	if command == "" {
 		return nil
 	}
+	if err := c.run("send-keys", "-t", pane, "-l", "--", command); err != nil {
+		return err
+	}
+	return c.run("send-keys", "-t", pane, "Enter")
+}
+func (c Client) buildPaneTree(target string, layout preset.PaneLayout, path string) error {
+	if layout.IsLeaf() {
+		return c.sendCommand(target, layout.Command)
+	}
+	// Split siblings before recursing so nested children do not change which pane
+	// the next sibling splits. Pane IDs are globally unique tmux targets.
+	targets := []string{target}
+	for _, child := range layout.Panes[1:] {
+		flag := "-h"
+		if layout.Direction == "vertical" {
+			flag = "-v"
+		}
+		args := []string{"split-window", flag, "-P", "-F", "#{pane_id}", "-t", target, "-c", path}
+		if child.Size > 0 {
+			args = append(args, "-p", strconv.Itoa(child.Size))
+		}
+		pane, err := c.output(args...)
+		if err != nil {
+			return err
+		}
+		if !validPaneID(pane) {
+			return fmt.Errorf("tmux split returned invalid pane ID")
+		}
+		targets = append(targets, pane)
+	}
+	for i, child := range layout.Panes {
+		if err := c.buildPaneTree(targets[i], child, path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func validPaneID(id string) bool {
+	if !strings.HasPrefix(id, "%") {
+		return false
+	}
+	_, err := strconv.ParseUint(strings.TrimPrefix(id, "%"), 10, 64)
+	return err == nil
+}
+func sanitizeTmuxName(s string) string { return strings.NewReplacer(".", "_", ":", "_").Replace(s) }
+func ListSessions() ([]string, error)  { return NewClient().ListSessions() }
+func (c Client) ListSessions() ([]string, error) {
+	out, err := c.output("list-sessions", "-F", "#{session_name}")
+	if errors.Is(err, ErrNoSession) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
 	var sessions []string
-	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+	for _, line := range strings.Split(out, "\n") {
 		if line != "" {
 			sessions = append(sessions, line)
 		}
 	}
-	return sessions
+	return sessions, nil
 }
-
-// AttachSession attaches the current terminal to the named tmux session.
-// This replaces the current process image, so it must be called after the TUI
-// has fully torn down its alt-screen.
-func AttachSession(name string) {
-	run("attach-session", "-t", name)
+func AttachSession(name string) error { return NewClient().AttachSession(name) }
+func (c Client) AttachSession(name string) error {
+	action := "attach-session"
+	if os.Getenv("TMUX") != "" {
+		action = "switch-client"
+	}
+	return c.run(action, "-t", "="+name)
 }
-
-// KillSession destroys the named tmux session and all its windows.
-func KillSession(name string) error {
-	cmd := exec.Command("tmux", "kill-session", "-t", name)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
+func KillSession(name string) error { return NewClient().run("kill-session", "-t", "="+name) }

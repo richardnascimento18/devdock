@@ -22,7 +22,8 @@ import (
 func (m model) updateGitHubAuth(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyMsg); ok {
 		switch k.String() {
-		case "esc", "enter":
+		case "esc", "enter", "ctrl+c":
+			m.cancelAuth()
 			m.state = stateList
 			return m, nil
 		}

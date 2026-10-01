@@ -87,13 +87,25 @@ func main() {
 		return
 	}
 
+	fm.cancelAuth()
+	if fm.ptyScr.session != nil {
+		if err := fm.ptyScr.session.Close(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+	}
 	// Launch the workspace AFTER the TUI exits so the alt-screen is torn down
 	// and tmux can attach cleanly.
 	if fm.pendingLaunchReady {
-		tmux.LaunchWorkspace(fm.pendingLaunch, fm.pendingLaunchPreset)
+		if err := tmux.LaunchWorkspace(fm.pendingLaunch, fm.pendingLaunchPreset); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	}
 	if fm.pendingTmuxAttach != "" {
-		tmux.AttachSession(fm.pendingTmuxAttach)
+		if err := tmux.AttachSession(fm.pendingTmuxAttach); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	}
 }
 

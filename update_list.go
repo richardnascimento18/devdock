@@ -167,7 +167,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m = m.rescan()
 				var cmd tea.Cmd
 				if m.cfg.IsGitHubConnected() {
-					cmd = gh.CmdFetchRepos(m.cfg.GitHubToken)
+					cmd = m.fetchRepos()
 					m.statusMsg = dimStyle.Render("↻  refreshing GitHub repos...")
 				}
 				return m, cmd
@@ -410,22 +410,6 @@ func (m model) startRemoveRoot() (tea.Model, tea.Cmd) {
 	m.genericPicker = newGenericPicker("Select root to remove:", opts, "↑/↓  •  enter  •  esc")
 	m.state = stateRemoveRoot
 	return m, nil
-}
-
-func (m model) startGitHubAuth() (tea.Model, tea.Cmd) {
-	if m.cfg.IsGitHubConnected() {
-		m.statusMsg = dimStyle.Render("↻  refreshing GitHub repos...")
-		return m, gh.CmdFetchRepos(m.cfg.GitHubToken)
-	}
-	dc, err := gh.StartDeviceFlow()
-	if err != nil {
-		m.statusMsg = errorStyle.Render("✗  GitHub: " + err.Error())
-		return m, nil
-	}
-	m.deviceCode = dc
-	m.githubAuthScr = githubAuthScreen{userCode: dc.UserCode, verificationURI: dc.VerificationURI}
-	m.state = stateGitHubAuth
-	return m, gh.CmdPollForToken(dc)
 }
 
 func (m model) startMoveProject() model {

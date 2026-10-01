@@ -60,6 +60,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case gh.ReposLoadedMsg:
 		return m.handleGitHubReposLoaded(msg)
+	case gh.DeviceStartedMsg:
+		return m.handleDeviceStarted(msg)
 	case gh.AuthDoneMsg:
 		return m.handleGitHubAuthDone(msg)
 	case gh.RepoCreatedMsg:
@@ -138,6 +140,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // ---------------------------------------------------------------------------
 
 func (m model) handleGitHubReposLoaded(msg gh.ReposLoadedMsg) (tea.Model, tea.Cmd) {
+	if msg.ID != m.repoLoadID || !m.cfg.IsGitHubConnected() {
+		return m, nil
+	}
 	if msg.Err != nil {
 		m.statusMsg = errorStyle.Render("✗  GitHub: " + msg.Err.Error())
 		return m, nil
@@ -154,15 +159,24 @@ func (m model) handleGitHubReposLoaded(msg gh.ReposLoadedMsg) (tea.Model, tea.Cm
 }
 
 func (m model) handleGitHubAuthDone(msg gh.AuthDoneMsg) (tea.Model, tea.Cmd) {
+	if m.state != stateGitHubAuth || msg.ID != m.authID {
+		return m, nil
+	}
 	if msg.Err != nil {
 		m.githubAuthScr.err = msg.Err.Error()
 		return m, nil
 	}
+	proposed := m.cfg.Clone()
+	proposed.GitHubToken = msg.Token
+	proposed.GitHubUsername = msg.Username
+	if err := config.Save(proposed); err != nil {
+		m.githubAuthScr.err = "save credentials: " + err.Error()
+		return m, nil
+	}
+	m.cfg = proposed
 	m.githubAuthScr.done = true
-	m.cfg.GitHubToken = msg.Token
-	m.cfg.GitHubUsername = msg.Username
-	_ = config.Save(m.cfg)
-	return m, gh.CmdFetchRepos(msg.Token)
+	m.cancelAuth()
+	return m, m.fetchRepos()
 }
 
 func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cmd) {
@@ -420,7 +434,12 @@ func isSafePathName(name string) bool {
 // ---------------------------------------------------------------------------
 
 func (m model) refreshTmuxSessions() model {
-	m.tmuxSessions = tmux.ListSessions()
+	sessions, err := tmux.ListSessions()
+	if err != nil {
+		m.statusMsg = errorStyle.Render(err.Error())
+	} else {
+		m.tmuxSessions = sessions
+	}
 	return m
 }
 

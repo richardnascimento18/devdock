@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"strings"
 
 	"github.com/richardnascimento18/devdock/internal/config"
@@ -17,6 +18,11 @@ import (
 
 type model struct {
 	operationID uint64
+	authID      uint64
+	repoLoadID  uint64
+	authContext context.Context
+	authCancel  context.CancelFunc
+	authClient  authClient
 	cfg         config.Config
 	state       appState
 	list        list.Model
@@ -90,6 +96,7 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 
 	m := model{
 		cfg:                cfg,
+		repoLoadID:         1,
 		presets:            presets,
 		templates:          templates,
 		uiState:            uiSt.Clone(),
@@ -152,7 +159,7 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 
 func (m model) Init() tea.Cmd {
 	if m.cfg.IsGitHubConnected() {
-		return gh.CmdFetchRepos(m.cfg.GitHubToken)
+		return gh.CmdFetchRepos(m.cfg.GitHubToken, m.repoLoadID)
 	}
 	return nil
 }
