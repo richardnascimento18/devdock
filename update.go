@@ -25,73 +25,11 @@ type moveProjectDoneMsg struct {
 	err        error
 }
 
-func CmdMoveProject(p core.Project, destRoot, destDomain string) tea.Cmd {
+func CmdMoveProjectToPath(p core.Project, destPath, destRoot, destDomain string) tea.Cmd {
 	return func() tea.Msg {
-		destDomainPath := filepath.Join(destRoot, destDomain)
-		if err := os.MkdirAll(destDomainPath, 0o755); err != nil {
-			return moveProjectDoneMsg{err: err}
-		}
-		destPath := filepath.Join(destDomainPath, p.Name)
-		if err := os.Rename(p.Path, destPath); err != nil {
-			if err2 := copyDir(p.Path, destPath); err2 != nil {
-				return moveProjectDoneMsg{err: fmt.Errorf("move failed: %v (copy: %v)", err, err2)}
-			}
-			_ = os.RemoveAll(p.Path)
-		}
-		newP := p
-		newP.Path = destPath
-		newP.Domain = destDomain
-		newP.Root = destRoot
-		return moveProjectDoneMsg{newProject: newP}
+		next, err := core.MoveProject(p, destPath, destRoot, destDomain)
+		return moveProjectDoneMsg{newProject: next, err: err}
 	}
-}
-
-func CmdMoveProjectToPath(p core.Project, destPath string, destRoot, destDomain string) tea.Cmd {
-	return func() tea.Msg {
-		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-			return moveProjectDoneMsg{err: err}
-		}
-		if err := os.Rename(p.Path, destPath); err != nil {
-			if err2 := copyDir(p.Path, destPath); err2 != nil {
-				return moveProjectDoneMsg{err: fmt.Errorf("move failed: %v (copy: %v)", err, err2)}
-			}
-			_ = os.RemoveAll(p.Path)
-		}
-		newP := p
-		newP.Path = destPath
-		newP.Domain = destDomain
-		newP.Root = destRoot
-		return moveProjectDoneMsg{newProject: newP}
-	}
-}
-
-func copyDir(src, dst string) error {
-	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		// Check for symlinks before doing anything with the file.
-		// filepath.Walk resolves symlinks for directory entries, so we use
-		// Lstat on the original path to detect them.
-		linfo, lerr := os.Lstat(path)
-		if lerr != nil {
-			return lerr
-		}
-		if linfo.Mode()&os.ModeSymlink != 0 {
-			// Skip symlinks entirely to prevent following them outside the project.
-			return nil
-		}
-		rel, _ := filepath.Rel(src, path)
-		target := filepath.Join(dst, rel)
-		if info.IsDir() {
-			return os.MkdirAll(target, info.Mode())
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		return os.WriteFile(target, data, info.Mode())
-	})
 }
 
 // ---------------------------------------------------------------------------
@@ -194,8 +132,6 @@ func (m model) handleGitHubReposLoaded(msg gh.ReposLoadedMsg) (tea.Model, tea.Cm
 	}
 	m.githubRepos = msg.Repos
 	linked := gh.LinkProjectsToRepos(m.rawProjects, msg.Repos)
-	m.githubIndex = core.BuildGitHubIndex(linked)
-	m.nameIndex = core.BuildNameIndex(linked)
 	m.rawProjects = linked
 	m = m.rebuildList(true)
 	m.statusMsg = successStyle.Render(fmt.Sprintf("✓  GitHub: %d repos loaded", len(msg.Repos)))

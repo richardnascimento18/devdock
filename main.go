@@ -41,7 +41,7 @@ func main() {
 	if err := os.MkdirAll(config.Dir(), 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not create config dir: %v\n", err)
 	}
-	projects, err := core.ScanRoots(config.Dir(), cfg.ActiveRoots(), detect.CollectProjects)
+	projects, err := core.ScanRoots(cfg.ActiveRoots(), detect.CollectProjects)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

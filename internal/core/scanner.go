@@ -2,6 +2,8 @@ package core
 
 import (
 	"bufio"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,17 +11,20 @@ import (
 
 // ScanFunc collects projects from a domain directory.
 // Injected by the caller (using detect.CollectProjects) to avoid import cycles.
-type ScanFunc func(root, domain, domainPath string) []Project
+type ScanFunc func(root, domain, domainPath string) ([]Project, error)
 
 // ClassifyDirFunc classifies a directory as project/group/subgroup.
 // Injected by the caller (using detect.ClassifyDir) to avoid import cycles.
 type ClassifyDirFunc func(path string, depth int) ProjectKind
 
-func loadIgnoreList(root string) map[string]struct{} {
+func loadIgnoreList(root string) (map[string]struct{}, error) {
 	ignored := make(map[string]struct{})
 	f, err := os.Open(filepath.Join(root, ".ddignore"))
+	if os.IsNotExist(err) {
+		return ignored, nil
+	}
 	if err != nil {
-		return ignored
+		return ignored, err
 	}
 	defer f.Close()
 	sc := bufio.NewScanner(f)
@@ -28,9 +33,12 @@ func loadIgnoreList(root string) map[string]struct{} {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
+		if _, err := filepath.Match(line, ""); err != nil {
+			return nil, fmt.Errorf("invalid ignore pattern %q: %w", line, err)
+		}
 		ignored[line] = struct{}{}
 	}
-	return ignored
+	return ignored, sc.Err()
 }
 
 func isDomainIgnored(root, domainName string, ignored map[string]struct{}) bool {
@@ -50,8 +58,12 @@ func isDomainIgnored(root, domainName string, ignored map[string]struct{}) bool 
 }
 
 func ScanRoot(root string, collect ScanFunc) ([]Project, error) {
-	ignored := loadIgnoreList(root)
+	ignored, err := loadIgnoreList(root)
+	if err != nil {
+		return nil, fmt.Errorf("read .ddignore: %w", err)
+	}
 	var projects []Project
+	var failures []error
 	domains, err := os.ReadDir(root)
 	if err != nil {
 		return nil, err
@@ -65,26 +77,33 @@ func ScanRoot(root string, collect ScanFunc) ([]Project, error) {
 			continue
 		}
 		domainPath := filepath.Join(root, domainName)
-		projects = append(projects, collect(root, domainName, domainPath)...)
+		ps, err := collect(root, domainName, domainPath)
+		projects = append(projects, ps...)
+		if err != nil {
+			failures = append(failures, fmt.Errorf("domain %q: %w", domainPath, err))
+		}
 	}
-	return projects, nil
+	return projects, errors.Join(failures...)
 }
 
-func ScanRoots(configDir string, roots []string, collect ScanFunc) ([]Project, error) {
+func ScanRoots(roots []string, collect ScanFunc) ([]Project, error) {
 	var all []Project
+	var failures []error
 	for _, root := range roots {
 		ps, err := ScanRoot(root, collect)
 		if err != nil {
-			continue
+			failures = append(failures, fmt.Errorf("scan root %q: %w", root, err))
 		}
 		all = append(all, ps...)
 	}
-	SaveIndex(configDir, all)
-	return all, nil
+	return all, errors.Join(failures...)
 }
 
 func ScanDomainsInRoot(root string) ([]string, error) {
-	ignored := loadIgnoreList(root)
+	ignored, err := loadIgnoreList(root)
+	if err != nil {
+		return nil, fmt.Errorf("read .ddignore: %w", err)
+	}
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return nil, err
@@ -100,24 +119,6 @@ func ScanDomainsInRoot(root string) ([]string, error) {
 		domains = append(domains, e.Name())
 	}
 	return domains, nil
-}
-
-func BuildGitHubIndex(projects []Project) map[string]Project {
-	idx := make(map[string]Project)
-	for _, p := range projects {
-		if p.GitHubRepo != "" {
-			idx[p.GitHubRepo] = p
-		}
-	}
-	return idx
-}
-
-func BuildNameIndex(projects []Project) map[string]Project {
-	idx := make(map[string]Project)
-	for _, p := range projects {
-		idx[p.Name] = p
-	}
-	return idx
 }
 
 // GroupInfo describes a group found inside a domain directory.

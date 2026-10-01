@@ -2,6 +2,8 @@ package detect
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -306,24 +308,29 @@ func ClassifyDir(path string, depth int) core.ProjectKind {
 	return result
 }
 
-func CollectProjects(root, domain, domainPath string) []core.Project {
+func CollectProjects(root, domain, domainPath string) ([]core.Project, error) {
 	return collectAt(root, domain, domainPath, "", "", 0)
 }
 
-func collectAt(root, domain, dir, group, subgroup string, depth int) []core.Project {
+func collectAt(root, domain, dir, group, subgroup string, depth int) ([]core.Project, error) {
 	if depth > maxScanDepth {
-		return nil
+		return nil, nil
 	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("read %q: %w", dir, err)
 	}
 	var projects []core.Project
+	var failures []error
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
 		childPath := filepath.Join(dir, e.Name())
+		if _, err := os.ReadDir(childPath); err != nil {
+			failures = append(failures, fmt.Errorf("read %q: %w", childPath, err))
+			continue
+		}
 		kind := ClassifyDir(childPath, 0)
 		switch kind {
 		case core.KindProject:
@@ -350,9 +357,12 @@ func collectAt(root, domain, dir, group, subgroup string, depth int) []core.Proj
 			} else {
 				newSub = e.Name()
 			}
-			children := collectAt(root, domain, childPath, newGroup, newSub, depth+1)
+			children, err := collectAt(root, domain, childPath, newGroup, newSub, depth+1)
 			projects = append(projects, children...)
+			if err != nil {
+				failures = append(failures, err)
+			}
 		}
 	}
-	return projects
+	return projects, errors.Join(failures...)
 }

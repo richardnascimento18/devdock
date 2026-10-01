@@ -35,8 +35,6 @@ type model struct {
 	collapsedSubgroups map[string]bool
 
 	githubRepos   []gh.Repo
-	githubIndex   map[string]core.Project
-	nameIndex     map[string]core.Project
 	githubAuthScr githubAuthScreen
 	deviceCode    gh.DeviceCodeResponse
 	isFiltered    bool
@@ -102,7 +100,6 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 		rawProjects:        projects,
 		termW:              120,
 		termH:              40,
-		nameIndex:          core.BuildNameIndex(projects),
 	}
 	if m.collapsedGroups == nil {
 		m.collapsedGroups = make(map[string]bool)
@@ -176,7 +173,7 @@ func (m model) rescan() model {
 	var projects []core.Project
 	var err error
 	if m.isAllMode() {
-		projects, err = core.ScanRoots(config.Dir(), roots, collectFn)
+		projects, err = core.ScanRoots(roots, collectFn)
 	} else {
 		projects, err = core.ScanRoot(m.activeRoot(), collectFn)
 	}
@@ -189,8 +186,6 @@ func (m model) rescan() model {
 		verified = true
 	}
 	m.rawProjects = projects
-	m.nameIndex = core.BuildNameIndex(projects)
-	m.githubIndex = core.BuildGitHubIndex(projects)
 	m.isFiltered = false
 
 	items := m.buildListItems(projects, verified)
