@@ -150,16 +150,16 @@ func Load(configDir string) ([]Template, error) {
 	data, err := os.ReadFile(Path(configDir))
 	if os.IsNotExist(err) {
 		if writeErr := writeDefaults(configDir); writeErr != nil {
-			return DefaultTemplates, writeErr
+			return Clone(DefaultTemplates), writeErr
 		}
-		return DefaultTemplates, nil
+		return Clone(DefaultTemplates), nil
 	}
 	if err != nil {
-		return DefaultTemplates, fmt.Errorf("could not read templates.json: %w", err)
+		return Clone(DefaultTemplates), fmt.Errorf("could not read templates.json: %w", err)
 	}
 	var tf TemplateFile
 	if err := json.Unmarshal(data, &tf); err != nil {
-		return DefaultTemplates, fmt.Errorf(
+		return Clone(DefaultTemplates), fmt.Errorf(
 			"templates.json contains invalid JSON:\n  %v\n\nFalling back to built-in templates.", err,
 		)
 	}
@@ -168,7 +168,7 @@ func Load(configDir string) ([]Template, error) {
 		for _, e := range errs {
 			msg += "  - " + e + "\n"
 		}
-		return DefaultTemplates, fmt.Errorf("%s\nFalling back to built-in templates.", msg)
+		return Clone(DefaultTemplates), fmt.Errorf("%s\nFalling back to built-in templates.", msg)
 	}
 	return tf.Templates, nil
 }
@@ -360,4 +360,32 @@ func Run(t Template, domainPath, projectName string) (string, error) {
 func WriteDevDockMarkerFile(projectPath string) error {
 	content := "type = \"project\"\n"
 	return os.WriteFile(filepath.Join(projectPath, ".devdock"), []byte(content), 0o644)
+}
+
+// Save validates the entire proposed collection before committing it.
+func Save(configDir string, values []Template) error {
+	file := TemplateFile{Templates: values}
+	if errs := ValidateFile(file); len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "; "))
+	}
+	data, err := json.MarshalIndent(file, "", "    ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		return err
+	}
+	return fileutil.WriteFileAtomic(Path(configDir), data, 0o644)
+}
+
+func Clone(src []Template) []Template {
+	if src == nil {
+		return nil
+	}
+	dst := append([]Template{}, src...)
+	for i := range dst {
+		dst[i].Steps = append([]TemplateStep(nil), src[i].Steps...)
+		dst[i].PostSteps = append([]TemplateStep(nil), src[i].PostSteps...)
+	}
+	return dst
 }

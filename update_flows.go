@@ -546,11 +546,23 @@ func (m model) updateAddRoot(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputScr.err = "path cannot be empty"
 				return m, nil
 			}
-			m.cfg.AddRoot(path)
-			if err := config.Save(m.cfg); err != nil {
+			path, err := filepath.Abs(path)
+			if err != nil {
+				m.inputScr.err = err.Error()
+				return m, nil
+			}
+			info, err := os.Stat(path)
+			if err != nil || !info.IsDir() {
+				m.inputScr.err = "root must be an existing directory"
+				return m, nil
+			}
+			proposed := m.cfg.Clone()
+			proposed.AddRoot(path)
+			if err := config.Save(proposed); err != nil {
 				m.inputScr.err = fmt.Sprintf("error saving config: %v", err)
 				return m, nil
 			}
+			m.cfg = proposed
 			m.rootSel.SetRoots(m.cfg.ActiveRoots())
 			m = m.rescan()
 			m.state = stateList
@@ -591,11 +603,13 @@ func (m model) updateRemoveRoot(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if k.String() == "enter" {
 			root := m.cfg.ActiveRoots()[m.genericPicker.cursor]
-			m.cfg.RemoveRoot(root)
-			if err := config.Save(m.cfg); err != nil {
+			proposed := m.cfg.Clone()
+			proposed.RemoveRoot(root)
+			if err := config.Save(proposed); err != nil {
 				m.genericPicker.err = fmt.Sprintf("error saving config: %v", err)
 				return m, nil
 			}
+			m.cfg = proposed
 			m.rootSel.SetRoots(m.cfg.ActiveRoots())
 			m = m.rescan()
 			m.state = stateList

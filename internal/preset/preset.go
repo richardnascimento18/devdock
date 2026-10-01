@@ -86,13 +86,14 @@ func ValidatePreset(p Preset) string {
 	}
 	seen := map[string]bool{}
 	for i, w := range p.Windows {
-		if strings.TrimSpace(w.Name) == "" {
+		if strings.TrimSpace(w.Name) == "" || strings.ContainsAny(w.Name, "\n\r\x00") {
 			return fmt.Sprintf("preset %q: window at index %d has an empty name", p.Name, i)
 		}
-		if seen[w.Name] {
+		targetName := strings.NewReplacer(".", "_", ":", "_").Replace(w.Name)
+		if seen[targetName] {
 			return fmt.Sprintf("preset %q: duplicate window name %q", p.Name, w.Name)
 		}
-		seen[w.Name] = true
+		seen[targetName] = true
 		if w.Layout != nil {
 			if err := validatePaneLayout(*w.Layout, p.Name, w.Name); err != "" {
 				return err
@@ -103,6 +104,9 @@ func ValidatePreset(p Preset) string {
 }
 
 func validatePaneLayout(pl PaneLayout, presetName, winName string) string {
+	if pl.Size < 0 || pl.Size >= 100 {
+		return fmt.Sprintf("preset %q window %q: pane size must be 0..99", presetName, winName)
+	}
 	if !pl.IsLeaf() {
 		if pl.Direction != "horizontal" && pl.Direction != "vertical" {
 			return fmt.Sprintf("preset %q window %q: pane direction must be \"horizontal\" or \"vertical\", got %q",
@@ -145,16 +149,16 @@ func Load(configDir string) ([]Preset, error) {
 	data, err := os.ReadFile(presetsPath)
 	if os.IsNotExist(err) {
 		if writeErr := writeDefaults(configDir); writeErr != nil {
-			return DefaultPresets, writeErr
+			return Clone(DefaultPresets), writeErr
 		}
-		return DefaultPresets, nil
+		return Clone(DefaultPresets), nil
 	}
 	if err != nil {
-		return DefaultPresets, fmt.Errorf("could not read presets.json: %w", err)
+		return Clone(DefaultPresets), fmt.Errorf("could not read presets.json: %w", err)
 	}
 	var pf PresetFile
 	if err := json.Unmarshal(data, &pf); err != nil {
-		return DefaultPresets, fmt.Errorf(
+		return Clone(DefaultPresets), fmt.Errorf(
 			"presets.json contains invalid JSON:\n  %v\n\nFalling back to built-in presets.", err,
 		)
 	}
@@ -163,7 +167,7 @@ func Load(configDir string) ([]Preset, error) {
 		for _, e := range errs {
 			msg += "  - " + e + "\n"
 		}
-		return DefaultPresets, fmt.Errorf("%s\nFalling back to built-in presets.", msg)
+		return Clone(DefaultPresets), fmt.Errorf("%s\nFalling back to built-in presets.", msg)
 	}
 	return pf.Presets, nil
 }
@@ -190,4 +194,47 @@ func ByName(presets []Preset, name string) Preset {
 		return presets[0]
 	}
 	return DefaultPresets[0]
+}
+
+// Save validates the entire proposed collection before committing it.
+func Save(configDir string, values []Preset) error {
+	file := PresetFile{Presets: values}
+	if errs := ValidatePresetFile(file); len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "; "))
+	}
+	data, err := json.MarshalIndent(file, "", "    ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		return err
+	}
+	return fileutil.WriteFileAtomic(Path(configDir), data, 0o644)
+}
+
+func CloneLayout(src *PaneLayout) *PaneLayout {
+	if src == nil {
+		return nil
+	}
+	dst := *src
+	if src.Panes != nil {
+		dst.Panes = make([]PaneLayout, len(src.Panes))
+	}
+	for i := range src.Panes {
+		dst.Panes[i] = *CloneLayout(&src.Panes[i])
+	}
+	return &dst
+}
+func Clone(src []Preset) []Preset {
+	if src == nil {
+		return nil
+	}
+	dst := append([]Preset{}, src...)
+	for i := range dst {
+		dst[i].Windows = append([]Window(nil), src[i].Windows...)
+		for j := range dst[i].Windows {
+			dst[i].Windows[j].Layout = CloneLayout(src[i].Windows[j].Layout)
+		}
+	}
+	return dst
 }

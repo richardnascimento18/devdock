@@ -35,6 +35,10 @@ func init() {
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
+		if !os.IsNotExist(err) {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		cfg = runSetup()
 	}
 
@@ -65,7 +69,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, "")
 	}
 
-	uiSt := uistate.Load(config.Dir())
+	uiSt, stateErr := uistate.Load(config.Dir())
+	if stateErr != nil {
+		fmt.Fprintln(os.Stderr, stateErr)
+	}
 
 	m := newModel(projects, cfg, presets, templates, uiSt)
 	prog := tea.NewProgram(m, tea.WithAltScreen())
@@ -116,6 +123,11 @@ func runSetup() config.Config {
 		}
 	}
 
+	root, err = filepath.Abs(root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	info, serr := os.Stat(root)
 	if serr != nil || !info.IsDir() {
 		fmt.Fprintf(os.Stderr, "error: %q does not exist or is not a directory\n", root)
@@ -123,10 +135,10 @@ func runSetup() config.Config {
 	}
 
 	cfg := config.Config{Roots: []string{root}}
-	config.Save(cfg)
-
-	preset.Load(config.Dir())
-	tmpl.Load(config.Dir())
+	if err := config.Save(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
 	fmt.Println("DevDock configured!")
 	return cfg

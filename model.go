@@ -31,6 +31,7 @@ type model struct {
 	activeTab int
 
 	uiState            uistate.UIState
+	committedState     uistate.UIState
 	treeMode           bool
 	collapsedGroups    map[string]bool
 	collapsedSubgroups map[string]bool
@@ -91,7 +92,8 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 		cfg:                cfg,
 		presets:            presets,
 		templates:          templates,
-		uiState:            uiSt,
+		uiState:            uiSt.Clone(),
+		committedState:     uiSt.Clone(),
 		rootSel:            newRootSelector(roots),
 		presetSel:          newPresetSelector(presets, cfg.DefaultPreset),
 		treeMode:           uiSt.TreeMode,
@@ -158,12 +160,22 @@ func (m model) Init() tea.Cmd {
 func (m model) activeRoot() string { return m.rootSel.Selected() }
 func (m model) isAllMode() bool    { return m.activeRoot() == "" }
 
-func (m model) saveState() {
+func (m *model) saveState() bool {
 	m.uiState.CollapsedGroups = m.collapsedGroups
 	m.uiState.CollapsedSubgroups = m.collapsedSubgroups
 	m.uiState.TreeMode = m.treeMode
 	m.uiState.ActiveTab = m.activeTab
-	uistate.Save(config.Dir(), m.uiState)
+	if err := uistate.Save(config.Dir(), m.uiState); err != nil {
+		m.uiState = m.committedState.Clone()
+		m.collapsedGroups = m.uiState.CollapsedGroups
+		m.collapsedSubgroups = m.uiState.CollapsedSubgroups
+		m.treeMode = m.uiState.TreeMode
+		m.activeTab = m.uiState.ActiveTab
+		m.statusMsg = errorStyle.Render("save state: " + err.Error())
+		return false
+	}
+	m.committedState = m.uiState.Clone()
+	return true
 }
 
 func (m model) rescan() model {

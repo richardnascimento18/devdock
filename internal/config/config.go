@@ -2,6 +2,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -56,12 +57,17 @@ func Load() (Config, error) {
 	if cfg.Root != "" && len(cfg.Roots) == 0 {
 		cfg.Roots = []string{cfg.Root}
 		cfg.Root = ""
-		_ = Save(cfg)
+	}
+	if err := Validate(cfg); err != nil {
+		return Config{}, err
 	}
 	return cfg, nil
 }
 
 func Save(cfg Config) error {
+	if err := Validate(cfg); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(Dir(), 0o755); err != nil {
 		return err
 	}
@@ -90,3 +96,21 @@ func (c *Config) RemoveRoot(path string) {
 	}
 	c.Roots = filtered
 }
+
+func Validate(cfg Config) error {
+	seen := map[string]bool{}
+	for _, root := range cfg.ActiveRoots() {
+		if !filepath.IsAbs(root) || root != filepath.Clean(root) {
+			return fmt.Errorf("root %q must be an absolute, clean path", root)
+		}
+		if seen[root] {
+			return fmt.Errorf("duplicate root %q", root)
+		}
+		seen[root] = true
+	}
+	if (cfg.GitHubToken == "") != (cfg.GitHubUsername == "") {
+		return fmt.Errorf("GitHub token and username must be configured together")
+	}
+	return nil
+}
+func (c Config) Clone() Config { c.Roots = append([]string(nil), c.Roots...); return c }

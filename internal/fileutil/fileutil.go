@@ -1,31 +1,49 @@
 package fileutil
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 )
 
-// WriteFileAtomic writes data to path atomically using a temp file and rename,
-// preventing partial writes from corrupting the file on a crash.
-func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
-	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".tmp-*")
+// WriteFileAtomic syncs and closes an exclusive temporary file before rename.
+// Rename is the commit point: an error means the destination was not replaced.
+// Directory metadata durability across sudden power loss is filesystem-specific.
+func WriteFileAtomic(path string, data []byte, perm os.FileMode) (err error) {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".tmp-*")
 	if err != nil {
 		return err
 	}
-	tmpName := tmp.Name()
+	name := tmp.Name()
+	closed := false
+	committed := false
 	defer func() {
-		tmp.Close()
-		os.Remove(tmpName) // no-op if rename already succeeded
+		if !closed {
+			err = errors.Join(err, tmp.Close())
+		}
+		if !committed {
+			if cleanup := os.Remove(name); !os.IsNotExist(cleanup) {
+				err = errors.Join(err, cleanup)
+			}
+		}
 	}()
-	if err := tmp.Chmod(perm); err != nil {
+	if err = tmp.Chmod(perm); err != nil {
 		return err
 	}
-	if _, err := tmp.Write(data); err != nil {
+	if _, err = tmp.Write(data); err != nil {
 		return err
 	}
-	if err := tmp.Close(); err != nil {
+	if err = tmp.Sync(); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, path)
+	err = tmp.Close()
+	closed = true
+	if err != nil {
+		return err
+	}
+	if err = os.Rename(name, path); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }

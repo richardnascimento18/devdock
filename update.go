@@ -390,18 +390,14 @@ func (m model) updateEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Handle a completed save that was previously dispatched back to us
-	if saved, ok := msg.(editorSavedMsg); ok {
-		_ = saved
-		// Sync the live model with what was written to disk
-		m.presets = deepCopyPresets(m.editorScr.presets)
-		m.presetSel.SetPresets(m.presets)
-		m.templates = deepCopyTemplates(m.editorScr.tmpls)
-		return m, nil
-	}
-
 	var cmd tea.Cmd
+	revision := m.editorScr.revision
 	m.editorScr, cmd = m.editorScr.Update(msg)
+	if m.editorScr.revision != revision {
+		m.presets = deepCopyPresets(m.editorScr.presets)
+		m.templates = deepCopyTemplates(m.editorScr.tmpls)
+		m.presetSel.SetPresets(m.presets)
+	}
 
 	return m, cmd
 }

@@ -8,12 +8,13 @@ import (
 	"github.com/richardnascimento18/devdock/internal/detect"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
+	"github.com/richardnascimento18/devdock/internal/state"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const maxFavorites = 5
+const maxFavorites = state.MaxFavorites
 
 func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -69,7 +70,9 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if !wasAdded {
 						m.statusMsg = errorStyle.Render(fmt.Sprintf("★  favorites limit reached (%d max)", maxFavorites))
 					} else {
-						m.saveState()
+						if !m.saveState() {
+							return m, nil
+						}
 						if m.uiState.Favorites[projPath] {
 							m.statusMsg = successStyle.Render("★  added to favorites")
 						} else {
@@ -92,18 +95,22 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m = m.rescan()
 			return m, nil
 
-		case "p":
+		case "p", "P":
 			if !m.list.SettingFilter() {
-				m.presetSel.Next()
-				m.cfg.DefaultPreset = m.presetSel.SelectedName()
-				_ = config.Save(m.cfg)
-				return m, nil
-			}
-		case "P":
-			if !m.list.SettingFilter() {
-				m.presetSel.Prev()
-				m.cfg.DefaultPreset = m.presetSel.SelectedName()
-				_ = config.Save(m.cfg)
+				proposedSel := m.presetSel
+				if msg.String() == "p" {
+					proposedSel.Next()
+				} else {
+					proposedSel.Prev()
+				}
+				proposed := m.cfg.Clone()
+				proposed.DefaultPreset = proposedSel.SelectedName()
+				if err := config.Save(proposed); err != nil {
+					m.statusMsg = errorStyle.Render("save config: " + err.Error())
+					return m, nil
+				}
+				m.cfg = proposed
+				m.presetSel = proposedSel
 				return m, nil
 			}
 
