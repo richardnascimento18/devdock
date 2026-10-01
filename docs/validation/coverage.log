@@ -1,0 +1,11 @@
+ok  	github.com/richardnascimento18/devdock	0.025s	coverage: 33.2% of statements
+ok  	github.com/richardnascimento18/devdock/internal/config	(cached)	coverage: 63.2% of statements
+ok  	github.com/richardnascimento18/devdock/internal/core	0.004s	coverage: 69.2% of statements
+ok  	github.com/richardnascimento18/devdock/internal/detect	0.008s	coverage: 85.4% of statements
+ok  	github.com/richardnascimento18/devdock/internal/fileutil	(cached)	coverage: 76.9% of statements
+ok  	github.com/richardnascimento18/devdock/internal/github	5.007s	coverage: 56.3% of statements
+ok  	github.com/richardnascimento18/devdock/internal/preset	(cached)	coverage: 75.0% of statements
+ok  	github.com/richardnascimento18/devdock/internal/pty	(cached)	coverage: 81.6% of statements
+ok  	github.com/richardnascimento18/devdock/internal/state	0.003s	coverage: 78.4% of statements
+ok  	github.com/richardnascimento18/devdock/internal/template	0.005s	coverage: 79.9% of statements
+ok  	github.com/richardnascimento18/devdock/internal/tmux	(cached)	coverage: 61.6% of statements

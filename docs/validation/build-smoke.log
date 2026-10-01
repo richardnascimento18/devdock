@@ -1,0 +1,8 @@
+Built version 0.1.0-dev.1 at commit 28ddd36eec5606d3cc992e1d81ce134a485afa64
+devdock_0.1.0-dev.1_linux_amd64: OK
+devdock_0.1.0-dev.1_linux_arm64: OK
+DevDock 0.1.0-dev.1 (commit 28ddd36eec5606d3cc992e1d81ce134a485afa64, built 2026-10-01T20:39:05Z)
+dist/devdock_0.1.0-dev.1_linux_amd64: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=ub_5sEgdwsbwiTl_ppLN/TjC374mcmMx3KpRYtPc_/aT9hS4kizEKGkJ_kL2Mc/JFqNhgADZ7n-kq7dIv6x, BuildID[sha1]=79a6e32d4c21ef036a97851c79a1840bf013aa6c, stripped
+dist/devdock_0.1.0-dev.1_linux_arm64: ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically linked, Go BuildID=JhPe5PkLRafN58eyNLxx/FcZsZcEC7Uq39IvhEwVG/NN3JYFPbnLwTiBD03rxw/0MZhuQBQoaHlI0xVtvOn, BuildID[sha1]=4f69a9306cc8972ec15468040d9b2540bab71d3e, stripped
+PASS: isolated TUI startup, project rendering, flat view, root switching, favorite toggle, editor, missing OAuth ID error, cancellation, shutdown
+Captured terminal bytes: 29574
