@@ -61,3 +61,20 @@ func TestAuthPersistenceFailureKeepsActiveCredentials(t *testing.T) {
 		t.Fatal("failed credential save committed")
 	}
 }
+
+func TestAuthRetryIgnoresPreviousAttemptWhileNewScreenActive(t *testing.T) {
+	f := &fakeAuth{}
+	m := model{authClient: f}
+	first, cmd := m.startGitHubAuth()
+	m = first.(model)
+	old := cmd().(gh.DeviceStartedMsg)
+	m.cancelAuth()
+	next, _ := m.startGitHubAuth()
+	m = next.(model)
+	next, cmd = m.Update(gh.AuthDoneMsg{ID: old.ID, Token: "stale", Username: "stale"})
+	m = next.(model)
+	if m.state != stateGitHubAuth || m.cfg.GitHubToken != "" || cmd != nil {
+		t.Fatal("old response affected new attempt")
+	}
+	m.cancelAuth()
+}

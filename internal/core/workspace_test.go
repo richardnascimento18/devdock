@@ -171,3 +171,25 @@ func TestScanPartialFailure(t *testing.T) {
 		t.Fatal("invalid glob suppressed")
 	}
 }
+
+func TestMoveProjectUpdatesCurrentHierarchyMetadata(t *testing.T) {
+	source, destination := t.TempDir(), t.TempDir()
+	p, err := CreateProject(source, "apps", "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(destination, "tools", "group", "sub", "demo")
+	moved, err := MoveProject(p, path, destination, "tools")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if moved.Root != destination || moved.Domain != "tools" || moved.Group != "group" || moved.Subgroup != "sub" || moved.Path != path {
+		t.Fatalf("metadata: %+v", moved)
+	}
+	if _, err := MoveProject(moved, filepath.Join(destination, "different", "demo"), destination, "tools"); err == nil {
+		t.Fatal("move escaped selected domain")
+	}
+	if err := DeleteProject(Project{Root: destination, Domain: "tools", Path: filepath.Join(destination, "tools")}); err == nil {
+		t.Fatal("project deletion allowed entire domain")
+	}
+}

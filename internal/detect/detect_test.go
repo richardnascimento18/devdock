@@ -112,3 +112,50 @@ func TestCacheIsScopedAndOrderingStable(t *testing.T) {
 		t.Fatal("cached empty directory survived new scan")
 	}
 }
+
+func TestAllPrimaryMarkers(t *testing.T) {
+	for _, marker := range primaryMarkers {
+		t.Run(marker.file, func(t *testing.T) {
+			dir := t.TempDir()
+			name := marker.file
+			if name[0] == '*' {
+				name = "Demo" + name[1:]
+			}
+			if err := os.WriteFile(filepath.Join(dir, name), nil, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if labels := Languages(dir); !slices.Contains(labels, marker.label) {
+				t.Fatalf("marker %s: %v", marker.file, labels)
+			}
+			if kind := ClassifyDir(dir, 0); kind != core.KindProject {
+				t.Fatalf("marker %s classified %s", marker.file, kind)
+			}
+		})
+	}
+}
+func TestUnreadableDomainReturnsPartialProjects(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses filesystem permissions")
+	}
+	root := t.TempDir()
+	good := filepath.Join(root, "apps", "demo")
+	bad := filepath.Join(root, "blocked")
+	if err := os.MkdirAll(good, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(good, "go.mod"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(bad, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chmod(bad, 0o755); err != nil {
+			t.Error(err)
+		}
+	})
+	projects, err := core.ScanRoot(root, New().CollectProjects)
+	if err == nil || len(projects) != 1 {
+		t.Fatalf("unreadable domain: %v %v", projects, err)
+	}
+}

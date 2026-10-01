@@ -2,7 +2,9 @@ package github
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -104,5 +106,57 @@ func TestGitInitializationStopsAtEveryFailure(t *testing.T) {
 func TestCloneCollisionPreflight(t *testing.T) {
 	if err := CloneRepo("unused", t.TempDir()); err == nil {
 		t.Fatal("existing directory accepted")
+	}
+}
+
+func TestAPIPaginationAndPartialFailure(t *testing.T) {
+	calls := 0
+	client := &Client{APIBase: "https://example.invalid", HTTP: doerFunc(func(r *http.Request) (*http.Response, error) {
+		calls++
+		if r.Header.Get("Authorization") != "Bearer token" {
+			t.Error("missing authorization")
+		}
+		if r.URL.Query().Get("page") != fmt.Sprint(calls) {
+			t.Error("pagination")
+		}
+		if calls == 2 {
+			return response(500, "token must never appear in errors"), nil
+		}
+		repos := make([]Repo, 100)
+		data, err := json.Marshal(repos)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return response(200, string(data)), nil
+	})}
+	repos, err := client.FetchRepos(context.Background(), "token")
+	if err == nil || len(repos) != 100 || calls != 2 {
+		t.Fatalf("partial API failure: %d %v calls %d", len(repos), err, calls)
+	}
+}
+func TestCreateRepoAndUsername(t *testing.T) {
+	client := &Client{APIBase: "https://example.invalid", HTTP: doerFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path == "/user" {
+			return response(200, `{"login":"owner"}`), nil
+		}
+		var payload struct {
+			Name    string
+			Private bool
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		if r.Method != "POST" || payload.Name != "demo" || !payload.Private {
+			t.Error("wrong create request")
+		}
+		return response(201, `{"name":"demo","full_name":"owner/demo"}`), nil
+	})}
+	user, err := client.FetchUsername(context.Background(), "token")
+	if err != nil || user != "owner" {
+		t.Fatal(err)
+	}
+	repo, err := client.CreateRepo(context.Background(), "token", "demo", true)
+	if err != nil || repo.FullName != "owner/demo" {
+		t.Fatal(err)
 	}
 }

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"errors"
+	"github.com/richardnascimento18/devdock/internal/pty"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -212,5 +215,114 @@ func TestDomainCreationRefreshesSnapshot(t *testing.T) {
 	m = next.(model)
 	if len(m.workspaceDomains[root]) != 1 || m.workspaceDomains[root][0] != "new" {
 		t.Fatal("new domain absent from picker snapshot")
+	}
+}
+
+func TestFailedStateAndRootSavesKeepLiveState(t *testing.T) {
+	root := t.TempDir()
+	m := fixtureModel(t, root)
+	if !m.saveState() {
+		t.Fatal("initial state save")
+	}
+	path := filepath.Join(config.Dir(), "state.json")
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	m.uiState.ToggleFavorite(filepath.Join(root, "candidate"))
+	if m.saveState() || len(m.uiState.Favorites) != 0 {
+		t.Fatal("failed state save committed favorite")
+	}
+	if err := config.Save(m.cfg); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(config.Path()); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(config.Path(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	m.state = stateAddRoot
+	m.inputScr = newInputScreen("", "", "")
+	m.inputScr.input.SetValue(t.TempDir())
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = next.(model)
+	if len(m.cfg.Roots) != 1 || m.inputScr.err == "" {
+		t.Fatal("failed root save committed root")
+	}
+}
+func TestSnapshotKeepsStateForUnavailableRoots(t *testing.T) {
+	root := t.TempDir()
+	missing := filepath.Join(t.TempDir(), "missing")
+	m := fixtureModel(t, root)
+	m.cfg.Roots = append(m.cfg.Roots, missing)
+	m.uiState.ToggleFavorite(filepath.Join(missing, "apps", "demo"))
+	snapshot := scanWorkspace(m.cfg.Roots, nil)
+	if snapshot.err == nil {
+		t.Fatal("scan failure suppressed")
+	}
+	next, _ := m.handleScanResult(scanResultMsg{id: m.scanID, snapshot: snapshot})
+	m = next.(model)
+	if !m.uiState.Favorites[filepath.Join(missing, "apps", "demo")] {
+		t.Fatal("unavailable root state pruned")
+	}
+}
+func TestMainNavigationAndScreensRender(t *testing.T) {
+	root := t.TempDir()
+	if _, err := core.CreateProject(root, "apps", "demo"); err != nil {
+		t.Fatal(err)
+	}
+	m := fixtureModel(t, root)
+	for _, key := range []tea.KeyMsg{{Type: tea.KeyRunes, Runes: []rune("v")}, {Type: tea.KeyTab}, {Type: tea.KeyRunes, Runes: []rune("f")}, {Type: tea.KeyRunes, Runes: []rune("e")}, {Type: tea.KeyEsc}} {
+		next, _ := m.Update(key)
+		m = next.(model)
+		if m.View() == "" {
+			t.Fatal("empty screen")
+		}
+	}
+	if m.state != stateList {
+		t.Fatal("editor did not return to list")
+	}
+}
+
+func TestTemplateFailureNeverQueuesSuccessfulLaunch(t *testing.T) {
+	root := t.TempDir()
+	m := fixtureModel(t, root)
+	m.state = statePTYExecution
+	m.ptyScr = newPTYScreen(100, 40, nil, root, tmpl.Vars{ProjectPath: root}, nil, root, gh.Repo{})
+	next, cmd := m.Update(pty.ExitMsg{Err: errors.New("exit status 7")})
+	m = next.(model)
+	if m.pendingLaunchReady || m.state != stateList || cmd != nil || !strings.Contains(m.statusMsg, "failed") {
+		t.Fatal("template failure shown as success")
+	}
+}
+func TestSuccessfulMoveReconcilesFavoritesAndRecents(t *testing.T) {
+	root := t.TempDir()
+	p, err := core.CreateProject(root, "apps", "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := fixtureModel(t, root)
+	m.uiState.ToggleFavorite(p.Path)
+	m.uiState.AddRecent(p)
+	if !m.saveState() {
+		t.Fatal("save")
+	}
+	moved, err := core.MoveProject(p, filepath.Join(root, "tools", "demo"), root, "tools")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.moveTarget = p
+	m.state = stateMovingProject
+	next, _ := m.Update(moveProjectDoneMsg{newProject: moved})
+	m = next.(model)
+	if m.uiState.Favorites[p.Path] || !m.uiState.Favorites[moved.Path] || m.uiState.Recents[0].Path != moved.Path {
+		t.Fatal("move state stale")
+	}
+	loaded, err := state.Load(config.Dir())
+	if err != nil || !loaded.Favorites[moved.Path] {
+		t.Fatal("move state not persisted")
 	}
 }
