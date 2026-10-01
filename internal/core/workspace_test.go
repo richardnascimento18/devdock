@@ -193,3 +193,28 @@ func TestMoveProjectUpdatesCurrentHierarchyMetadata(t *testing.T) {
 		t.Fatal("project deletion allowed entire domain")
 	}
 }
+
+func TestIgnorePatternsDoNotInterpretRootAsGlob(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "root[")
+	if err := os.Mkdir(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, domain := range []string{"ignored", "visible"} {
+		if _, err := CreateProject(root, domain, "demo"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, ".ddignore"), []byte("ignored/\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	domains, err := ScanDomainsInRoot(root)
+	if err != nil || len(domains) != 1 || domains[0] != "visible" {
+		t.Fatalf("domains %v: %v", domains, err)
+	}
+	projects, err := ScanRoot(root, func(root, domain, path string) ([]Project, error) {
+		return []Project{{Name: "demo", Root: root, Domain: domain, Path: filepath.Join(path, "demo")}}, nil
+	})
+	if err != nil || len(projects) != 1 || projects[0].Domain != "visible" {
+		t.Fatalf("projects %v: %v", projects, err)
+	}
+}

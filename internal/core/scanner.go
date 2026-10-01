@@ -41,19 +41,12 @@ func loadIgnoreList(root string) (map[string]struct{}, error) {
 	return ignored, sc.Err()
 }
 
-func isDomainIgnored(root, domainName string, ignored map[string]struct{}) bool {
+func isDomainIgnored(domainName string, ignored map[string]struct{}) bool {
 	for pattern := range ignored {
-		if strings.Contains(pattern, "/") {
-			full := filepath.Join(root, domainName)
-			// Patterns were validated while loading .ddignore.
-			if matched, _ := filepath.Match(filepath.Join(root, pattern), full); matched {
-				return true
-			}
-		} else {
-			// Patterns were validated while loading .ddignore.
-			if matched, _ := filepath.Match(pattern, domainName); matched {
-				return true
-			}
+		// Patterns are root-relative; never interpret root path characters as glob syntax.
+		// Patterns were validated while loading .ddignore.
+		if matched, _ := filepath.Match(filepath.Clean(pattern), domainName); matched {
+			return true
 		}
 	}
 	return false
@@ -75,7 +68,7 @@ func ScanRoot(root string, collect ScanFunc) ([]Project, error) {
 			continue
 		}
 		domainName := domain.Name()
-		if isDomainIgnored(root, domainName, ignored) {
+		if isDomainIgnored(domainName, ignored) {
 			continue
 		}
 		domainPath := filepath.Join(root, domainName)
@@ -115,7 +108,7 @@ func ScanDomainsInRoot(root string) ([]string, error) {
 		if !e.IsDir() {
 			continue
 		}
-		if isDomainIgnored(root, e.Name(), ignored) {
+		if isDomainIgnored(e.Name(), ignored) {
 			continue
 		}
 		domains = append(domains, e.Name())
