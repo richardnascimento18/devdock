@@ -1,6 +1,7 @@
 package template
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -160,7 +161,7 @@ func Load(configDir string) ([]Template, error) {
 	var tf TemplateFile
 	if err := json.Unmarshal(data, &tf); err != nil {
 		return Clone(DefaultTemplates), fmt.Errorf(
-			"templates.json contains invalid JSON:\n  %v\n\nFalling back to built-in templates.", err,
+			"templates.json contains invalid JSON:\n  %v\n\nfalling back to built-in templates", err,
 		)
 	}
 	if errs := ValidateFile(tf); len(errs) > 0 {
@@ -168,22 +169,12 @@ func Load(configDir string) ([]Template, error) {
 		for _, e := range errs {
 			msg += "  - " + e + "\n"
 		}
-		return Clone(DefaultTemplates), fmt.Errorf("%s\nFalling back to built-in templates.", msg)
+		return Clone(DefaultTemplates), fmt.Errorf("%s\nfalling back to built-in templates", msg)
 	}
 	return tf.Templates, nil
 }
 
-func writeDefaults(configDir string) error {
-	tf := TemplateFile{Templates: DefaultTemplates}
-	data, err := json.MarshalIndent(tf, "", "    ")
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		return err
-	}
-	return fileutil.WriteFileAtomic(Path(configDir), data, 0o644)
-}
+func writeDefaults(configDir string) error { return Save(configDir, DefaultTemplates) }
 
 func ValidateFile(tf TemplateFile) []string {
 	var errs []string
@@ -297,7 +288,14 @@ func CommandOutput(rel, projectPath string) (*os.File, error) {
 }
 
 func ExecuteSteps(steps []TemplateStep, workDir string, vars Vars, interactive bool) error {
+	return ExecuteStepsContext(context.Background(), steps, workDir, vars, interactive)
+}
+
+func ExecuteStepsContext(ctx context.Context, steps []TemplateStep, workDir string, vars Vars, interactive bool) error {
 	for _, step := range steps {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		switch step.Type {
 		case "builtin":
 			if err := ExecuteBuiltin(step.Action, ExpandVars(step.Path, vars), vars.ProjectPath); err != nil {
@@ -308,7 +306,7 @@ func ExecuteSteps(steps []TemplateStep, workDir string, vars Vars, interactive b
 			if err != nil {
 				return err
 			}
-			cmd := exec.Command(args[0], args[1:]...)
+			cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 			cmd.Dir = workDir
 			cmd.Stdin = os.Stdin
 			cmd.Stdout = os.Stdout
@@ -364,6 +362,9 @@ func WriteDevDockMarkerFile(projectPath string) error {
 
 // Save validates the entire proposed collection before committing it.
 func Save(configDir string, values []Template) error {
+	if !filepath.IsAbs(configDir) {
+		return fmt.Errorf("configuration directory must be absolute")
+	}
 	file := TemplateFile{Templates: values}
 	if errs := ValidateFile(file); len(errs) > 0 {
 		return fmt.Errorf("%s", strings.Join(errs, "; "))

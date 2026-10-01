@@ -33,6 +33,9 @@ const (
 	stateDeleteGroup
 	stateEditor
 	stateDeleteTmuxSession
+	stateConfirmDeleteGroup
+	stateMovingProject
+	stateDeletingWorkspace
 )
 
 const (
@@ -43,3 +46,34 @@ const (
 )
 
 var tabNames = []string{"Search", "Recents", "Favorites", "tmux-sessions"}
+
+// Picker intent is independent of user-entered names.
+type rootPickerIntent uint8
+
+const (
+	rootForProject rootPickerIntent = iota
+	rootForCreateGroup
+	rootForDeleteGroup
+)
+
+type domainIntent uint8
+
+const (
+	domainForProject domainIntent = iota
+	domainOnly
+	domainForClone
+	domainForMove
+)
+
+type groupPhase uint8
+
+const (
+	groupPickDomain groupPhase = iota
+	groupEnterName
+)
+
+type groupWorkflow struct {
+	phase      groupPhase
+	domain     string
+	deletePath string
+}

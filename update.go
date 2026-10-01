@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -36,7 +35,24 @@ func CmdMoveProjectToPath(p core.Project, destPath, destRoot, destDomain string)
 // Update dispatcher
 // ---------------------------------------------------------------------------
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
+	defer func() {
+		if next, ok := result.(model); ok {
+			var commands []tea.Cmd
+			if cmd != nil {
+				commands = append(commands, cmd)
+			}
+			if next.scanRequested {
+				commands = append(commands, next.scanCommand())
+			}
+			if next.tmuxRefreshRequested {
+				commands = append(commands, next.tmuxRefreshCommand())
+			}
+			result = next
+			cmd = tea.Batch(commands...)
+		}
+	}()
+
 	if flow, ok := msg.(ptyFlowMsg); ok {
 		if m.state != statePTYExecution || flow.id != m.ptyScr.operationID {
 			if started, ok := flow.msg.(ptyStepStartMsg); ok {
@@ -52,12 +68,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if sz, ok := msg.(tea.WindowSizeMsg); ok {
 		m.termW = sz.Width
 		m.termH = sz.Height
-		m.list.SetWidth(min(sz.Width-10, 100))
+		m.list.SetWidth(max(1, min(sz.Width-10, 100)))
 		m.list.SetHeight(m.listHeight())
+		if m.state == statePTYExecution {
+			return m.updatePTYExecution(msg)
+		}
+		if m.state == stateEditor {
+			return m.updateEditor(msg)
+		}
 		return m, nil
 	}
 
 	switch msg := msg.(type) {
+	case deleteDoneMsg:
+		return m.handleDeleteDone(msg)
+	case tmuxSessionsMsg:
+		return m.handleTmuxSessions(msg)
+	case tmuxKilledMsg:
+		return m.handleTmuxKilled(msg)
+	case scanResultMsg:
+		return m.handleScanResult(msg)
 	case gh.ReposLoadedMsg:
 		return m.handleGitHubReposLoaded(msg)
 	case gh.DeviceStartedMsg:
@@ -66,13 +96,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleGitHubAuthDone(msg)
 	case gh.RepoCreatedMsg:
 		return m.handleGitHubRepoCreated(msg)
+	case gitLinkedMsg:
+		return m.handleGitLinked(msg)
 	case gh.CloneDoneMsg:
 		return m.handleGitCloneDone(msg)
 	case moveProjectDoneMsg:
 		return m.handleMoveProjectDone(msg)
 	case spinnerTickMsg:
+		if msg.id != m.spinnerID || !m.loading() || len(m.spinnerScr.frames) == 0 {
+			return m, nil
+		}
 		m.spinnerScr.frame = (m.spinnerScr.frame + 1) % len(m.spinnerScr.frames)
-		return m, spinnerTick()
+		return m, spinnerTick(m.spinnerID)
 	}
 
 	switch m.state {
@@ -94,7 +129,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateAskCreateGitHub(msg)
 	case stateAskRepoPrivacy:
 		return m.updateAskRepoPrivacy(msg)
-	case stateCreatingGitHub, stateCloningRepo:
+	case stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
 		return m, nil
 	case statePickTemplate:
 		return m.updatePickTemplate(msg)
@@ -124,6 +159,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateHelp(msg)
 	case stateCreateGroup:
 		return m.updateCreateGroup(msg)
+	case stateConfirmDeleteGroup:
+		return m.updateConfirmDeleteGroup(msg)
 	case stateDeleteGroup:
 		return m.updateDeleteGroup(msg)
 	case stateEditor:
@@ -148,9 +185,7 @@ func (m model) handleGitHubReposLoaded(msg gh.ReposLoadedMsg) (tea.Model, tea.Cm
 		return m, nil
 	}
 	m.githubRepos = msg.Repos
-	linked := gh.LinkProjectsToRepos(m.rawProjects, msg.Repos)
-	m.rawProjects = linked
-	m = m.rebuildList(true)
+	m = m.rescan()
 	m.statusMsg = successStyle.Render(fmt.Sprintf("✓  GitHub: %d repos loaded", len(msg.Repos)))
 	if m.state == stateGitHubAuth {
 		m.state = stateList
@@ -180,6 +215,9 @@ func (m model) handleGitHubAuthDone(msg gh.AuthDoneMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cmd) {
+	if m.state != stateCreatingGitHub {
+		return m, nil
+	}
 	if msg.Err != nil {
 		m.statusMsg = errorStyle.Render("✗  GitHub repo creation failed: " + msg.Err.Error())
 		m.state = stateList
@@ -189,29 +227,21 @@ func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cm
 	m.pendingGHRepo = msg.Repo
 
 	if m.pendingTemplate != nil {
-		domainPath := filepath.Join(m.pendingRoot, m.pendingDomain)
 		vars := tmpl.Vars{
 			ProjectName: m.pendingProjectName,
 			Domain:      m.pendingDomain,
 			Root:        m.pendingRoot,
 		}
-		var projectPath, workDir string
-		if m.pendingTemplate.CreatesProjectFolder {
-			vars.ProjectPath = filepath.Join(domainPath, m.pendingProjectName)
-			projectPath = vars.ProjectPath
-			workDir = domainPath
-		} else {
-			projectPath = filepath.Join(domainPath, m.pendingProjectName)
-			if err := os.MkdirAll(projectPath, 0o755); err != nil {
-				m.statusMsg = errorStyle.Render(fmt.Sprintf("✗  Could not create project directory: %v", err))
-				m.state = stateList
-				return m, nil
-			}
-			vars.ProjectPath = projectPath
-			workDir = projectPath
+		projectPath, workDir, err := core.PrepareProject(vars.Root, vars.Domain, vars.ProjectName, m.pendingTemplate.CreatesProjectFolder)
+		if err != nil {
+			m.statusMsg = errorStyle.Render("create project: " + err.Error())
+			m.state = stateList
+			return m, nil
 		}
+		vars.ProjectPath = projectPath
 		m.ptyScr = newPTYScreen(m.termW, m.termH, m.pendingTemplate, projectPath, vars,
 			m.pendingTemplate.Steps, workDir, msg.Repo)
+		m.pendingLaunchPreset = m.pendingPreset
 		m.operationID++
 		m.ptyScr.operationID = m.operationID
 		m.state = statePTYExecution
@@ -224,21 +254,19 @@ func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cm
 		m.state = stateList
 		return m, nil
 	}
-	if err := gh.InitRepoWithRemote(p.Path, msg.Repo.CloneURL); err != nil {
-		m.statusMsg = errorStyle.Render("✗  git init error: " + err.Error())
+	if err := tmpl.WriteDevDockMarkerFile(p.Path); err != nil {
+		m.statusMsg = errorStyle.Render(err.Error())
+		m.state = stateList
+		return m, nil
 	}
 	p.GitHubRepo = msg.Repo.FullName
-	m = m.rescan()
-	m.state = stateList
-	m.uiState.AddRecent(p)
-	m.saveState()
-	m.pendingLaunch = p
-	m.pendingLaunchReady = true
-	m.pendingLaunchPreset = m.pendingPreset
-	return m, tea.Quit
+	return m, func() tea.Msg { return gitLinkedMsg{project: p, err: gh.InitRepoWithRemote(p.Path, msg.Repo.CloneURL)} }
 }
 
 func (m model) handleGitCloneDone(msg gh.CloneDoneMsg) (tea.Model, tea.Cmd) {
+	if m.state != stateCloningRepo {
+		return m, nil
+	}
 	if msg.Err != nil {
 		m.statusMsg = errorStyle.Render("✗  clone failed: " + msg.Err.Error())
 		m.state = stateList
@@ -255,8 +283,17 @@ func (m model) handleGitCloneDone(msg gh.CloneDoneMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd) {
+	if m.state != stateMovingProject {
+		return m, nil
+	}
 	if msg.err != nil {
 		m.statusMsg = errorStyle.Render("✗  move failed: " + msg.err.Error())
+		m.state = stateList
+		return m, nil
+	}
+	m.uiState.MoveProject(m.moveTarget.Path, msg.newProject)
+	if !m.saveState() {
+		m = m.rescan()
 		m.state = stateList
 		return m, nil
 	}
@@ -271,7 +308,7 @@ func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd
 // ---------------------------------------------------------------------------
 
 func (m model) openMoveDestDomainPicker() model {
-	domains, _ := core.ScanDomainsInRoot(m.pendingRoot)
+	domains := m.workspaceDomains[m.pendingRoot]
 	opts := append(append([]string{}, domains...), createNewDomainOption)
 	m.genericPicker = newGenericPicker(
 		fmt.Sprintf("Move \"%s\" — destination domain:", m.moveTarget.Name),
@@ -283,7 +320,7 @@ func (m model) openMoveDestDomainPicker() model {
 
 func (m model) openMovePlacementPicker(destRoot, destDomain string) model {
 	domainPath := filepath.Join(destRoot, destDomain)
-	groups := core.ScanGroupsInDomain(domainPath, classifyFn)
+	groups := m.workspaceGroups[domainPath]
 
 	var opts []movePlacementOption
 	opts = append(opts, movePlacementOption{
@@ -326,7 +363,7 @@ func (m model) openMovePlacementPicker(destRoot, destDomain string) model {
 }
 
 func (m model) openDomainPickerForClone() model {
-	domains, _ := core.ScanDomainsInRoot(m.pendingRoot)
+	domains := m.workspaceDomains[m.pendingRoot]
 	opts := append(append([]string{}, domains...), createNewDomainOption)
 	m.genericPicker = newGenericPicker(
 		fmt.Sprintf("Clone \"%s\" — select domain:", m.pendingGHRepo.Name),
@@ -337,11 +374,11 @@ func (m model) openDomainPickerForClone() model {
 }
 
 func (m model) openDomainPicker(root, projectName string) (model, tea.Cmd) {
-	domains, _ := core.ScanDomainsInRoot(root)
+	domains := m.workspaceDomains[root]
 	existing := map[string]bool{}
-	for _, it := range m.allItems {
-		if p, ok := it.(item); ok && p.project.Name == projectName && p.project.Root == root {
-			existing[p.project.Domain] = true
+	for _, p := range m.rawProjects {
+		if p.Name == projectName && p.Root == root {
+			existing[p.Domain] = true
 		}
 	}
 	m.pendingProjectName = projectName
@@ -419,31 +456,16 @@ func (m model) updateEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
 // isSafePathName returns true if name is safe to use as a filesystem path component.
 // It rejects empty names, dot-only names, and anything containing path separators
 // or backslashes that could be used to escape the intended directory.
-func isSafePathName(name string) bool {
-	if name == "" || name == "." || name == ".." {
-		return false
-	}
-	if strings.ContainsAny(name, "/\\") {
-		return false
-	}
-	return true
-}
+func isSafePathName(name string) bool { return core.ValidName(name) }
 
 // ---------------------------------------------------------------------------
 // Tmux-sessions tab handlers
 // ---------------------------------------------------------------------------
 
-func (m model) refreshTmuxSessions() model {
-	sessions, err := tmux.ListSessions()
-	if err != nil {
-		m.statusMsg = errorStyle.Render(err.Error())
-	} else {
-		m.tmuxSessions = sessions
-	}
-	return m
-}
-
 func (m model) updateDeleteTmuxSession(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.tmuxDeleting {
+		return m, nil
+	}
 	if k, ok := msg.(tea.KeyMsg); ok {
 		switch k.String() {
 		case "esc":
@@ -456,18 +478,38 @@ func (m model) updateDeleteTmuxSession(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.confirmDelTmux.input.SetValue("")
 				return m, nil
 			}
-			if err := tmux.KillSession(m.confirmDelTmux.sessionName); err != nil {
-				m.confirmDelTmux.err = fmt.Sprintf("error: %v", err)
-				return m, nil
-			}
-			m = m.refreshTmuxSessions()
-			m = m.refreshTabList()
-			m.statusMsg = successStyle.Render(fmt.Sprintf("✓  session \"%s\" killed", m.confirmDelTmux.sessionName))
-			m.state = stateList
-			return m, nil
+			name := m.confirmDelTmux.sessionName
+			m.tmuxDeleting = true
+			return m, func() tea.Msg { return tmuxKilledMsg{name: name, err: tmux.KillSession(name)} }
 		}
 	}
 	var cmd tea.Cmd
 	m.confirmDelTmux, cmd = m.confirmDelTmux.Update(msg)
 	return m, cmd
+}
+
+func (m model) loading() bool {
+	return m.state == stateCreatingGitHub || m.state == stateCloningRepo || m.state == stateMovingProject || m.state == stateDeletingWorkspace
+}
+
+type gitLinkedMsg struct {
+	project core.Project
+	err     error
+}
+
+func (m model) handleGitLinked(msg gitLinkedMsg) (tea.Model, tea.Cmd) {
+	if m.state != stateCreatingGitHub {
+		return m, nil
+	}
+	if msg.err != nil {
+		m.statusMsg = errorStyle.Render("git setup failed: " + msg.err.Error())
+		m.state = stateList
+		return m.rescan(), nil
+	}
+	m.uiState.AddRecent(msg.project)
+	m.saveState()
+	m.pendingLaunch = msg.project
+	m.pendingLaunchReady = true
+	m.pendingLaunchPreset = m.pendingPreset
+	return m, tea.Quit
 }

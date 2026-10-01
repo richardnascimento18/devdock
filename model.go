@@ -17,22 +17,33 @@ import (
 )
 
 type model struct {
-	operationID uint64
-	authID      uint64
-	repoLoadID  uint64
-	authContext context.Context
-	authCancel  context.CancelFunc
-	authClient  authClient
-	cfg         config.Config
-	state       appState
-	list        list.Model
-	allItems    []list.Item
-	rootSel     rootSelectorWidget
-	presetSel   presetSelectorWidget
-	presets     []preset.Preset
-	templates   []tmpl.Template
-	termW       int
-	termH       int
+	tmuxRefreshRequested bool
+	tmuxRefreshID        uint64
+	tmuxDeleting         bool
+	spinnerID            uint64
+	scanRequested        bool
+	scanID               uint64
+	workspaceGroups      map[string][]core.GroupInfo
+	workspaceDomains     map[string][]string
+	rootIntent           rootPickerIntent
+	domainIntent         domainIntent
+	groupFlow            groupWorkflow
+	operationID          uint64
+	authID               uint64
+	repoLoadID           uint64
+	authContext          context.Context
+	authCancel           context.CancelFunc
+	authClient           authClient
+	cfg                  config.Config
+	state                appState
+	list                 list.Model
+	allItems             []list.Item
+	rootSel              rootSelectorWidget
+	presetSel            presetSelectorWidget
+	presets              []preset.Preset
+	templates            []tmpl.Template
+	termW                int
+	termH                int
 
 	activeTab int
 
@@ -178,43 +189,12 @@ func (m *model) saveState() bool {
 		m.collapsedSubgroups = m.uiState.CollapsedSubgroups
 		m.treeMode = m.uiState.TreeMode
 		m.activeTab = m.uiState.ActiveTab
+		*m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 		m.statusMsg = errorStyle.Render("save state: " + err.Error())
 		return false
 	}
 	m.committedState = m.uiState.Clone()
 	return true
-}
-
-func (m model) rescan() model {
-	roots := m.cfg.ActiveRoots()
-	if len(roots) == 0 {
-		return m
-	}
-	var projects []core.Project
-	var err error
-	if m.isAllMode() {
-		projects, err = core.ScanRoots(roots, collectFn)
-	} else {
-		projects, err = core.ScanRoot(m.activeRoot(), collectFn)
-	}
-	if err != nil {
-		return m
-	}
-	verified := false
-	if m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0 {
-		projects = gh.LinkProjectsToRepos(projects, m.githubRepos)
-		verified = true
-	}
-	m.rawProjects = projects
-	m.isFiltered = false
-
-	items := m.buildListItems(projects, verified)
-	if len(m.githubRepos) > 0 {
-		items = m.appendGitHubItems(items, projects)
-	}
-	m.allItems = items
-	m = m.refreshTabList()
-	return m
 }
 
 func (m model) appendGitHubItems(items []list.Item, projects []core.Project) []list.Item {
@@ -238,6 +218,9 @@ func (m model) refreshTabList() model {
 	case TabRecents:
 		var items []list.Item
 		for _, r := range m.uiState.Recents {
+			if !m.isAllMode() && r.Root != m.activeRoot() {
+				continue
+			}
 			items = append(items, recentItem{entry: r})
 		}
 		m.list.SetItems(items)
@@ -245,7 +228,7 @@ func (m model) refreshTabList() model {
 		var items []list.Item
 		showRoot := m.isAllMode() && len(m.cfg.ActiveRoots()) > 1
 		for _, p := range m.rawProjects {
-			if m.uiState.Favorites[p.Path] {
+			if m.uiState.Favorites[p.Path] && (m.isAllMode() || p.Root == m.activeRoot()) {
 				items = append(items, favoriteItem{project: p, showRoot: showRoot, verified: verified})
 			}
 		}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -13,6 +12,7 @@ import (
 )
 
 func (m model) startCreateGroup() (tea.Model, tea.Cmd) {
+	m.groupFlow = groupWorkflow{}
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 0 {
 		m.statusMsg = errorStyle.Render("no roots configured")
@@ -29,13 +29,12 @@ func (m model) startCreateGroup() (tea.Model, tea.Cmd) {
 	}
 	m.genericPicker = newGenericPicker("Create Group — select root:", opts, "↑/↓  •  enter  •  esc")
 	m.state = statePickRoot
-	// reuse statePickRoot but we need to differentiate; use a sentinel
-	m.pendingProjectName = "__creategroup__"
+	m.rootIntent = rootForCreateGroup
 	return m, nil
 }
 
 func (m model) openDomainPickerForGroup() (tea.Model, tea.Cmd) {
-	domains, _ := core.ScanDomainsInRoot(m.pendingRoot)
+	domains := m.workspaceDomains[m.pendingRoot]
 	if len(domains) == 0 {
 		m.statusMsg = errorStyle.Render("no domains in this root — create a domain first (N)")
 		return m, nil
@@ -57,7 +56,7 @@ func (m model) updateCreateGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Phase 1: picking domain (genericPicker is active)
-		if m.pendingDomain == "" {
+		if m.groupFlow.phase == groupPickDomain {
 			switch k.String() {
 			case "up", "k":
 				if m.genericPicker.cursor > 0 {
@@ -70,9 +69,10 @@ func (m model) updateCreateGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			case "enter":
-				m.pendingDomain = m.genericPicker.options[m.genericPicker.cursor]
+				m.groupFlow.domain = m.genericPicker.options[m.genericPicker.cursor]
+				m.groupFlow.phase = groupEnterName
 				m.inputScr = newInputScreen(
-					fmt.Sprintf("New Group in \"%s/%s\" — enter name:", config.RootName(m.pendingRoot), m.pendingDomain),
+					fmt.Sprintf("New Group in \"%s/%s\" — enter name:", config.RootName(m.pendingRoot), m.groupFlow.domain),
 					"group-name", "enter confirm  •  esc cancel",
 				)
 				return m, nil
@@ -91,13 +91,8 @@ func (m model) updateCreateGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputScr.err = "name contains invalid characters (/ and \\ are not allowed)"
 				return m, nil
 			}
-			groupPath := filepath.Join(m.pendingRoot, m.pendingDomain, name)
-			if err := os.MkdirAll(groupPath, 0o755); err != nil {
-				m.inputScr.err = fmt.Sprintf("error: %v", err)
-				return m, nil
-			}
-			if err := os.WriteFile(filepath.Join(groupPath, ".ddgroup"), []byte{}, 0o644); err != nil {
-				m.inputScr.err = fmt.Sprintf("error: %v", err)
+			if err := core.CreateGroup(m.pendingRoot, m.groupFlow.domain, name); err != nil {
+				m.inputScr.err = err.Error()
 				return m, nil
 			}
 			m.pendingDomain = ""
@@ -109,7 +104,7 @@ func (m model) updateCreateGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Phase 2: delegate to inputScr
-	if m.pendingDomain != "" {
+	if m.groupFlow.phase == groupEnterName {
 		var cmd tea.Cmd
 		m.inputScr, cmd = m.inputScr.Update(msg)
 		return m, cmd
@@ -118,6 +113,7 @@ func (m model) updateCreateGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) startDeleteGroup() (tea.Model, tea.Cmd) {
+	m.groupFlow = groupWorkflow{}
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 0 {
 		m.statusMsg = errorStyle.Render("no roots configured")
@@ -132,17 +128,17 @@ func (m model) startDeleteGroup() (tea.Model, tea.Cmd) {
 		opts[i] = config.RootName(r)
 	}
 	m.genericPicker = newGenericPicker("Delete Group — select root:", opts, "↑/↓  •  enter  •  esc")
-	m.pendingProjectName = "__deletegroup__"
+	m.rootIntent = rootForDeleteGroup
 	m.state = statePickRoot
 	return m, nil
 }
 
 func (m model) openGroupPickerForDelete() (tea.Model, tea.Cmd) {
-	domains, _ := core.ScanDomainsInRoot(m.pendingRoot)
+	domains := m.workspaceDomains[m.pendingRoot]
 	var groups []string
 	for _, d := range domains {
 		domainPath := filepath.Join(m.pendingRoot, d)
-		gs := core.ScanGroupsInDomain(domainPath, classifyFn)
+		gs := m.workspaceGroups[domainPath]
 		for _, g := range gs {
 			groups = append(groups, d+"/"+g.Name)
 		}
@@ -174,26 +170,39 @@ func (m model) updateDeleteGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "enter":
+			if len(m.genericPicker.options) == 0 {
+				return m, nil
+			}
 			chosen := m.genericPicker.options[m.genericPicker.cursor]
-			parts := strings.SplitN(chosen, "/", 2)
-			if len(parts) != 2 {
+			m.groupFlow.deletePath = filepath.Join(m.pendingRoot, chosen)
+			if err := core.ValidateDescendant(m.pendingRoot, m.groupFlow.deletePath); err != nil {
+				m.genericPicker.err = err.Error()
 				return m, nil
 			}
-			domain, groupName := parts[0], parts[1]
-			groupPath := filepath.Join(m.pendingRoot, domain, groupName)
-			if !core.IsDescendant(m.pendingRoot, groupPath) {
-				m.genericPicker.err = "refusing to delete: path is outside configured root"
-				return m, nil
-			}
-			if err := os.RemoveAll(groupPath); err != nil {
-				m.genericPicker.err = fmt.Sprintf("error: %v", err)
-				return m, nil
-			}
-			m = m.rescan()
-			m.state = stateList
-			m.statusMsg = successStyle.Render(fmt.Sprintf("✓  group \"%s\" deleted", groupName))
+			m.inputScr = newInputScreen("Permanently delete group and ALL its projects? Type the full path:", m.groupFlow.deletePath, "type full path • enter confirm • esc cancel")
+			m.state = stateConfirmDeleteGroup
 			return m, nil
 		}
 	}
 	return m, nil
+}
+
+func (m model) updateConfirmDeleteGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok := msg.(tea.KeyMsg); ok {
+		switch key.String() {
+		case "esc", "ctrl+c":
+			m.state = stateList
+			m.groupFlow = groupWorkflow{}
+			return m, nil
+		case "enter":
+			if strings.TrimSpace(m.inputScr.input.Value()) != m.groupFlow.deletePath || m.groupFlow.deletePath == "" {
+				m.inputScr.err = "full path does not match"
+				return m, nil
+			}
+			return m.beginDelete(m.pendingRoot, m.groupFlow.deletePath)
+		}
+	}
+	var cmd tea.Cmd
+	m.inputScr, cmd = m.inputScr.Update(msg)
+	return m, cmd
 }

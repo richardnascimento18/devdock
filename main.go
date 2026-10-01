@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"github.com/richardnascimento18/devdock/internal/config"
-	"github.com/richardnascimento18/devdock/internal/core"
-	"github.com/richardnascimento18/devdock/internal/detect"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	uistate "github.com/richardnascimento18/devdock/internal/state"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
@@ -17,20 +15,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 )
-
-// classifyFn is used by openMovePlacementPicker in update.go.
-// collectFn and classifyFn bridge detect → core to avoid import cycles.
-
-var (
-	classifyFn core.ClassifyDirFunc
-	collectFn  core.ScanFunc
-)
-
-// Set here in main and injected where needed.
-func init() {
-	collectFn = detect.CollectProjects
-	classifyFn = detect.ClassifyDir
-}
 
 func main() {
 	cfg, err := config.Load()
@@ -45,10 +29,10 @@ func main() {
 	if err := os.MkdirAll(config.Dir(), 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not create config dir: %v\n", err)
 	}
-	projects, err := core.ScanRoots(cfg.ActiveRoots(), detect.CollectProjects)
+	snapshot := scanWorkspace(cfg.ActiveRoots(), nil)
+	projects, err := snapshot.projects, snapshot.err
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		fmt.Fprintln(os.Stderr, "workspace scan incomplete:", err)
 	}
 
 	presets, presetErr := preset.Load(config.Dir())
@@ -75,6 +59,12 @@ func main() {
 	}
 
 	m := newModel(projects, cfg, presets, templates, uiSt)
+	m.workspaceGroups = snapshot.groups
+	m.workspaceDomains = snapshot.domains
+	m = m.rebuildList(false)
+	if snapshot.err != nil {
+		m.statusMsg = errorStyle.Render(snapshot.err.Error())
+	}
 	prog := tea.NewProgram(m, tea.WithAltScreen())
 	finalModel, err := prog.Run()
 	if err != nil {

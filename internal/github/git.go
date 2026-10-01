@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"fmt"
 	"github.com/richardnascimento18/devdock/internal/core"
 	"net/url"
@@ -8,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func CloneRepo(cloneURL, destPath string) error {
@@ -22,45 +24,53 @@ func CloneRepo(cloneURL, destPath string) error {
 	return cmd.Run()
 }
 
-func InitRepoWithRemote(projectPath, remoteURL string) error {
-	run := func(args ...string) error {
-		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Dir = projectPath
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		return cmd.Run()
-	}
-	steps := [][]string{
-		{"git", "init"},
-		{"git", "remote", "add", "origin", remoteURL},
-		{"git", "checkout", "-b", "main"},
-	}
-	readmePath := filepath.Join(projectPath, "README.md")
-	if _, err := os.Stat(readmePath); os.IsNotExist(err) {
-		name := filepath.Base(projectPath)
-		if err := os.WriteFile(readmePath, []byte("# "+name+"\n"), 0o644); err != nil {
+// GitCommand is the subprocess boundary used by repository initialization.
+type GitCommand func(ctx context.Context, dir string, args ...string) error
+
+func runGit(ctx context.Context, dir string, args ...string) error {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+func InitRepoWithRemote(path, remote string) error {
+	return InitRepoWithRemoteContext(context.Background(), path, remote)
+}
+func InitRepoWithRemoteContext(ctx context.Context, path, remote string) error {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	return initRepo(ctx, path, remote, runGit)
+}
+func initRepo(ctx context.Context, path, remote string, run GitCommand) error {
+	readme := filepath.Join(path, "README.md")
+	if _, err := os.Lstat(readme); os.IsNotExist(err) {
+		if err := os.WriteFile(readme, []byte("# "+filepath.Base(path)+"\n"), 0o644); err != nil {
 			return fmt.Errorf("write README: %w", err)
 		}
+	} else if err != nil {
+		return fmt.Errorf("inspect README: %w", err)
 	}
-	steps = append(steps,
-		[]string{"git", "add", "."},
-		[]string{"git", "commit", "-m", "initial commit"},
-		[]string{"git", "push", "-u", "origin", "main"},
-	)
+	steps := [][]string{{"init"}, {"remote", "add", "origin", remote}, {"checkout", "-b", "main"}, {"add", "."}, {"commit", "-m", "initial commit"}, {"push", "-u", "origin", "main"}}
 	for _, args := range steps {
-		if err := run(args...); err != nil {
-			return fmt.Errorf("git %s: %w", args[1], err)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := run(ctx, path, args...); err != nil {
+			return fmt.Errorf("git %s: %w", args[0], err)
 		}
 	}
 	return nil
 }
 
 func DetectRemote(projectPath string) string {
-	cmd := exec.Command("git", "remote", "get-url", "origin")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", "remote", "get-url", "origin")
 	cmd.Dir = projectPath
 	out, err := cmd.Output()
 	if err != nil {
-		return ""
+		return "" // A project without an origin is a normal unlinked project.
 	}
 	return ParseRemote(strings.TrimSpace(string(out)))
 }

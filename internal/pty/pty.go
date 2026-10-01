@@ -1,6 +1,7 @@
 package pty
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -39,10 +40,15 @@ func isTerminalEOF(err error) bool {
 }
 
 func NewSession(args []string, workDir string) (*Session, error) {
+	return NewSessionContext(context.Background(), args, workDir)
+}
+
+func NewSessionContext(ctx context.Context, args []string, workDir string) (*Session, error) {
 	if len(args) == 0 || args[0] == "" {
 		return nil, fmt.Errorf("no command provided")
 	}
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	cmd.Dir = workDir
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
 	ptmx, err := terminal.StartWithSize(cmd, &terminal.Winsize{Rows: 40, Cols: 120})
@@ -73,7 +79,7 @@ func (s *Session) readOutput() {
 		}
 		if err != nil {
 			if !isTerminalEOF(err) {
-				_ = s.Close()
+				err = errors.Join(err, s.Close())
 			} // terminate child after a terminal read failure
 			<-s.waited
 			if isTerminalEOF(err) {

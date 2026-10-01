@@ -37,11 +37,17 @@ func RootName(root string) string {
 }
 
 func Dir() string {
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
 	return filepath.Join(home, ".config", "devdock")
 }
 
 func Path() string {
+	if Dir() == "" {
+		return ""
+	}
 	return filepath.Join(Dir(), "config.toml")
 }
 
@@ -65,6 +71,9 @@ func Load() (Config, error) {
 }
 
 func Save(cfg Config) error {
+	if Dir() == "" {
+		return fmt.Errorf("cannot determine configuration directory: HOME is unset")
+	}
 	if err := Validate(cfg); err != nil {
 		return err
 	}

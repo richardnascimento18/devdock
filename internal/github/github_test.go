@@ -84,3 +84,25 @@ func TestParseRemote(t *testing.T) {
 		}
 	}
 }
+
+func TestGitInitializationStopsAtEveryFailure(t *testing.T) {
+	for fail := 0; fail < 6; fail++ {
+		calls := 0
+		sentinel := errors.New("failed")
+		err := initRepo(context.Background(), t.TempDir(), "https://github.com/owner/repo.git", func(ctx context.Context, dir string, args ...string) error {
+			calls++
+			if calls == fail+1 {
+				return sentinel
+			}
+			return nil
+		})
+		if !errors.Is(err, sentinel) || calls != fail+1 {
+			t.Fatalf("step %d: %v calls %d", fail, err, calls)
+		}
+	}
+}
+func TestCloneCollisionPreflight(t *testing.T) {
+	if err := CloneRepo("unused", t.TempDir()); err == nil {
+		t.Fatal("existing directory accepted")
+	}
+}

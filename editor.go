@@ -246,7 +246,7 @@ func (e editorScreen) updateTemplateEditor(msg tea.Msg) (editorScreen, tea.Cmd) 
 	case editorResultSave:
 		if e.te.layer == telStepEdit {
 			e.te.steps = append([]stepDraft(nil), e.te.steps...)
-			e.te, _ = e.te.commitStepEdit()
+			e.te, _ = e.te.commitStepEdit() // commitStepEdit only updates the draft; it returns no command
 			if e.te.layer == telStepEdit {
 				e.te.result = editorResultNone
 				return e, nil

@@ -10,7 +10,7 @@ func (m model) View() string {
 	w, h := m.termW, m.termH
 	switch m.state {
 	case stateNewProjectName, stateNewDomainName, stateCreateDomainOnly,
-		stateDeleteProject, stateAddRoot:
+		stateDeleteProject, stateAddRoot, stateConfirmDeleteGroup:
 		return m.inputScr.View(w, h)
 	case stateDeleteDomain:
 		if m.pendingDomainName == "" {
@@ -23,7 +23,7 @@ func (m model) View() string {
 		return m.presetPicker.View(w, h)
 	case stateAskCreateGitHub, stateAskRepoPrivacy:
 		return m.yesNoScr.View(w, h)
-	case stateCreatingGitHub, stateCloningRepo:
+	case stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
 		return m.spinnerScr.View(w, h)
 	case statePickTemplate:
 		return m.templatePicker.View(w, h)
@@ -38,7 +38,7 @@ func (m model) View() string {
 		stateMovePickRoot, stateMovePickDomain, stateMovePickPlacement:
 		return m.genericPicker.View(w, h)
 	case stateCreateGroup:
-		if m.pendingDomain == "" {
+		if m.groupFlow.phase == groupPickDomain {
 			return m.genericPicker.View(w, h)
 		}
 		return m.inputScr.View(w, h)

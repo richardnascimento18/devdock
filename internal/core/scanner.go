@@ -45,10 +45,12 @@ func isDomainIgnored(root, domainName string, ignored map[string]struct{}) bool 
 	for pattern := range ignored {
 		if strings.Contains(pattern, "/") {
 			full := filepath.Join(root, domainName)
+			// Patterns were validated while loading .ddignore.
 			if matched, _ := filepath.Match(filepath.Join(root, pattern), full); matched {
 				return true
 			}
 		} else {
+			// Patterns were validated while loading .ddignore.
 			if matched, _ := filepath.Match(pattern, domainName); matched {
 				return true
 			}
@@ -135,10 +137,10 @@ type SubgroupInfo struct {
 	Subgroups []SubgroupInfo
 }
 
-func ScanGroupsInDomain(domainPath string, classify ClassifyDirFunc) []GroupInfo {
+func ScanGroupsInDomain(domainPath string, classify ClassifyDirFunc) ([]GroupInfo, error) {
 	entries, err := os.ReadDir(domainPath)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	var groups []GroupInfo
 	for _, e := range entries {
@@ -148,20 +150,23 @@ func ScanGroupsInDomain(domainPath string, classify ClassifyDirFunc) []GroupInfo
 		childPath := filepath.Join(domainPath, e.Name())
 		if classify(childPath, 0) == KindGroup {
 			gi := GroupInfo{Name: e.Name(), Path: childPath}
-			gi.Subgroups = scanSubgroups(childPath, 0, classify)
+			gi.Subgroups, err = scanSubgroups(childPath, 0, classify)
+			if err != nil {
+				return groups, err
+			}
 			groups = append(groups, gi)
 		}
 	}
-	return groups
+	return groups, nil
 }
 
-func scanSubgroups(groupPath string, depth int, classify ClassifyDirFunc) []SubgroupInfo {
+func scanSubgroups(groupPath string, depth int, classify ClassifyDirFunc) ([]SubgroupInfo, error) {
 	if depth > 3 {
-		return nil
+		return nil, nil
 	}
 	entries, err := os.ReadDir(groupPath)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	var subs []SubgroupInfo
 	for _, e := range entries {
@@ -171,9 +176,12 @@ func scanSubgroups(groupPath string, depth int, classify ClassifyDirFunc) []Subg
 		childPath := filepath.Join(groupPath, e.Name())
 		if classify(childPath, 0) == KindGroup {
 			si := SubgroupInfo{Name: e.Name(), Path: childPath}
-			si.Subgroups = scanSubgroups(childPath, depth+1, classify)
+			si.Subgroups, err = scanSubgroups(childPath, depth+1, classify)
+			if err != nil {
+				return subs, err
+			}
 			subs = append(subs, si)
 		}
 	}
-	return subs
+	return subs, nil
 }

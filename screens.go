@@ -119,10 +119,10 @@ func newSpinnerScreen(message string) spinnerScreen {
 	}
 }
 
-type spinnerTickMsg struct{}
+type spinnerTickMsg struct{ id uint64 }
 
-func spinnerTick() tea.Cmd {
-	return tea.Tick(120_000_000, func(_ time.Time) tea.Msg { return spinnerTickMsg{} })
+func spinnerTick(id uint64) tea.Cmd {
+	return tea.Tick(120*time.Millisecond, func(_ time.Time) tea.Msg { return spinnerTickMsg{id: id} })
 }
 
 func (s spinnerScreen) View(termW, termH int) string {

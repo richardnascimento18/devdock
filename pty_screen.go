@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -107,6 +108,8 @@ func (v *virtualScreen) write(text string) {
 }
 
 type ptyScreen struct {
+	context     context.Context
+	cancel      context.CancelFunc
 	operationID uint64
 	viewport    viewport.Model
 	// committed lines — permanent log
@@ -135,9 +138,11 @@ type ptyScreen struct {
 }
 
 func newPTYScreen(w, h int, t *tmpl.Template, projectPath string, vars tmpl.Vars, steps []tmpl.TemplateStep, workDir string, ghRepo gh.Repo) ptyScreen {
+	ctx, cancel := context.WithCancel(context.Background())
 	vp := viewport.New(vpW(w), vpH(h))
 	vp.Style = lipgloss.NewStyle()
 	ps := ptyScreen{
+		context: ctx, cancel: cancel,
 		viewport:    vp,
 		workDir:     workDir,
 		width:       w,
@@ -430,6 +435,18 @@ func (p ptyScreen) Update(msg tea.Msg) (ptyScreen, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if msg.Type == tea.KeyCtrlC {
+			p.cancel()
+			if p.session != nil {
+				if err := p.session.Close(); err != nil {
+					p.addLine(err.Error(), lineError)
+				}
+			}
+			p.session = nil
+			p.interrupted = true
+			p.completed = true
+			return p, p.wrap(func() tea.Msg { return ptyInterruptMsg{} })
+		}
 		if p.completed || p.session == nil {
 			return p, nil
 		}
@@ -439,17 +456,6 @@ func (p ptyScreen) Update(msg tea.Msg) (ptyScreen, tea.Cmd) {
 			cmdErr = p.session.Write([]byte("\r"))
 		case tea.KeyBackspace, tea.KeyDelete:
 			cmdErr = p.session.Write([]byte{127})
-		case tea.KeyCtrlC:
-			// Close the session and signal an interrupt — do NOT proceed with steps.
-			cmdErr = p.session.Write([]byte{3})
-			cmdErr = errors.Join(cmdErr, p.session.Close())
-			p.session = nil
-			p.interrupted = true
-			p.completed = true
-			if cmdErr != nil {
-				p.addLine(cmdErr.Error(), lineError)
-			}
-			return p, p.wrap(func() tea.Msg { return ptyInterruptMsg{} })
 		case tea.KeyCtrlD:
 			cmdErr = p.session.Write([]byte{4})
 		case tea.KeyUp:
@@ -483,6 +489,7 @@ func (p ptyScreen) Update(msg tea.Msg) (ptyScreen, tea.Cmd) {
 		return p, p.startNextStep()
 
 	case ptyDoneMsg:
+		p.cancel()
 		p.flushPending()
 		p.completed = true
 		p.exitErr = msg.err
@@ -520,6 +527,7 @@ func (p ptyScreen) Update(msg tea.Msg) (ptyScreen, tea.Cmd) {
 		if msg.Err != nil {
 			p.completed = true
 			p.exitErr = msg.Err
+			p.cancel()
 			p.addLine(fmt.Sprintf("✗ Process exited with error: %v", msg.Err), lineError)
 			return p, nil
 		}
@@ -557,24 +565,27 @@ func (p *ptyScreen) startNextStep() (cmd tea.Cmd) {
 		}
 	}
 	if p.currentStepIdx >= len(p.allSteps) {
-		projectPath, repo := p.projectPath, p.githubRepo
+		projectPath, repo, ctx := p.projectPath, p.githubRepo, p.context
 		p.githubRepo = gh.Repo{}
 		return func() tea.Msg {
 			if err := tmpl.WriteDevDockMarkerFile(projectPath); err != nil {
 				return ptyDoneMsg{err: fmt.Errorf("write project marker: %w", err)}
 			}
 			if repo.FullName != "" {
-				return ptyDoneMsg{err: gh.InitRepoWithRemote(projectPath, repo.CloneURL)}
+				return ptyDoneMsg{err: gh.InitRepoWithRemoteContext(ctx, projectPath, repo.CloneURL)}
 			}
 			return ptyDoneMsg{}
 		}
 	}
 	step := p.allSteps[p.currentStepIdx]
 	p.currentStepIdx++
-	vars, workDir := p.vars, p.workDir
+	vars, workDir, ctx := p.vars, p.workDir, p.context
 	switch step.Type {
 	case "builtin":
 		return func() tea.Msg {
+			if err := ctx.Err(); err != nil {
+				return pty.ExitMsg{Err: err}
+			}
 			if err := tmpl.ExecuteBuiltin(step.Action, tmpl.ExpandVars(step.Path, vars), vars.ProjectPath); err != nil {
 				return pty.ExitMsg{Err: err}
 			}
@@ -587,7 +598,7 @@ func (p *ptyScreen) startNextStep() (cmd tea.Cmd) {
 		}
 		if step.Output != "" {
 			return func() tea.Msg {
-				if err := tmpl.ExecuteSteps([]tmpl.TemplateStep{step}, workDir, vars, false); err != nil {
+				if err := tmpl.ExecuteStepsContext(ctx, []tmpl.TemplateStep{step}, workDir, vars, false); err != nil {
 					return pty.ExitMsg{Err: err}
 				}
 				return ptyBuiltinCompleteMsg{text: step.Run + " → " + step.Output}
@@ -595,7 +606,7 @@ func (p *ptyScreen) startNextStep() (cmd tea.Cmd) {
 		}
 		width, height := p.width, p.height
 		return func() tea.Msg {
-			session, err := pty.NewSession(args, workDir)
+			session, err := pty.NewSessionContext(ctx, args, workDir)
 			if err != nil {
 				return pty.ExitMsg{Err: fmt.Errorf("start command %q: %w", step.Run, err)}
 			}

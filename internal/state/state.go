@@ -51,13 +51,14 @@ func Load(configDir string) (UIState, error) {
 	if err != nil {
 		return s, err
 	}
+	defaults := s.Clone()
 	var loaded UIState
 	if err := json.Unmarshal(data, &loaded); err != nil {
 		return s, fmt.Errorf("invalid state.json: %w", err)
 	}
 	s = loaded
 	if s.ActiveTab < 0 || s.ActiveTab > 3 {
-		return UIState{}, fmt.Errorf("state.json: invalid active tab")
+		return defaults, fmt.Errorf("state.json: invalid active tab")
 	}
 	if s.CollapsedGroups == nil {
 		s.CollapsedGroups = make(map[string]bool)
@@ -72,6 +73,9 @@ func Load(configDir string) (UIState, error) {
 }
 
 func Save(configDir string, s UIState) error {
+	if !filepath.IsAbs(configDir) {
+		return fmt.Errorf("configuration directory must be absolute")
+	}
 	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		return err
 	}
@@ -164,8 +168,23 @@ func (s *UIState) MoveProject(oldPath string, p core.Project) {
 
 // ReconcileMissing only removes known missing paths. Permission and I/O errors
 // retain entries; root filtering must never prune another root's state.
-func (s *UIState) ReconcileMissing() {
-	missing := func(path string) bool { _, err := os.Stat(path); return os.IsNotExist(err) }
+func (s *UIState) ReconcileMissing(roots ...string) {
+	missing := func(path string) bool {
+		if len(roots) > 0 {
+			scoped := false
+			for _, root := range roots {
+				if core.IsDescendant(root, path) {
+					scoped = true
+					break
+				}
+			}
+			if !scoped {
+				return false
+			}
+		}
+		_, err := os.Stat(path)
+		return os.IsNotExist(err)
+	}
 	for path, value := range s.Favorites {
 		if !value || missing(path) {
 			delete(s.Favorites, path)

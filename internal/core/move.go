@@ -134,13 +134,20 @@ func copyTree(src, dst string) error {
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("unsupported file %q (%s)", path, info.Mode())
 		}
-		in, err := os.Open(path)
+		in, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 		if err != nil {
 			return err
+		}
+		opened, err := in.Stat()
+		if err != nil || !opened.Mode().IsRegular() {
+			return errors.Join(fmt.Errorf("source changed during copy: %q", path), err, in.Close())
 		}
 		out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, info.Mode().Perm())
 		if err != nil {
 			return errors.Join(err, in.Close())
+		}
+		if err := out.Chmod(info.Mode().Perm()); err != nil {
+			return errors.Join(err, in.Close(), out.Close())
 		}
 		_, err = io.Copy(out, in)
 		if err == nil {

@@ -1,14 +1,22 @@
 package main
 
 import (
-	"os"
 	"path/filepath"
 
-	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/richardnascimento18/devdock/internal/core"
 )
 
 func (m model) buildListItems(projects []core.Project, verified bool) []list.Item {
+	if !m.isAllMode() {
+		visible := make([]core.Project, 0, len(projects))
+		for _, p := range projects {
+			if p.Root == m.activeRoot() {
+				visible = append(visible, p)
+			}
+		}
+		projects = visible
+	}
 	showRoot := m.isAllMode() && len(m.cfg.ActiveRoots()) > 1
 
 	if !m.treeMode {
@@ -92,17 +100,9 @@ func (m model) buildListItems(projects []core.Project, verified bool) []list.Ite
 		if !m.isAllMode() && root != m.activeRoot() {
 			continue
 		}
-		domainEntries, err := os.ReadDir(root)
-		if err != nil {
-			continue
-		}
-		for _, de := range domainEntries {
-			if !de.IsDir() {
-				continue
-			}
-			domain := de.Name()
+		for _, domain := range m.workspaceDomains[root] {
 			domainPath := filepath.Join(root, domain)
-			emptyGroups := core.ScanGroupsInDomain(domainPath, classifyFn)
+			emptyGroups := m.workspaceGroups[domainPath]
 			for _, gi := range emptyGroups {
 				dk := root + "::" + domain
 				if _, ok := domains[dk]; !ok {
@@ -211,20 +211,19 @@ func (m model) buildEmptyGroupFlatItems(showRoot bool) []list.Item {
 		if !m.isAllMode() && root != m.activeRoot() {
 			continue
 		}
-		domainEntries, err := os.ReadDir(root)
-		if err != nil {
-			continue
-		}
-		for _, de := range domainEntries {
-			if !de.IsDir() {
-				continue
-			}
-			domain := de.Name()
+		for _, domain := range m.workspaceDomains[root] {
 			domainPath := filepath.Join(root, domain)
-			groups := core.ScanGroupsInDomain(domainPath, classifyFn)
+			groups := m.workspaceGroups[domainPath]
 			for _, gi := range groups {
 				groupPath := filepath.Join(domainPath, gi.Name)
-				if !groupHasProjects(groupPath) {
+				hasProjects := false
+				for _, p := range m.rawProjects {
+					if core.IsDescendant(groupPath, p.Path) {
+						hasProjects = true
+						break
+					}
+				}
+				if !hasProjects {
 					items = append(items, emptyGroupFlatItem{
 						name:     gi.Name,
 						domain:   domain,
@@ -237,19 +236,3 @@ func (m model) buildEmptyGroupFlatItems(showRoot bool) []list.Item {
 	}
 	return items
 }
-
-func groupHasProjects(path string) bool {
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return false
-	}
-	for _, e := range entries {
-		if e.IsDir() {
-			if classifyFn(filepath.Join(path, e.Name()), 0) == core.KindProject {
-				return true
-			}
-		}
-	}
-	return false
-}
-

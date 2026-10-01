@@ -5,7 +5,6 @@ import (
 
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
-	"github.com/richardnascimento18/devdock/internal/detect"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	"github.com/richardnascimento18/devdock/internal/state"
@@ -88,11 +87,11 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "tab":
 			m.rootSel.Next()
-			m = m.rescan()
+			m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 			return m, nil
 		case "shift+tab":
 			m.rootSel.Prev()
-			m = m.rescan()
+			m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 			return m, nil
 
 		case "p", "P":
@@ -163,7 +162,6 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "r":
 			if !m.list.SettingFilter() {
-				detect.ClearCache()
 				m = m.rescan()
 				var cmd tea.Cmd
 				if m.cfg.IsGitHubConnected() {
@@ -316,6 +314,11 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) startNewProject(name string) (tea.Model, tea.Cmd) {
+	m.rootIntent = rootForProject
+	m.domainIntent = domainForProject
+	m.pendingGHRepo = gh.Repo{}
+	m.pendingDomain = ""
+	m.pendingProjectName = ""
 	m.pendingTemplate = nil
 	m.pendingCreateGH = false
 	m.pendingGHPrivate = false
@@ -339,6 +342,7 @@ func (m model) startNewProject(name string) (tea.Model, tea.Cmd) {
 }
 
 func (m model) startNewDomainOnly() (tea.Model, tea.Cmd) {
+	m.domainIntent = domainOnly
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 1 {
 		m.pendingRoot = roots[0]
@@ -386,6 +390,8 @@ func (m model) startDeleteProject() (tea.Model, tea.Cmd) {
 }
 
 func (m model) startDeleteDomain() (tea.Model, tea.Cmd) {
+	m.pendingDomainName = ""
+	m.pendingRoot = ""
 	m.inputScr = newInputScreen("Delete Domain — enter name:", "domain-name", "enter confirm  •  esc cancel")
 	m.state = stateDeleteDomain
 	return m, nil
@@ -425,6 +431,7 @@ func (m model) startMoveProject() model {
 	default:
 		return m
 	}
+	m.domainIntent = domainForMove
 	m.moveTarget = proj
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 1 {
@@ -444,6 +451,7 @@ func (m model) startMoveProject() model {
 }
 
 func (m model) startCloneFlow(repo gh.Repo) model {
+	m.domainIntent = domainForClone
 	m.pendingGHRepo = repo
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 1 {

@@ -159,7 +159,7 @@ func Load(configDir string) ([]Preset, error) {
 	var pf PresetFile
 	if err := json.Unmarshal(data, &pf); err != nil {
 		return Clone(DefaultPresets), fmt.Errorf(
-			"presets.json contains invalid JSON:\n  %v\n\nFalling back to built-in presets.", err,
+			"presets.json contains invalid JSON:\n  %v\n\nfalling back to built-in presets", err,
 		)
 	}
 	if errs := ValidatePresetFile(pf); len(errs) > 0 {
@@ -167,22 +167,12 @@ func Load(configDir string) ([]Preset, error) {
 		for _, e := range errs {
 			msg += "  - " + e + "\n"
 		}
-		return Clone(DefaultPresets), fmt.Errorf("%s\nFalling back to built-in presets.", msg)
+		return Clone(DefaultPresets), fmt.Errorf("%s\nfalling back to built-in presets", msg)
 	}
 	return pf.Presets, nil
 }
 
-func writeDefaults(configDir string) error {
-	pf := PresetFile{Presets: DefaultPresets}
-	data, err := json.MarshalIndent(pf, "", "    ")
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		return err
-	}
-	return fileutil.WriteFileAtomic(Path(configDir), data, 0o644)
-}
+func writeDefaults(configDir string) error { return Save(configDir, DefaultPresets) }
 
 func ByName(presets []Preset, name string) Preset {
 	for _, p := range presets {
@@ -198,6 +188,9 @@ func ByName(presets []Preset, name string) Preset {
 
 // Save validates the entire proposed collection before committing it.
 func Save(configDir string, values []Preset) error {
+	if !filepath.IsAbs(configDir) {
+		return fmt.Errorf("configuration directory must be absolute")
+	}
 	file := PresetFile{Presets: values}
 	if errs := ValidatePresetFile(file); len(errs) > 0 {
 		return fmt.Errorf("%s", strings.Join(errs, "; "))
