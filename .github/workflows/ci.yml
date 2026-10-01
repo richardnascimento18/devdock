@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   production-source:
-    name: Production source validation
+    name: ${{ github.base_ref == 'production' && 'Production source validation' || 'Integration source validation' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -47,7 +47,7 @@ jobs:
   checks:
     uses: ./.github/workflows/verify.yml
   required:
-    name: Required validation
+    name: ${{ github.base_ref == 'production' && 'Production validation' || 'Required validation' }}
     if: always()
     needs: [policy, production-source, checks]
     runs-on: ubuntu-24.04
