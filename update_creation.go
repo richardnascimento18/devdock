@@ -190,7 +190,7 @@ func (m model) updateCreateDomainOnly(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.openMovePlacementPicker(m.pendingRoot, name), nil
 			}
 			m.state = stateList
-			return m, nil
+			return m.rescan(), nil
 		}
 	}
 	var cmd tea.Cmd
@@ -395,6 +395,8 @@ func (m model) updatePTYExecution(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.pendingGHRepo.FullName != "" {
 			p.GitHubRepo = m.pendingGHRepo.FullName
 		}
+		m.uiState.AddRecent(p)
+		m.saveState()
 		m.pendingLaunch = p
 		m.pendingLaunchReady = true
 		m.statusMsg = successStyle.Render(fmt.Sprintf("✓  Project \"%s\" created successfully", p.Name))

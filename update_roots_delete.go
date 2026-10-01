@@ -4,6 +4,7 @@ import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/config"
+	"github.com/richardnascimento18/devdock/internal/core"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +21,10 @@ func (m model) updateDeleteProject(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if typed != m.deleteTarget.Path {
 				m.inputScr.err = "path does not match — try again or esc to cancel"
 				m.inputScr.input.SetValue("")
+				return m, nil
+			}
+			if err := core.ValidateDescendant(filepath.Join(m.deleteTarget.Root, m.deleteTarget.Domain), m.deleteTarget.Path); err != nil {
+				m.inputScr.err = err.Error()
 				return m, nil
 			}
 			return m.beginDelete(m.deleteTarget.Root, m.deleteTarget.Path)

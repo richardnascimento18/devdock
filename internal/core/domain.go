@@ -113,7 +113,15 @@ func DeletePath(root, path string) error {
 	}
 	return os.RemoveAll(path)
 }
-func DeleteProject(p Project) error { return DeletePath(p.Root, p.Path) }
+func DeleteProject(p Project) error {
+	if !ValidName(p.Domain) {
+		return fmt.Errorf("invalid project domain")
+	}
+	if err := ValidateDescendant(filepath.Join(p.Root, p.Domain), p.Path); err != nil {
+		return err
+	}
+	return DeletePath(p.Root, p.Path)
+}
 func DeleteDomain(root, domain string) error {
 	if !ValidName(domain) {
 		return fmt.Errorf("invalid domain name %q", domain)

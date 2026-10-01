@@ -319,6 +319,9 @@ func (pe presetEditor) updateWindowSplit(msg tea.Msg) (presetEditor, tea.Cmd) {
 			pe.result = editorResultSave
 			return pe, nil
 		case "enter":
+			if pe.splitEditor.editing {
+				break
+			}
 			// save layout back
 			l := pe.splitEditor.toLayout()
 			pe.windows[pe.editIdx].layout = &l

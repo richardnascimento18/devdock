@@ -113,3 +113,21 @@ func TestCommandOutput(t *testing.T) {
 		t.Fatal("output accepted root")
 	}
 }
+
+func TestMarkerWriteDoesNotFollowSymlink(t *testing.T) {
+	project := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "keep")
+	if err := os.WriteFile(outside, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(project, ".devdock")); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteDevDockMarkerFile(project); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(outside)
+	if err != nil || string(data) != "keep" {
+		t.Fatal("marker followed symlink")
+	}
+}

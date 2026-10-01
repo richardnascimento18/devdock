@@ -325,25 +325,25 @@ func (m model) openMovePlacementPicker(destRoot, destDomain string) model {
 	var opts []movePlacementOption
 	opts = append(opts, movePlacementOption{
 		label:    "(place directly in domain)",
-		destPath: filepath.Join(domainPath, m.moveTarget.Name),
+		destPath: filepath.Join(domainPath, filepath.Base(m.moveTarget.Path)),
 		domain:   destDomain,
 	})
 	for _, g := range groups {
 		opts = append(opts, movePlacementOption{
 			label:    g.Name,
-			destPath: filepath.Join(g.Path, m.moveTarget.Name),
+			destPath: filepath.Join(g.Path, filepath.Base(m.moveTarget.Path)),
 			domain:   destDomain,
 		})
 		for _, sg := range g.Subgroups {
 			opts = append(opts, movePlacementOption{
 				label:    g.Name + " > " + sg.Name,
-				destPath: filepath.Join(sg.Path, m.moveTarget.Name),
+				destPath: filepath.Join(sg.Path, filepath.Base(m.moveTarget.Path)),
 				domain:   destDomain,
 			})
 			for _, nested := range sg.Subgroups {
 				opts = append(opts, movePlacementOption{
 					label:    g.Name + " > " + sg.Name + " > " + nested.Name,
-					destPath: filepath.Join(nested.Path, m.moveTarget.Name),
+					destPath: filepath.Join(nested.Path, filepath.Base(m.moveTarget.Path)),
 					domain:   destDomain,
 				})
 			}

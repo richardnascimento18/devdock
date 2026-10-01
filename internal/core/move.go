@@ -29,6 +29,9 @@ func renameExclusive(src, dst string) error {
 }
 
 func MoveProject(p Project, destPath, destRoot, destDomain string) (Project, error) {
+	if !ValidName(destDomain) || !IsDescendant(filepath.Join(destRoot, destDomain), destPath) || destPath == filepath.Join(destRoot, destDomain) {
+		return Project{}, fmt.Errorf("destination must be inside the selected domain")
+	}
 	if err := ValidateDescendant(p.Root, p.Path); err != nil {
 		return Project{}, err
 	}

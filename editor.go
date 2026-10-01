@@ -190,6 +190,16 @@ func (e editorScreen) updatePresetEditor(msg tea.Msg) (editorScreen, tea.Cmd) {
 			e.pe.windows[e.pe.editIdx].name = strings.TrimSpace(e.pe.editNameInp.Value())
 			e.pe.windows[e.pe.editIdx].command = strings.TrimSpace(e.pe.editCmdInp.Value())
 			if e.pe.layer == pelWindowSplit {
+				if e.pe.splitEditor.editing {
+					size, err := parsePaneSize(e.pe.splitEditor.sizeInput.Value())
+					if err != nil {
+						e.pe.statusMsg = errorStyle.Render(err.Error())
+						e.pe.result = editorResultNone
+						return e, nil
+					}
+					e.pe.splitEditor.panes = append([]paneLeaf(nil), e.pe.splitEditor.panes...)
+					e.pe.splitEditor.panes[e.pe.splitEditor.editIdx] = paneLeaf{command: strings.TrimSpace(e.pe.splitEditor.cmdInput.Value()), size: size}
+				}
 				layout := e.pe.splitEditor.toLayout()
 				e.pe.windows[e.pe.editIdx].layout = &layout
 			}

@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/richardnascimento18/devdock/internal/preset"
+	"strconv"
 	"strings"
 )
 
@@ -19,7 +20,9 @@ type paneLeaf struct {
 }
 
 type splitPaneEditor struct {
+	original  *preset.PaneLayout
 	direction string // "horizontal" or "vertical"
+	statusMsg string
 	panes     []paneLeaf
 	cursor    int
 	editIdx   int
@@ -40,7 +43,7 @@ func newSplitPaneEditor(pl preset.PaneLayout) splitPaneEditor {
 	if dir != "horizontal" && dir != "vertical" {
 		dir = "horizontal"
 	}
-	return splitPaneEditor{direction: dir, panes: panes}
+	return splitPaneEditor{direction: dir, panes: panes, original: preset.CloneLayout(&pl)}
 }
 
 func collectLeaves(pl preset.PaneLayout, out *[]paneLeaf) {
@@ -54,6 +57,30 @@ func collectLeaves(pl preset.PaneLayout, out *[]paneLeaf) {
 }
 
 func (sp splitPaneEditor) toLayout() preset.PaneLayout {
+	if sp.original != nil && !sp.original.IsLeaf() {
+		var originalLeaves []paneLeaf
+		collectLeaves(*sp.original, &originalLeaves)
+		if len(originalLeaves) == len(sp.panes) {
+			layout := preset.CloneLayout(sp.original)
+			layout.Direction = sp.direction
+			index := 0
+			var updateLeaves func(*preset.PaneLayout)
+			updateLeaves = func(node *preset.PaneLayout) {
+				if node.IsLeaf() {
+					node.Command = sp.panes[index].command
+					node.Size = sp.panes[index].size
+					index++
+					return
+				}
+				for i := range node.Panes {
+					updateLeaves(&node.Panes[i])
+				}
+			}
+			updateLeaves(layout)
+			return *layout
+		}
+	}
+
 	if len(sp.panes) == 0 {
 		return preset.PaneLayout{}
 	}
@@ -161,10 +188,10 @@ func (sp splitPaneEditor) updateEdit(msg tea.Msg) (splitPaneEditor, tea.Cmd) {
 		return sp, nil
 	case "enter":
 		sp.panes[sp.editIdx].command = strings.TrimSpace(sp.cmdInput.Value())
-		var sz int
-		fmt.Sscanf(strings.TrimSpace(sp.sizeInput.Value()), "%d", &sz)
-		if sz < 0 || sz >= 100 {
-			sz = 0
+		sz, err := parsePaneSize(sp.sizeInput.Value())
+		if err != nil {
+			sp.statusMsg = errorStyle.Render(err.Error())
+			return sp, nil
 		}
 		sp.panes[sp.editIdx].size = sz
 		sp.editing = false
@@ -216,6 +243,9 @@ func (sp splitPaneEditor) View() string {
 		} else {
 			inner.WriteString(hintStyle.Render("j/k navigate  •  i to type  •  enter save pane  •  esc back"))
 		}
+		if sp.statusMsg != "" {
+			inner.WriteString("\n" + sp.statusMsg)
+		}
 		return wrapInBox("Edit Pane", inner.String())
 	}
 
@@ -246,3 +276,15 @@ func (sp splitPaneEditor) View() string {
 // ===========================================================================
 // TEMPLATE EDITOR
 // ===========================================================================
+
+func parsePaneSize(value string) (int, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, nil
+	}
+	size, err := strconv.Atoi(value)
+	if err != nil || size < 0 || size >= 100 {
+		return 0, fmt.Errorf("pane size must be an integer from 0 to 99")
+	}
+	return size, nil
+}

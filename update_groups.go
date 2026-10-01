@@ -36,6 +36,7 @@ func (m model) startCreateGroup() (tea.Model, tea.Cmd) {
 func (m model) openDomainPickerForGroup() (tea.Model, tea.Cmd) {
 	domains := m.workspaceDomains[m.pendingRoot]
 	if len(domains) == 0 {
+		m.state = stateList
 		m.statusMsg = errorStyle.Render("no domains in this root — create a domain first (N)")
 		return m, nil
 	}

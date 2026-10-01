@@ -106,3 +106,41 @@ func TestEditorPreservesMetadataAndSavesCurrentWindowDraft(t *testing.T) {
 		t.Fatal("template metadata lost")
 	}
 }
+
+func TestPaneEditEnterAndCurrentDraftSave(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	e := newEditorScreen(preset.DefaultPresets, tmpl.DefaultTemplates, 100, 40)
+	e.layer = editorLayerPreset
+	e.pe = newPresetEditor(e.presets[2], false)
+	e.pe, _ = e.pe.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	e.pe.layer = pelWindowSplit
+	e.pe.editIdx = 0
+	e.pe.splitEditor = newSplitPaneEditor(*e.presets[2].Windows[0].Layout)
+	e.pe.splitEditor, _ = e.pe.splitEditor.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	e.pe.splitEditor.cmdInput.SetValue("changed")
+	e.pe.splitEditor.sizeInput.SetValue("30")
+	next, _ := e.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if next.pe.layer != pelWindowSplit || next.pe.splitEditor.editing || next.pe.splitEditor.panes[0].command != "changed" {
+		t.Fatal("pane enter was intercepted by parent")
+	}
+	next.pe.splitEditor, _ = next.pe.splitEditor.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next.pe.splitEditor.cmdInput.SetValue("saved")
+	next, _ = next.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
+	if next.presets[2].Windows[0].Layout.Panes[0].Command != "saved" {
+		t.Fatal("current pane draft lost")
+	}
+}
+
+func TestPaneEditorPreservesNestedLayoutWithoutTopologyChange(t *testing.T) {
+	original := preset.DefaultPresets[2].Windows[0].Layout
+	editor := newSplitPaneEditor(*original)
+	round := editor.toLayout()
+	if !reflect.DeepEqual(*original, round) {
+		t.Fatal("opening editor flattened nested layout")
+	}
+	editor.panes[2].command = "changed"
+	round = editor.toLayout()
+	if round.Panes[1].Direction != "vertical" || round.Panes[1].Panes[1].Command != "changed" {
+		t.Fatal("editing leaf lost nested direction")
+	}
+}

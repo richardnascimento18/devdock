@@ -334,6 +334,9 @@ func ExecuteStepsContext(ctx context.Context, steps []TemplateStep, workDir stri
 }
 
 func Run(t Template, domainPath, projectName string) (string, error) {
+	if errs := ValidateFile(TemplateFile{Templates: []Template{t}}); len(errs) > 0 {
+		return "", fmt.Errorf("%s", strings.Join(errs, "; "))
+	}
 	vars := Vars{
 		ProjectName: projectName,
 		Domain:      filepath.Base(domainPath),
@@ -357,7 +360,7 @@ func Run(t Template, domainPath, projectName string) (string, error) {
 
 func WriteDevDockMarkerFile(projectPath string) error {
 	content := "type = \"project\"\n"
-	return os.WriteFile(filepath.Join(projectPath, ".devdock"), []byte(content), 0o644)
+	return fileutil.WriteFileAtomic(filepath.Join(projectPath, ".devdock"), []byte(content), 0o644)
 }
 
 // Save validates the entire proposed collection before committing it.
