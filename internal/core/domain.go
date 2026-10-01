@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -111,7 +112,16 @@ func DeletePath(root, path string) error {
 	if err := ValidateDescendant(root, path); err != nil {
 		return err
 	}
-	return os.RemoveAll(path)
+	workspace, err := os.OpenRoot(root)
+	if err != nil {
+		return fmt.Errorf("open workspace for deletion: %w", err)
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return errors.Join(err, workspace.Close())
+	}
+	err = workspace.RemoveAll(rel)
+	return errors.Join(err, workspace.Close())
 }
 func DeleteProject(p Project) error {
 	if !ValidName(p.Domain) {

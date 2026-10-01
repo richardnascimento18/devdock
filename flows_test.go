@@ -329,3 +329,58 @@ func TestSuccessfulMoveReconcilesFavoritesAndRecents(t *testing.T) {
 		t.Fatal("move state not persisted")
 	}
 }
+
+func TestProjectAndDomainDeletionConfirmation(t *testing.T) {
+	for _, domainDeletion := range []bool{false, true} {
+		t.Run(map[bool]string{false: "project", true: "domain"}[domainDeletion], func(t *testing.T) {
+			root := t.TempDir()
+			project, err := core.CreateProject(root, "apps", "demo")
+			if err != nil {
+				t.Fatal(err)
+			}
+			m := fixtureModel(t, root)
+			m.uiState.ToggleFavorite(project.Path)
+			m.uiState.AddRecent(project)
+			if !m.saveState() {
+				t.Fatal("initial save failed")
+			}
+			target := project.Path
+			m.state = stateDeleteProject
+			m.deleteTarget = project
+			m.inputScr = newInputScreen("Delete", "path", "")
+			if domainDeletion {
+				m.state = stateDeleteDomain
+				m.inputScr.input.SetValue("apps")
+				next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+				m = next.(model)
+				target = filepath.Join(root, "apps")
+				m.confirmDelDomain.input.SetValue("apps")
+			} else {
+				m.inputScr.input.SetValue(project.Name)
+			}
+			next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			m = next.(model)
+			if _, err := os.Stat(project.Path); err != nil {
+				t.Fatal("name-only confirmation deleted project")
+			}
+			if domainDeletion {
+				m.confirmDelDomain.input.SetValue(target)
+			} else {
+				m.inputScr.input.SetValue(target)
+			}
+			next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			m = next.(model)
+			if m.state != stateDeletingWorkspace || cmd == nil {
+				t.Fatal("full path did not start deletion")
+			}
+			next, _ = m.Update(cmd().(tea.BatchMsg)[0]())
+			m = next.(model)
+			if _, err := os.Stat(target); !os.IsNotExist(err) {
+				t.Fatalf("confirmed target remains: %v", err)
+			}
+			if len(m.uiState.Favorites) != 0 || len(m.uiState.Recents) != 0 {
+				t.Fatal("deleted project metadata remains")
+			}
+		})
+	}
+}
