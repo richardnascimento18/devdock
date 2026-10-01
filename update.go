@@ -37,6 +37,18 @@ func CmdMoveProjectToPath(p core.Project, destPath, destRoot, destDomain string)
 // ---------------------------------------------------------------------------
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if flow, ok := msg.(ptyFlowMsg); ok {
+		if m.state != statePTYExecution || flow.id != m.ptyScr.operationID {
+			if started, ok := flow.msg.(ptyStepStartMsg); ok {
+				if err := started.session.Close(); err != nil {
+					m.statusMsg = errorStyle.Render(err.Error())
+				}
+			}
+			return m, nil
+		}
+		msg = flow.msg
+	}
+
 	if sz, ok := msg.(tea.WindowSizeMsg); ok {
 		m.termW = sz.Width
 		m.termH = sz.Height
@@ -186,6 +198,8 @@ func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cm
 		}
 		m.ptyScr = newPTYScreen(m.termW, m.termH, m.pendingTemplate, projectPath, vars,
 			m.pendingTemplate.Steps, workDir, msg.Repo)
+		m.operationID++
+		m.ptyScr.operationID = m.operationID
 		m.state = statePTYExecution
 		return m, m.ptyScr.startNextStep()
 	}

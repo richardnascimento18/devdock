@@ -16,16 +16,17 @@ import (
 )
 
 type model struct {
-	cfg       config.Config
-	state     appState
-	list      list.Model
-	allItems  []list.Item
-	rootSel   rootSelectorWidget
-	presetSel presetSelectorWidget
-	presets   []preset.Preset
-	templates []tmpl.Template
-	termW     int
-	termH     int
+	operationID uint64
+	cfg         config.Config
+	state       appState
+	list        list.Model
+	allItems    []list.Item
+	rootSel     rootSelectorWidget
+	presetSel   presetSelectorWidget
+	presets     []preset.Preset
+	templates   []tmpl.Template
+	termW       int
+	termH       int
 
 	activeTab int
 

@@ -2,12 +2,14 @@ package template
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/fileutil"
 )
 
@@ -17,6 +19,7 @@ type TemplateStep struct {
 	Action string `json:"action"`
 	Path   string `json:"path"`
 	Shell  bool   `json:"shell,omitempty"`
+	Output string `json:"output,omitempty"`
 }
 
 type Template struct {
@@ -97,7 +100,7 @@ var DefaultTemplates = []Template{
 			{Type: "builtin", Action: "touch", Path: "main.py"},
 			{Type: "builtin", Action: "touch", Path: ".env"},
 			{Type: "builtin", Action: "touch", Path: "requirements.txt"},
-			{Type: "command", Run: ".venv/bin/pip freeze > requirements.txt", Shell: true},
+			{Type: "command", Run: ".venv/bin/pip freeze", Output: "requirements.txt"},
 		},
 	},
 	{
@@ -194,7 +197,7 @@ func ValidateFile(tf TemplateFile) []string {
 			errs = append(errs, fmt.Sprintf("duplicate template name %q", t.Name))
 		}
 		names[t.Name] = true
-		for i, s := range append(t.Steps, t.PostSteps...) {
+		for i, s := range append(append([]TemplateStep{}, t.Steps...), t.PostSteps...) {
 			if s.Type != "command" && s.Type != "builtin" {
 				errs = append(errs, fmt.Sprintf("template %q step %d: unknown type %q", t.Name, i, s.Type))
 			}
@@ -205,8 +208,16 @@ func ValidateFile(tf TemplateFile) []string {
 				if strings.TrimSpace(s.Path) == "" {
 					errs = append(errs, fmt.Sprintf("template %q step %d: builtin step has empty path", t.Name, i))
 				}
-				if filepath.IsAbs(filepath.FromSlash(s.Path)) || strings.HasPrefix(s.Path, "..") {
+				if !validRelative(s.Path, s.Action == "rm") {
 					errs = append(errs, fmt.Sprintf("template %q step %d: path %q must be relative and cannot traverse upward", t.Name, i, s.Path))
+				}
+			}
+			if s.Type == "command" {
+				if _, err := ParseCommand(s.Run); err != nil {
+					errs = append(errs, fmt.Sprintf("template %q step %d: %v", t.Name, i, err))
+				}
+				if s.Output != "" && !validRelative(s.Output, true) {
+					errs = append(errs, fmt.Sprintf("template %q: invalid output path", t.Name))
 				}
 			}
 			if s.Type == "command" && strings.TrimSpace(s.Run) == "" {
@@ -228,38 +239,61 @@ func ExpandVars(s string, v Vars) string {
 	return s
 }
 
-// safeJoin joins base and rel and returns an error if the result escapes base.
+// validRelative requires a local path; destructive operations require a strict descendant.
+func validRelative(rel string, strict bool) bool {
+	return filepath.IsLocal(rel) && !strings.ContainsAny(rel, "\\\x00") && (!strict || filepath.Clean(rel) != ".")
+}
+
 func safeJoin(base, rel string) (string, error) {
-	base = filepath.Clean(base)
-	full := filepath.Clean(filepath.Join(base, filepath.FromSlash(rel)))
-	if full != base && !strings.HasPrefix(full, base+string(filepath.Separator)) {
-		return "", fmt.Errorf("path %q escapes the project directory", rel)
+	if !validRelative(rel, true) {
+		return "", fmt.Errorf("path %q must be a strict descendant of the project directory", rel)
+	}
+	full := filepath.Join(base, rel)
+	if err := core.ValidateDescendant(base, full); err != nil {
+		return "", err
 	}
 	return full, nil
 }
 
 func ExecuteBuiltin(action, relPath, projectPath string) error {
-	full, err := safeJoin(projectPath, relPath)
+	if _, err := safeJoin(projectPath, relPath); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(projectPath)
 	if err != nil {
 		return err
 	}
+	defer root.Close()
 	switch action {
 	case "touch":
-		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		if err := root.MkdirAll(filepath.Dir(relPath), 0o755); err != nil {
 			return err
 		}
-		f, err := os.OpenFile(full, os.O_CREATE|os.O_RDONLY, 0o644)
+		f, err := root.OpenFile(relPath, os.O_CREATE|os.O_RDONLY, 0o644)
 		if err != nil {
 			return err
 		}
 		return f.Close()
 	case "mkdir":
-		return os.MkdirAll(full, 0o755)
+		return root.MkdirAll(relPath, 0o755)
 	case "rm":
-		return os.RemoveAll(full)
+		return root.RemoveAll(relPath)
 	default:
 		return fmt.Errorf("unknown builtin action: %s", action)
 	}
+}
+
+// CommandOutput opens an explicitly declared output file within the project.
+func CommandOutput(rel, projectPath string) (*os.File, error) {
+	if _, err := safeJoin(projectPath, rel); err != nil {
+		return nil, err
+	}
+	root, err := os.OpenRoot(projectPath)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	return root.OpenFile(rel, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 }
 
 func ExecuteSteps(steps []TemplateStep, workDir string, vars Vars, interactive bool) error {
@@ -267,27 +301,35 @@ func ExecuteSteps(steps []TemplateStep, workDir string, vars Vars, interactive b
 		switch step.Type {
 		case "builtin":
 			if err := ExecuteBuiltin(step.Action, ExpandVars(step.Path, vars), vars.ProjectPath); err != nil {
-				return fmt.Errorf("builtin %s %q: %w", step.Action, step.Path, err)
+				return fmt.Errorf("builtin %s: %w", step.Action, err)
 			}
 		case "command":
-			cmdStr := ExpandVars(step.Run, vars)
-			var cmd *exec.Cmd
-			if step.Shell {
-				cmd = exec.Command("sh", "-c", cmdStr)
-			} else {
-				args := strings.Fields(cmdStr)
-				if len(args) == 0 {
-					continue
-				}
-				cmd = exec.Command(args[0], args[1:]...)
+			args, err := CommandArgs(step, vars)
+			if err != nil {
+				return err
 			}
+			cmd := exec.Command(args[0], args[1:]...)
 			cmd.Dir = workDir
 			cmd.Stdin = os.Stdin
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("command %q: %w", cmdStr, err)
+			var output *os.File
+			if step.Output != "" {
+				output, err = CommandOutput(ExpandVars(step.Output, vars), vars.ProjectPath)
+				if err != nil {
+					return err
+				}
+				cmd.Stdout = output
 			}
+			err = cmd.Run()
+			if output != nil {
+				err = errors.Join(err, output.Close())
+			}
+			if err != nil {
+				return fmt.Errorf("command %q: %w", step.Run, err)
+			}
+		default:
+			return fmt.Errorf("unknown step type %q", step.Type)
 		}
 	}
 	return nil
@@ -299,22 +341,13 @@ func Run(t Template, domainPath, projectName string) (string, error) {
 		Domain:      filepath.Base(domainPath),
 		Root:        filepath.Dir(domainPath),
 	}
-	var projectPath string
-	if t.CreatesProjectFolder {
-		vars.ProjectPath = filepath.Join(domainPath, projectName)
-		projectPath = filepath.Join(domainPath, projectName)
-		if err := ExecuteSteps(t.Steps, domainPath, vars, t.Interactive); err != nil {
-			return "", err
-		}
-	} else {
-		projectPath = filepath.Join(domainPath, projectName)
-		if err := os.MkdirAll(projectPath, 0o755); err != nil {
-			return "", fmt.Errorf("could not create project directory: %w", err)
-		}
-		vars.ProjectPath = projectPath
-		if err := ExecuteSteps(t.Steps, projectPath, vars, t.Interactive); err != nil {
-			return "", err
-		}
+	projectPath, workDir, err := core.PrepareProject(vars.Root, vars.Domain, projectName, t.CreatesProjectFolder)
+	if err != nil {
+		return "", err
+	}
+	vars.ProjectPath = projectPath
+	if err := ExecuteSteps(t.Steps, workDir, vars, t.Interactive); err != nil {
+		return "", err
 	}
 	if len(t.PostSteps) > 0 {
 		if err := ExecuteSteps(t.PostSteps, projectPath, vars, false); err != nil {

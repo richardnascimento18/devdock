@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -24,9 +25,22 @@ type ptyStepStartMsg struct {
 	cmdStr  string
 }
 
-type ptyBuiltinCompleteMsg struct{}
+type ptyBuiltinCompleteMsg struct{ text string }
 
-type ptyDoneMsg struct{}
+type ptyDoneMsg struct{ err error }
+
+type ptyFlowMsg struct {
+	id  uint64
+	msg tea.Msg
+}
+
+func (p ptyScreen) wrap(cmd tea.Cmd) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+	id := p.operationID
+	return func() tea.Msg { return ptyFlowMsg{id: id, msg: cmd()} }
+}
 
 type ptyInterruptMsg struct{}
 
@@ -93,7 +107,8 @@ func (v *virtualScreen) write(text string) {
 }
 
 type ptyScreen struct {
-	viewport viewport.Model
+	operationID uint64
+	viewport    viewport.Model
 	// committed lines — permanent log
 	lines []logLine
 	// liveBlock holds lines currently being redrawn in-place (e.g. interactive
@@ -394,6 +409,10 @@ func (p *ptyScreen) ingestPTYData(raw []byte) {
 			for i < len(s) && s[i] >= 0x20 && s[i] != '\x1b' {
 				i++
 			}
+			if start == i {
+				i++
+				continue
+			} // consume control bytes such as BEL/backspace
 			p.vscreen.write(s[start:i])
 		}
 	}
@@ -414,63 +433,83 @@ func (p ptyScreen) Update(msg tea.Msg) (ptyScreen, tea.Cmd) {
 		if p.completed || p.session == nil {
 			return p, nil
 		}
+		var cmdErr error
 		switch msg.Type {
 		case tea.KeyEnter:
-			_ = p.session.Write([]byte("\r"))
+			cmdErr = p.session.Write([]byte("\r"))
 		case tea.KeyBackspace, tea.KeyDelete:
-			_ = p.session.Write([]byte{127})
+			cmdErr = p.session.Write([]byte{127})
 		case tea.KeyCtrlC:
 			// Close the session and signal an interrupt — do NOT proceed with steps.
-			_ = p.session.Write([]byte{3})
-			_ = p.session.Close()
+			cmdErr = p.session.Write([]byte{3})
+			cmdErr = errors.Join(cmdErr, p.session.Close())
 			p.session = nil
 			p.interrupted = true
 			p.completed = true
-			return p, func() tea.Msg { return ptyInterruptMsg{} }
+			if cmdErr != nil {
+				p.addLine(cmdErr.Error(), lineError)
+			}
+			return p, p.wrap(func() tea.Msg { return ptyInterruptMsg{} })
 		case tea.KeyCtrlD:
-			_ = p.session.Write([]byte{4})
+			cmdErr = p.session.Write([]byte{4})
 		case tea.KeyUp:
-			_ = p.session.Write([]byte("\x1b[A"))
+			cmdErr = p.session.Write([]byte("\x1b[A"))
 		case tea.KeyDown:
-			_ = p.session.Write([]byte("\x1b[B"))
+			cmdErr = p.session.Write([]byte("\x1b[B"))
 		case tea.KeyLeft:
-			_ = p.session.Write([]byte("\x1b[D"))
+			cmdErr = p.session.Write([]byte("\x1b[D"))
 		case tea.KeyRight:
-			_ = p.session.Write([]byte("\x1b[C"))
+			cmdErr = p.session.Write([]byte("\x1b[C"))
 		case tea.KeySpace:
-			_ = p.session.Write([]byte(" "))
+			cmdErr = p.session.Write([]byte(" "))
 		case tea.KeyTab:
-			_ = p.session.Write([]byte("\t"))
+			cmdErr = p.session.Write([]byte("\t"))
 		case tea.KeyRunes:
-			_ = p.session.Write([]byte(string(msg.Runes)))
+			cmdErr = p.session.Write([]byte(string(msg.Runes)))
 		}
-		return p, pty.CmdRead(p.session)
+		if cmdErr != nil {
+			p.addLine(fmt.Sprintf("terminal input: %v", cmdErr), lineError)
+		}
+		return p, nil
 
 	case ptyStepStartMsg:
 		p.session = msg.session
 		p.vscreen.reset()
 		p.addLine(fmt.Sprintf("$ %s", msg.cmdStr), lineCmd)
-		return p, pty.CmdRead(p.session)
+		return p, p.wrap(pty.CmdRead(p.session))
 
 	case ptyBuiltinCompleteMsg:
+		p.addLine(msg.text, lineSystem)
 		return p, p.startNextStep()
 
 	case ptyDoneMsg:
 		p.flushPending()
 		p.completed = true
+		p.exitErr = msg.err
+		if msg.err != nil {
+			p.addLine(msg.err.Error(), lineError)
+		} else {
+			p.addLine("✓ Setup completed successfully!", lineSuccess)
+		}
 		return p, nil
 
 	case pty.OutputMsg:
+		if msg.Session != p.session || p.completed {
+			return p, nil
+		}
 		if len(msg.Data) > 0 {
 			p.ingestPTYData(msg.Data)
 		}
 		if p.session != nil && !p.completed {
-			return p, pty.CmdRead(p.session)
+			return p, p.wrap(pty.CmdRead(p.session))
 		}
 
 	case pty.ExitMsg:
+		if msg.Session != nil && msg.Session != p.session {
+			return p, nil
+		}
 		if p.session != nil {
-			_ = p.session.Close()
+			msg.Err = errors.Join(msg.Err, p.session.Close())
 			p.session = nil
 		}
 		// If we were interrupted, don't proceed — ptyInterruptMsg was already sent.
@@ -493,7 +532,9 @@ func (p ptyScreen) Update(msg tea.Msg) (ptyScreen, tea.Cmd) {
 		p.viewport.Height = vpH(msg.Height)
 		p.refreshViewport()
 		if p.session != nil {
-			_ = p.session.Resize(uint16(vpH(msg.Height)), uint16(vpW(msg.Width)))
+			if err := p.session.Resize(uint16(vpH(msg.Height)), uint16(vpW(msg.Width))); err != nil {
+				p.addLine(fmt.Sprintf("resize terminal: %v", err), lineError)
+			}
 		}
 	}
 	p.viewport, cmd = p.viewport.Update(msg)
@@ -504,90 +545,68 @@ func (p ptyScreen) Update(msg tea.Msg) (ptyScreen, tea.Cmd) {
 // startNextStep
 // ---------------------------------------------------------------------------
 
-func (p *ptyScreen) startNextStep() tea.Cmd {
+func (p *ptyScreen) startNextStep() (cmd tea.Cmd) {
+	defer func() { cmd = p.wrap(cmd) }()
 	if !p.isPostSteps && p.currentStepIdx >= len(p.allSteps) {
 		if p.tmpl != nil && len(p.tmpl.PostSteps) > 0 {
 			p.isPostSteps = true
 			p.currentStepIdx = 0
 			p.allSteps = p.tmpl.PostSteps
 			p.workDir = p.projectPath
-			return func() tea.Msg {
-				return pty.OutputMsg{Data: []byte("\n── running post-setup steps ──\n")}
-			}
+			p.addLine("Running post-setup steps...", lineSystem)
 		}
 	}
-
 	if p.currentStepIdx >= len(p.allSteps) {
-		if p.githubRepo.FullName != "" {
-			linkMsg := fmt.Sprintf("🔗 Linking to GitHub repository %s...", p.githubRepo.FullName)
-			projectPath := p.projectPath
-			cloneURL := p.githubRepo.CloneURL
-			p.githubRepo = gh.Repo{}
-			return func() tea.Msg {
-				if err := gh.InitRepoWithRemote(projectPath, cloneURL); err != nil {
-					warn := fmt.Sprintf("⚠️  Warning: Could not link to GitHub: %v", err)
-					return tea.Batch(
-						func() tea.Msg { return pty.OutputMsg{Data: []byte(linkMsg + "\n" + warn)} },
-						func() tea.Msg { return ptyDoneMsg{} },
-					)()
-				}
-				return tea.Batch(
-					func() tea.Msg {
-						return pty.OutputMsg{Data: []byte(linkMsg + "\n✅ Successfully linked to GitHub!")}
-					},
-					func() tea.Msg { return ptyDoneMsg{} },
-				)()
-			}
-		}
+		projectPath, repo := p.projectPath, p.githubRepo
+		p.githubRepo = gh.Repo{}
 		return func() tea.Msg {
-			return tea.Batch(
-				func() tea.Msg { return pty.OutputMsg{Data: []byte("✓ Setup completed successfully!")} },
-				func() tea.Msg { return ptyDoneMsg{} },
-			)()
+			if err := tmpl.WriteDevDockMarkerFile(projectPath); err != nil {
+				return ptyDoneMsg{err: fmt.Errorf("write project marker: %w", err)}
+			}
+			if repo.FullName != "" {
+				return ptyDoneMsg{err: gh.InitRepoWithRemote(projectPath, repo.CloneURL)}
+			}
+			return ptyDoneMsg{}
 		}
 	}
-
 	step := p.allSteps[p.currentStepIdx]
 	p.currentStepIdx++
-
+	vars, workDir := p.vars, p.workDir
 	switch step.Type {
 	case "builtin":
-		action := step.Action
-		path := tmpl.ExpandVars(step.Path, p.vars)
-		projectPath := p.vars.ProjectPath
-		statusMsg := fmt.Sprintf("⚙  %s %s", action, path)
 		return func() tea.Msg {
-			if err := tmpl.ExecuteBuiltin(action, path, projectPath); err != nil {
-				return pty.ExitMsg{Err: fmt.Errorf("builtin %s %q: %w", action, path, err)}
+			if err := tmpl.ExecuteBuiltin(step.Action, tmpl.ExpandVars(step.Path, vars), vars.ProjectPath); err != nil {
+				return pty.ExitMsg{Err: err}
 			}
-			return tea.Batch(
-				func() tea.Msg { return pty.OutputMsg{Data: []byte(statusMsg)} },
-				func() tea.Msg { return ptyBuiltinCompleteMsg{} },
-			)()
+			return ptyBuiltinCompleteMsg{text: fmt.Sprintf("%s %s", step.Action, step.Path)}
 		}
-
 	case "command":
-		cmdStr := tmpl.ExpandVars(step.Run, p.vars)
-		var args []string
-		if step.Shell {
-			args = []string{"sh", "-c", cmdStr}
-		} else {
-			args = strings.Fields(cmdStr)
+		args, err := tmpl.CommandArgs(step, vars)
+		if err != nil {
+			return func() tea.Msg { return pty.ExitMsg{Err: err} }
 		}
-		workDir := p.workDir
+		if step.Output != "" {
+			return func() tea.Msg {
+				if err := tmpl.ExecuteSteps([]tmpl.TemplateStep{step}, workDir, vars, false); err != nil {
+					return pty.ExitMsg{Err: err}
+				}
+				return ptyBuiltinCompleteMsg{text: step.Run + " → " + step.Output}
+			}
+		}
 		width, height := p.width, p.height
 		return func() tea.Msg {
 			session, err := pty.NewSession(args, workDir)
 			if err != nil {
-				return pty.ExitMsg{Err: fmt.Errorf("failed to start command %q: %w", cmdStr, err)}
+				return pty.ExitMsg{Err: fmt.Errorf("start command %q: %w", step.Run, err)}
 			}
-			if width > 0 && height > 0 {
-				_ = session.Resize(uint16(vpH(height)), uint16(vpW(width)))
+			if err := session.Resize(uint16(vpH(height)), uint16(vpW(width))); err != nil {
+				return pty.ExitMsg{Err: errors.Join(err, session.Close())}
 			}
-			return ptyStepStartMsg{session: session, cmdStr: cmdStr}
+			return ptyStepStartMsg{session: session, cmdStr: tmpl.ExpandVars(step.Run, vars)}
 		}
+	default:
+		return func() tea.Msg { return pty.ExitMsg{Err: fmt.Errorf("unknown step type %q", step.Type)} }
 	}
-	return nil
 }
 
 // ---------------------------------------------------------------------------

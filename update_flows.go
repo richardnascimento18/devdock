@@ -654,6 +654,8 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 		}
 		m.ptyScr = newPTYScreen(m.termW, m.termH, m.pendingTemplate, projectPath, vars,
 			m.pendingTemplate.Steps, workDir, m.pendingGHRepo)
+		m.operationID++
+		m.ptyScr.operationID = m.operationID
 		m.state = statePTYExecution
 		m.pendingLaunchPreset = ps
 		return m, m.ptyScr.startNextStep()
