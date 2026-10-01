@@ -21,8 +21,16 @@ jobs:
           go-version: ${{ matrix.go }}
           check-latest: true
           cache: true
+      - name: Configure validation tool directory
+        run: |
+          tool_dir="$RUNNER_TEMP/devdock-tools"
+          mkdir -p "$tool_dir"
+          printf 'GOBIN=%s\n' "$tool_dir" >> "$GITHUB_ENV"
+          printf '%s\n' "$tool_dir" >> "$GITHUB_PATH"
       - name: Install pinned analysis tools
         run: make tools
+      - name: Verify installed tool PATH
+        run: command -v staticcheck govulncheck actionlint
       - name: Full validation
         run: make check
       - name: Verify Linux release builds and checksums
@@ -31,4 +39,4 @@ jobs:
         run: |
           make release
           (cd dist && sha256sum --check SHA256SUMS)
-          dist/devdock_$(cat VERSION)_linux_amd64 --version
+          "dist/devdock_$(cat VERSION)_linux_amd64" --version

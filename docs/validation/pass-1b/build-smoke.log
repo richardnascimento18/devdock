@@ -1,0 +1,6 @@
+bash scripts/build-release.sh
+devdock_0.1.0-dev.1_linux_amd64: OK
+devdock_0.1.0-dev.1_linux_arm64: OK
+PASS: isolated TUI startup, project rendering, flat view, root switching, favorite toggle, editor, OAuth screen, cancellation, shutdown
+Captured terminal bytes: 29574
+PASS: binary version 0.1.0-dev.1 and commit/date metadata match the build checkout.

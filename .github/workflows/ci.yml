@@ -10,6 +10,21 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
+  production-source:
+    name: Production source validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Require same-repository staging promotion
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: bash scripts/check-production-source.sh
   policy:
     name: Promotion policy
     runs-on: ubuntu-24.04
@@ -22,16 +37,10 @@ jobs:
       - name: Validate release version and production source
         env:
           BASE_REF: ${{ github.base_ref }}
-          HEAD_REF: ${{ github.head_ref }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          REPOSITORY: ${{ github.repository }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           python3 scripts/version.py "$(cat VERSION)"
           if [[ "$BASE_REF" == production ]]; then
-            [[ "$HEAD_REF" == staging && "$HEAD_REPO" == "$REPOSITORY" ]] || {
-              echo 'Production PRs must come from this repository staging branch.' >&2; exit 1;
-            }
             old_version=$(git show "$BASE_SHA:VERSION")
             python3 scripts/version.py --after "$old_version" "$(cat VERSION)"
           fi
@@ -40,11 +49,12 @@ jobs:
   required:
     name: Required validation
     if: always()
-    needs: [policy, checks]
+    needs: [policy, production-source, checks]
     runs-on: ubuntu-24.04
     steps:
       - name: Require all checks
         env:
           POLICY: ${{ needs.policy.result }}
           CHECKS: ${{ needs.checks.result }}
-        run: test "$POLICY" = success && test "$CHECKS" = success
+          SOURCE: ${{ needs.production-source.result }}
+        run: test "$POLICY" = success && test "$SOURCE" = success && test "$CHECKS" = success

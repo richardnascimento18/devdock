@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+if [[ -n "${GOBIN:-}" ]]; then export PATH="$GOBIN:$PATH"; fi
 unformatted=$(gofmt -l .)
 if [[ -n "$unformatted" ]]; then printf 'Run gofmt on:\n%s\n' "$unformatted"; exit 1; fi
 # Compare copies: this works before a local commit as well as in CI.
