@@ -1,196 +1,131 @@
-<div align="center">
+# DevDock
 
-```
-                        ██████╗ ███████╗██╗   ██╗██████╗  ██████╗  ██████╗██╗  ██╗
-                        ██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗██╔════╝██║ ██╔╝
-                        ██║  ██║█████╗  ██║   ██║██║  ██║██║   ██║██║     █████╔╝ 
-                        ██║  ██║██╔══╝  ╚██╗ ██╔╝██║  ██║██║   ██║██║     ██╔═██╗ 
-                        ██████╔╝███████╗ ╚████╔╝ ██████╔╝╚██████╔╝╚██████╗██║  ██╗
-                        ╚═════╝ ╚══════╝  ╚═══╝  ╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝
-```
+DevDock is a keyboard-driven terminal workspace manager for Linux. It discovers projects, launches tmux workspaces with saved layouts, scaffolds projects from templates, and optionally connects to GitHub through its device authorization flow.
 
-*your terminal workspace manager*
+The current hierarchy is `root / domain / project`, with groups and subgroups inside domains. This stabilization pass preserves that model and the existing interface.
 
-[![Go](https://img.shields.io/badge/Go-1.21+-8B5CF6?style=flat-square&logo=go&logoColor=white)](https://golang.org)
-[![tmux](https://img.shields.io/badge/tmux-required-A78BFA?style=flat-square&logo=tmux&logoColor=white)](https://github.com/tmux/tmux)
-[![License](https://img.shields.io/badge/license-MIT-C4B5FD?style=flat-square)](LICENSE)
+## Requirements and installation
 
-![devdock](https://github.com/user-attachments/assets/853d05ac-704b-4458-8909-c175de4a5055)
+- Linux amd64 or arm64. Linux-specific filesystem and PTY handling is intentional.
+- Go **1.26 or newer** for source builds; CI tests the latest patches of Go 1.26 and 1.27. The previous Go 1.21 claim was incorrect.
+- tmux for opening workspaces; Git for GitHub cloning/linking. Template commands and preset commands require their own tools, such as Node.js, Python, Cargo, nvim, or opencode.
+- Python 3 and Bash for development validation and release scripts.
 
-</div>
-
-<br>
-
-DevDock is a keyboard-driven TUI that allows you to easily start working on your projects by automating the creation of TMUX Sessions with your desired layout, the creation of new projects and your project's scaffolding tool command all in one go. It works out of the box, no manual configuration needed!
-
-<br>
-
-# WARNING/DISCLAIMER
-
-This project was made majorly for a personal problem, not with the intent of public release. Therefore, give the project a read, analyze it and try it carefully. I may maintain it from time to time, but keep in mind this is a hobby project. Also, this tool only works in Linux systems, with TMUX being a required library for it to work (as it revolves around terminal users).
-
-<br>
-
----
-
-## Building from source
-
-> DevDock's GitHub integration requires a **GitHub OAuth App Client ID** injected at build time. Although I personally recommend downloading one of the releases to use DevDock's official OAuth App, you can use your own OAuth App at build time, by using the exact command below:
+Release infrastructure is prepared, but this pass does **not** publish a release. When published, official binaries will be available on the [GitHub releases page](https://github.com/richardnascimento18/devdock/releases). A downloaded binary needs no Go installation. Download the matching `devdock_<version>_linux_amd64` or `devdock_<version>_linux_arm64` and `SHA256SUMS`, verify the matching checksum, then install it:
 
 ```sh
-go build \
-  -ldflags "-X 'github.com/richardnascimento18/devdock/internal/github.ClientID=YOUR_CLIENT_ID'" \
-  -o devdock .
+sha256sum --ignore-missing --check SHA256SUMS
+mkdir -p ~/.local/bin
+install -m 755 devdock_<version>_linux_amd64 ~/.local/bin/devdock
 ```
 
-Building without it will produce a binary where all GitHub features, such as connecting an account, creating repos, cloning, will silently fail.
+Use the arm64 filename on arm64. Ensure `~/.local/bin` is in your PATH.
 
-Alternatively, skip the build flag and export the variable instead:
-
-```sh
-export DEVDOCK_GITHUB_CLIENT_ID=your_client_id
-```
-
----
-
-<br>
-
-## Features in DevDock
-
-<br>
-
-### 🔍 &nbsp;Project discovery
-
-By following a folder structure (root > category/domain > project), DevDock scans your roots and classifies directories automatically. It also supports grouping and subgrouping, to allow for projects that relate to each other to live together, without being scattered in domains (root > domain > group > project[s]). Override automatic detection anytime with `.devdock` or `.ddgroup` marker files.
-
-<br>
-
-### 🖥️ &nbsp;tmux workspace presets
-
-When you select a project from the list, DevDock creates (or re-attaches to) a tmux session named after it. The layout is driven by a **preset** (a named configuration that defines windows, pane splits, and the command to run in each).
-
-Built-in presets:
-
-| Preset | Description |
-|---|---|
-| `walker` | `nvim` · `terminal` · `ai-chat` (opencode) |
-| `nvim` | `nvim` · `terminal` |
-| `dev-split` | Editor + two side terminals in a single window |
-
-Customise presets freely in `~/.config/devdock/presets.json`. They support any number of windows, horizontal/vertical splits, sized panes, and per-pane commands.
-
-<br>
-
-### 🧱 &nbsp;Project templates
-
-Scaffold new projects from **templates**. These are sequences of commands and/or filesystem operations (`touch`, `mkdir`) that run in a PTY, so interactive CLIs work correctly out of the box.
-
-Built-in templates:
-
-| Template | Stack |
-|---|---|
-| `Next.js` | `create-next-app` (interactive) |
-| `React + Vite` | Vite · TypeScript |
-| `Go API` | Go modules · Gin |
-| `Go CLI` | Go modules · Cobra |
-| `Python FastAPI` | venv · FastAPI · uvicorn |
-| `Python Script` | venv · bare Python |
-| `Rust` | `cargo new` binary crate |
-| `Rust Library` | `cargo new --lib` |
-| `Node.js` | `npm init` |
-| `Static HTML` | HTML · CSS · JS skeleton |
-
-Define your own templates in `~/.config/devdock/templates.json` using the same step-based format.
-
-<br>
-
-### 🐙 &nbsp;GitHub integration
-
-Connect a GitHub account once with `g` via the **device OAuth flow**. After authenticating, DevDock:
-
-- Loads all your repositories and shows uncloned ones inline in the project list
-- Matches local projects to their remote repos and badges them in the UI
-- Creates a **new GitHub repo** (public or private) during project creation and pushes an initial commit automatically
-- **Clones any of your repos** directly into a chosen domain from the TUI
-
-<br>
-
-### ⭐ &nbsp;Favorites & recents
-
-Star any project with `f` (up to 5 favorites). Recent projects are tracked automatically on every open. Both are accessible via the tab bar (`[` / `]`) so your most-used projects are always one keypress away.
-
-<br>
-
-### 🗂️ &nbsp;Full workspace management
-
-Everything you need, without leaving the TUI:
-
-- `n` — create a new project (optionally with a template and a GitHub repo)
-- `x` / `X` — delete a project or an entire domain (with confirmation)
-- `m` — move a project to a different root, domain, or group
-- `N` — create a new domain in any root
-- `G` / `ctrl+g` — create or delete groups
-- `a` / `A` — add or remove root directories
-- `.ddignore` — ignore specific domains per root using glob patterns
-
-<br>
-
-
-## Installation
-
-**Requirements:** Go 1.21+, tmux
+For a source build:
 
 ```sh
-git clone https://github.com/richardnascimento18/devdock
+git clone https://github.com/richardnascimento18/devdock.git
 cd devdock
-
-go build \
-  -ldflags "-X 'github.com/richardnascimento18/devdock/internal/github.ClientID=YOUR_CLIENT_ID'" \
-  -o devdock .
-
-mv devdock /usr/local/bin/
+go build -o devdock .
+./devdock --version
+./devdock
 ```
 
-On first run, DevDock will ask for a root directory and write its config to `~/.config/devdock/`. Default preset and template files are generated there automatically.
+First run asks for an existing workspace root and saves configuration. A malformed existing config produces an error rather than being silently replaced. Projects are scanned from each root's domain directories; unreadable/missing roots are reported while available projects remain usable.
 
----
+## Current functionality
 
-<br>
+| Key | Action |
+| --- | --- |
+| Enter | Open a project with the selected tmux preset |
+| `p` / `P` | Switch/select a preset |
+| `v` | Toggle tree/flat project view |
+| Tab / Shift+Tab | Switch roots, including all roots |
+| `[` / `]` | Switch projects, recents, favorites, and tmux tabs |
+| `f` | Toggle a favorite (maximum five) |
+| `n` / `N` | Create a project/domain |
+| `m` | Move a project between current roots/domains/groups |
+| `x` / `X` | Delete a project/domain |
+| `G` / Ctrl+G | Create/delete a group |
+| `a` / `A` | Add/remove a root |
+| `e` | Open the preset/template editor |
+| `g` | Connect GitHub, or refresh connected repositories |
+| Esc | Cancel the current flow |
+| `q` | Quit from the main screen |
 
-## Configuration
+Recursive project, domain, and group deletion requires typing the full target path. Project creation and moves reject existing destinations; moves never merge directories. A cross-filesystem move preserves symlinks and reports incomplete source cleanup as a partial failure. Favorites/recents follow successful moves and are pruned after successful deletions; temporarily unavailable roots retain their state.
 
-All configuration lives in `~/.config/devdock/`:
+Built-in presets are `walker`, `nvim`, and `dev-split`. Templates include Next.js, React + Vite, Go API/CLI, Python FastAPI/Script, Rust binary/library, Node.js, and Static HTML. Scaffolding failures stop subsequent steps and prevent a successful workspace launch. Templates execute trusted configured commands, including interactive commands in a PTY.
+
+## Configuration and markers
+
+Configuration lives in `~/.config/devdock/`:
 
 | File | Purpose |
-|---|---|
-| `config.toml` | Root directories, default preset, GitHub credentials |
-| `presets.json` | tmux workspace presets |
-| `templates.json` | Project scaffolding templates |
+| --- | --- |
+| `config.toml` | Absolute workspace roots, default preset, GitHub token and username |
+| `presets.json` | Named tmux windows and recursive pane layouts |
+| `templates.json` | Named scaffold steps, post-steps, and layout metadata |
+| `state.json` | Favorites, recents, active tab, view/collapse preferences |
 
-The config directory is created automatically on first run. You should never need to edit `config.toml` by hand; everything is manageable from within the TUI.
+Missing preset/template files generate validated defaults. Invalid collections are reported and built-in defaults remain available without overwriting the invalid file. Editor saves validate the entire proposed collection, persist atomically, and then change active state. Duplicate names are rejected.
 
-> DO NOT under any circumstance share the `config.toml` file with third-parties, nor commit it during reports.
+Example config without GitHub credentials:
 
----
+```toml
+roots = ["/home/you/projects", "/mnt/work/projects"]
+default_preset = "nvim"
+```
 
-<br>
+The configuration file contains a GitHub access token after authorization. It is saved with mode `0600`; do not commit it or attach it to issue reports.
 
-## Tech stack
+A project `.devdock` TOML file can override detection with `type` (`project`, `group`, or `subgroup`) and optional `name` fields. A `.ddgroup` marker identifies a group/subgroup directory. Root `.ddignore` files contain domain-name glob patterns, one per line; blank lines and comments beginning with `#` are ignored. Invalid patterns are reported.
 
-| | |
-|---|---|
-| [Bubble Tea](https://github.com/charmbracelet/bubbletea) | TUI framework |
-| [Bubbles](https://github.com/charmbracelet/bubbles) | TUI components |
-| [Lip Gloss](https://github.com/charmbracelet/lipgloss) | Terminal styling |
-| [go-toml](https://github.com/pelletier/go-toml) | TOML config parsing |
-| tmux | Workspace management |
+Template step commands support quoted arguments such as `command --title "Hello world"`. They are parsed into arguments and executed directly, without shell expansion. Variables are `{{project_name}}`, `{{project_path}}`, `{{domain}}`, and `{{root}}`. Shell operators, `$()`, environment expansion, and glob expansion are not implicitly evaluated. Use the step's `output` field to capture stdout into a project-relative file instead of `>` redirection. Builtin `touch`, `mkdir`, and `rm`, and output paths, must remain strict descendants of the project and cannot traverse symlinks or `..`; `rm .` is rejected. Explicit shell-mode steps are unsupported. Custom commands remain trusted executable code; this confinement is for builtin filesystem actions, not an OS sandbox for arbitrary commands.
 
----
+## GitHub authorization and custom builds
 
-<br>
+DevDock uses a GitHub **OAuth App** with **device flow enabled**. The public `client_id` identifies the application; this flow does not require a client secret. DevDock accepts no OAuth client-secret setting and does not compile one into its binary. See [GitHub's device-flow documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps).
 
-<div align="center">
+Official release builds obtain the public Client ID from the repository variable `DEVDOCK_GITHUB_CLIENT_ID` and embed it with a linker flag. The owner must register/configure the official app and set that variable before publication. No official ID is fabricated or committed in this pass.
 
-*Built for fun as a hobby project.*
+To use your own OAuth app, create it in GitHub Settings → Developer settings → OAuth Apps, enable device flow, and copy its **Client ID**. Clone DevDock and build:
 
-</div>
+```sh
+go build -o devdock \
+  -ldflags "-X github.com/richardnascimento18/devdock/internal/github.ClientID=YOUR_PUBLIC_CLIENT_ID" .
+```
+
+Alternatively set a runtime override:
+
+```sh
+DEVDOCK_GITHUB_CLIENT_ID=YOUR_PUBLIC_CLIENT_ID ./devdock
+```
+
+The runtime value takes precedence over the embedded ID. Building without an ID leaves local workspace features available and shows an explicit error when authorization is requested. Auth cancellation stops polling, and late responses cannot connect an abandoned flow. Once connected, DevDock lists repositories, matches GitHub remotes, creates/pushes new repositories, and clones into collision-checked destinations.
+
+## Development and releases
+
+```sh
+make tools       # install pinned staticcheck, govulncheck, actionlint; add GOPATH/bin to PATH
+make check       # formatting, module consistency, version/workflow validation, tests,
+                 # race tests, vet, staticcheck, govulncheck, build
+make test
+make race
+```
+
+All tests use temporary workspaces and fakes for GitHub/tmux/editor boundaries. PTY tests run small local child processes. Race tests require Linux, CGO, and a C compiler; release binaries are built with CGO disabled. `govulncheck` needs network access to the advisory database.
+
+`VERSION` is an explicitly reviewed Semantic Version, currently a pre-1.0 development prerelease. Build local Linux artifacts and checksums with:
+
+```sh
+DEVDOCK_GITHUB_CLIENT_ID=YOUR_PUBLIC_CLIENT_ID make release
+./dist/devdock_$(cat VERSION)_linux_amd64 --version
+(cd dist && sha256sum --check SHA256SUMS)
+```
+
+Builds embed version, full commit SHA, and commit timestamp. No script guesses or increments release versions. Ordinary `go build` reports development metadata.
+
+Future work uses a purpose-specific branch → PR into `staging` → verified promotion PR from `staging` into `production` → verified release. Direct development on these permanent branches is prohibited after Pass 1. Read [CONTRIBUTING.md](CONTRIBUTING.md) for checks, exact branch protections, release setup, and hotfix procedure. [The audit](docs/pass-1-audit.md) and [engineering report](docs/pass-1-report.md) describe this pass and its remaining limits.
+
+Licensed under [MIT](LICENSE).
