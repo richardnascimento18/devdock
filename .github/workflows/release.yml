@@ -37,8 +37,11 @@ jobs:
         env:
           DEVDOCK_GITHUB_CLIENT_ID: ${{ vars.DEVDOCK_GITHUB_CLIENT_ID }}
           DEVDOCK_COMMIT: ${{ github.sha }}
+          RELEASES_ENABLED: ${{ vars.DEVDOCK_RELEASES_ENABLED }}
         run: |
-          test -n "$DEVDOCK_GITHUB_CLIENT_ID" || { echo 'Set the public DEVDOCK_GITHUB_CLIENT_ID repository variable.' >&2; exit 1; }
+          if [[ "$RELEASES_ENABLED" == true && -z "$DEVDOCK_GITHUB_CLIENT_ID" ]]; then
+            echo 'Set the public DEVDOCK_GITHUB_CLIENT_ID repository variable.' >&2; exit 1;
+          fi
           make release
           (cd dist && sha256sum --check SHA256SUMS)
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -48,6 +51,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   publish:
+    if: ${{ vars.DEVDOCK_RELEASES_ENABLED == 'true' }}
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 10
