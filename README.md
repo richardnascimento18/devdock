@@ -53,7 +53,7 @@ First run asks for an existing workspace root and saves configuration. A malform
 | Esc | Cancel the current flow |
 | `q` | Quit from the main screen |
 
-Recursive project, domain, and group deletion requires typing the full target path. Project creation and moves reject existing destinations; moves never merge directories. A cross-filesystem move preserves symlinks and reports incomplete source cleanup as a partial failure. Favorites/recents follow successful moves and are pruned after successful deletions; temporarily unavailable roots retain their state.
+Recursive project, domain, and group deletion requires typing the full target path. Project creation and moves reject existing destinations; moves never merge directories. A cross-filesystem move preserves symlinks and reports incomplete source cleanup as a partial failure. Favorites/recents follow successful moves and are pruned after successful deletions; explicitly removing a configured root also clears its favorites/recents, while temporarily unavailable configured roots retain their state.
 
 Built-in presets are `walker`, `nvim`, and `dev-split`. Templates include Next.js, React + Vite, Go API/CLI, Python FastAPI/Script, Rust binary/library, Node.js, and Static HTML. Scaffolding failures stop subsequent steps and prevent a successful workspace launch. Templates execute trusted configured commands, including interactive commands in a PTY.
 
@@ -107,7 +107,8 @@ The runtime value takes precedence over the embedded ID. Building without an ID 
 ## Development and releases
 
 ```sh
-make tools       # install pinned staticcheck, govulncheck, actionlint; add GOPATH/bin to PATH
+GOBIN=/tmp/devdock-tools make tools
+GOBIN=/tmp/devdock-tools make check  # uses GOBIN on PATH; install ShellCheck for CI parity
 make check       # formatting, module consistency, version/workflow validation, tests,
                  # race tests, vet, staticcheck, govulncheck, build
 make test
@@ -116,7 +117,7 @@ make race
 
 All tests use temporary workspaces and fakes for GitHub/tmux/editor boundaries. PTY tests run small local child processes. Race tests require Linux, CGO, and a C compiler; release binaries are built with CGO disabled. `govulncheck` needs network access to the advisory database.
 
-`VERSION` is an explicitly reviewed Semantic Version, currently a pre-1.0 development prerelease. Build local Linux artifacts and checksums with:
+`VERSION` is an explicitly reviewed Semantic Version. The hosted beta lineage preserves historical `v1.0.0-beta` and `v1.1.0-beta`; the CI/CD rehearsal targets `1.1.0-beta.1`. Build local Linux artifacts and checksums with:
 
 ```sh
 DEVDOCK_GITHUB_CLIENT_ID=YOUR_PUBLIC_CLIENT_ID make release
@@ -125,6 +126,8 @@ DEVDOCK_GITHUB_CLIENT_ID=YOUR_PUBLIC_CLIENT_ID make release
 ```
 
 Builds embed version, full commit SHA, and commit timestamp. No script guesses or increments release versions. Ordinary `go build` reports development metadata.
+
+Publication requires repository variable `DEVDOCK_RELEASES_ENABLED` to be exactly `true`. Unset/`false` disables publication while verification/builds still run, including initial production bootstrap. The official public Client ID remains in `DEVDOCK_GITHUB_CLIENT_ID`.
 
 Future work uses a purpose-specific branch → PR into `staging` → verified promotion PR from `staging` into `production` → verified release. Direct development on these permanent branches is prohibited after Pass 1. Read [CONTRIBUTING.md](CONTRIBUTING.md) for checks, exact branch protections, release setup, and hotfix procedure. [The audit](docs/pass-1-audit.md) and [engineering report](docs/pass-1-report.md) describe this pass and its remaining limits.
 
