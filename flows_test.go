@@ -235,6 +235,9 @@ func TestFailedStateAndRootSavesKeepLiveState(t *testing.T) {
 	if m.saveState() || len(m.uiState.Favorites) != 0 {
 		t.Fatal("failed state save committed favorite")
 	}
+	if m.persistenceErr == nil {
+		t.Fatal("save failure must remain visible after TUI shutdown")
+	}
 	if err := config.Save(m.cfg); err != nil {
 		t.Fatal(err)
 	}

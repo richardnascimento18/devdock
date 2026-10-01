@@ -68,3 +68,26 @@ func TestMoveDeleteAndReconcileState(t *testing.T) {
 		t.Fatal("state clone aliases")
 	}
 }
+
+func TestInvalidStateSavePreservesDisk(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Save(dir, s); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(statePath(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.ActiveTab = 100
+	if err := Save(dir, s); err == nil {
+		t.Fatal("invalid tab saved")
+	}
+	after, err := os.ReadFile(statePath(dir))
+	if err != nil || string(before) != string(after) {
+		t.Fatalf("invalid save changed state: %v", err)
+	}
+}

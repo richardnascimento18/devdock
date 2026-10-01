@@ -199,7 +199,7 @@ func ValidateFile(tf TemplateFile) []string {
 				if strings.TrimSpace(s.Path) == "" {
 					errs = append(errs, fmt.Sprintf("template %q step %d: builtin step has empty path", t.Name, i))
 				}
-				if !validRelative(s.Path, s.Action == "rm") {
+				if !validRelative(s.Path, true) {
 					errs = append(errs, fmt.Sprintf("template %q step %d: path %q must be relative and cannot traverse upward", t.Name, i, s.Path))
 				}
 			}
@@ -232,6 +232,11 @@ func ExpandVars(s string, v Vars) string {
 
 // validRelative requires a local path; destructive operations require a strict descendant.
 func validRelative(rel string, strict bool) bool {
+	for _, part := range strings.Split(filepath.FromSlash(rel), string(filepath.Separator)) {
+		if part == ".." {
+			return false
+		}
+	}
 	return filepath.IsLocal(rel) && !strings.ContainsAny(rel, "\\\x00") && (!strict || filepath.Clean(rel) != ".")
 }
 

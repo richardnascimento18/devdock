@@ -17,6 +17,10 @@ import (
 )
 
 func main() {
+	if len(os.Args) == 2 && (os.Args[1] == "--version" || os.Args[1] == "version") {
+		fmt.Println(versionInfo())
+		return
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -59,9 +63,8 @@ func main() {
 	}
 
 	m := newModel(projects, cfg, presets, templates, uiSt)
-	m.workspaceGroups = snapshot.groups
-	m.workspaceDomains = snapshot.domains
-	m = m.rebuildList(false)
+	initial, _ := m.handleScanResult(scanResultMsg{id: m.scanID, snapshot: snapshot})
+	m = initial.(model)
 	if snapshot.err != nil {
 		m.statusMsg = errorStyle.Render(snapshot.err.Error())
 	}
@@ -78,6 +81,12 @@ func main() {
 	}
 
 	fm.cancelAuth()
+	if fm.ptyScr.cancel != nil {
+		fm.ptyScr.cancel()
+	}
+	if fm.persistenceErr != nil {
+		fmt.Fprintln(os.Stderr, fm.persistenceErr)
+	}
 	if fm.ptyScr.session != nil {
 		if err := fm.ptyScr.session.Close(); err != nil {
 			fmt.Fprintln(os.Stderr, err)

@@ -73,6 +73,9 @@ func Load(configDir string) (UIState, error) {
 }
 
 func Save(configDir string, s UIState) error {
+	if s.ActiveTab < 0 || s.ActiveTab > 3 {
+		return fmt.Errorf("state.json: invalid active tab")
+	}
 	if !filepath.IsAbs(configDir) {
 		return fmt.Errorf("configuration directory must be absolute")
 	}

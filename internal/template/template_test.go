@@ -131,3 +131,11 @@ func TestMarkerWriteDoesNotFollowSymlink(t *testing.T) {
 		t.Fatal("marker followed symlink")
 	}
 }
+
+func TestInternalParentTraversalIsRejected(t *testing.T) {
+	for _, path := range []string{"a/../b", "link/a/../../b"} {
+		if err := ExecuteBuiltin("rm", path, t.TempDir()); err == nil {
+			t.Fatalf("accepted parent traversal %q", path)
+		}
+	}
+}

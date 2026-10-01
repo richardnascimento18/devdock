@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/richardnascimento18/devdock/internal/config"
@@ -10,6 +11,7 @@ import (
 	"github.com/richardnascimento18/devdock/internal/preset"
 	uistate "github.com/richardnascimento18/devdock/internal/state"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
+	"github.com/richardnascimento18/devdock/internal/tmux"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -49,6 +51,7 @@ type model struct {
 
 	uiState            uistate.UIState
 	committedState     uistate.UIState
+	persistenceErr     error
 	treeMode           bool
 	collapsedGroups    map[string]bool
 	collapsedSubgroups map[string]bool
@@ -108,6 +111,7 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 	m := model{
 		cfg:                cfg,
 		repoLoadID:         1,
+		tmuxRefreshID:      1,
 		presets:            presets,
 		templates:          templates,
 		uiState:            uiSt.Clone(),
@@ -169,10 +173,18 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 }
 
 func (m model) Init() tea.Cmd {
+	var commands []tea.Cmd
 	if m.cfg.IsGitHubConnected() {
-		return gh.CmdFetchRepos(m.cfg.GitHubToken, m.repoLoadID)
+		commands = append(commands, gh.CmdFetchRepos(m.cfg.GitHubToken, m.repoLoadID))
 	}
-	return nil
+	if m.activeTab == TabTmux {
+		id := m.tmuxRefreshID
+		commands = append(commands, func() tea.Msg {
+			sessions, err := tmux.ListSessions()
+			return tmuxSessionsMsg{id: id, sessions: sessions, err: err}
+		})
+	}
+	return tea.Batch(commands...)
 }
 
 func (m model) activeRoot() string { return m.rootSel.Selected() }
@@ -184,6 +196,7 @@ func (m *model) saveState() bool {
 	m.uiState.TreeMode = m.treeMode
 	m.uiState.ActiveTab = m.activeTab
 	if err := uistate.Save(config.Dir(), m.uiState); err != nil {
+		m.persistenceErr = fmt.Errorf("save state: %w", err)
 		m.uiState = m.committedState.Clone()
 		m.collapsedGroups = m.uiState.CollapsedGroups
 		m.collapsedSubgroups = m.uiState.CollapsedSubgroups
@@ -194,6 +207,7 @@ func (m *model) saveState() bool {
 		return false
 	}
 	m.committedState = m.uiState.Clone()
+	m.persistenceErr = nil
 	return true
 }
 
