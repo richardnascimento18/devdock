@@ -11,7 +11,7 @@ The current hierarchy is `root / domain / project`, with groups and subgroups in
 - tmux for opening workspaces; Git for GitHub cloning/linking. Template commands and preset commands require their own tools, such as Node.js, Python, Cargo, nvim, or opencode.
 - Python 3 and Bash for development validation and release scripts.
 
-Release infrastructure is prepared, but this pass does **not** publish a release. When published, official binaries will be available on the [GitHub releases page](https://github.com/richardnascimento18/devdock/releases). A downloaded binary needs no Go installation. Download the matching `devdock_<version>_linux_amd64` or `devdock_<version>_linux_arm64` and `SHA256SUMS`, verify the matching checksum, then install it:
+Linux binaries and checksums are distributed through the [GitHub releases page](https://github.com/richardnascimento18/devdock/releases). The release pipeline publishes explicit beta/prerelease versions until stable-release hardening is complete. A downloaded binary needs no Go installation. Download the matching `devdock_<version>_linux_amd64` or `devdock_<version>_linux_arm64` and `SHA256SUMS`, verify the matching checksum, then install it:
 
 ```sh
 sha256sum --ignore-missing --check SHA256SUMS
@@ -128,6 +128,8 @@ DEVDOCK_GITHUB_CLIENT_ID=YOUR_PUBLIC_CLIENT_ID make release
 Builds embed version, full commit SHA, and commit timestamp. No script guesses or increments release versions. Ordinary `go build` reports development metadata.
 
 Publication requires repository variable `DEVDOCK_RELEASES_ENABLED` to be exactly `true`. Unset/`false` disables publication while verification/builds still run, including initial production bootstrap. The official public Client ID remains in `DEVDOCK_GITHUB_CLIENT_ID`.
+
+The permanent branch model is `production` (stable/default/release) and `staging` (integration). Legacy `main` is removed only after the live release rehearsal and history-reachability verification; it is not part of the permanent workflow.
 
 Future work uses a purpose-specific branch → PR into `staging` → verified promotion PR from `staging` into `production` → verified release. Direct development on these permanent branches is prohibited after Pass 1. Read [CONTRIBUTING.md](CONTRIBUTING.md) for checks, exact branch protections, release setup, and hotfix procedure. [The audit](docs/pass-1-audit.md) and [engineering report](docs/pass-1-report.md) describe this pass and its remaining limits.
 

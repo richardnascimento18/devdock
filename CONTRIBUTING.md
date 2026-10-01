@@ -31,7 +31,9 @@ Tests must use `t.TempDir()` and isolated configuration. Use fake HTTP/auth clie
 Permanent branches:
 
 - `staging`: integration branch and next release candidate.
-- `production`: officially released code.
+- `production`: stable/default branch containing officially released code.
+
+Legacy main is retired after the successful Pass 1B rehearsal; no main branch is used in the permanent workflow.
 
 After Pass 1, do not develop directly on either branch. Create a purpose-specific branch from staging: `feat/…`, `fix/…`, `refactor/…`, `test/…`, `ci/…`, `docs/…`, `build/…`, `perf/…`, or `chore/…`. Use Conventional Commits, for example `fix(pty): preserve child exit errors`.
 
@@ -49,7 +51,7 @@ For an emergency hotfix, branch `fix/…` from production, merge the correction 
 
 ## Required GitHub settings (owner actions)
 
-The Pass 1B bootstrap configures repository rulesets and the publication environment through GitHub APIs and verifies them. OAuth registration remains an owner action. Use the settings below when restoring/recreating the repository; consult the Pass 1B evidence for the verified live state.
+The Pass 1B bootstrap configures repository rulesets and the publication environment through GitHub APIs and verifies them. OAuth registration remains an owner action. Use the settings below when restoring/recreating the repository; the live staging ruleset is 24336971 and production ruleset is 24337571, both active with no bypass actors. Both require PRs, strict/up-to-date Required validation, conversation resolution, and block deletion/force pushes. Production also requires Production source validation. Required approving reviews are zero for the solo maintainer. The production-release environment has a production-only branch policy and no required human approval.
 
 Bootstrap staging from the exact reviewed Pass 1 HEAD. Create production only from corrected, green staging with DEVDOCK_RELEASES_ENABLED unset or false. Publication must remain disabled during that creation; the baseline is not a release. If importing an older production branch without VERSION, the owner must establish a reviewed baseline VERSION before normal promotion policy can pass.
 
