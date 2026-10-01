@@ -1,0 +1,34 @@
+{
+  "conclusion": "success",
+  "databaseId": 36934010228,
+  "headSha": "d82d094c8ae3925470549a701cf9ef9de1f350d9",
+  "status": "completed",
+  "url": "https://github.com/richardnascimento18/devdock/actions/runs/36934010228",
+  "jobs": [
+    {
+      "name": "Promotion policy",
+      "conclusion": "success",
+      "url": "https://github.com/richardnascimento18/devdock/actions/runs/36934010228/job/110609874645"
+    },
+    {
+      "name": "Production source validation",
+      "conclusion": "success",
+      "url": "https://github.com/richardnascimento18/devdock/actions/runs/36934010228/job/110609875041"
+    },
+    {
+      "name": "checks / Go 1.26.x",
+      "conclusion": "success",
+      "url": "https://github.com/richardnascimento18/devdock/actions/runs/36934010228/job/110609875141"
+    },
+    {
+      "name": "checks / Go 1.27.x",
+      "conclusion": "success",
+      "url": "https://github.com/richardnascimento18/devdock/actions/runs/36934010228/job/110609875298"
+    },
+    {
+      "name": "Required validation",
+      "conclusion": "success",
+      "url": "https://github.com/richardnascimento18/devdock/actions/runs/36934010228/job/110610610614"
+    }
+  ]
+}

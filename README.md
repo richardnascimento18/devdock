@@ -87,7 +87,7 @@ Template step commands support quoted arguments such as `command --title "Hello 
 
 DevDock uses a GitHub **OAuth App** with **device flow enabled**. The public `client_id` identifies the application; this flow does not require a client secret. DevDock accepts no OAuth client-secret setting and does not compile one into its binary. See [GitHub's device-flow documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps).
 
-Official release builds obtain the public Client ID from the repository variable `DEVDOCK_GITHUB_CLIENT_ID` and embed it with a linker flag. The owner must register/configure the official app and set that variable before publication. No official ID is fabricated or committed in this pass.
+Official release builds obtain the public Client ID from the repository variable `DEVDOCK_GITHUB_CLIENT_ID` and embed it with a linker flag. The official public Client ID is configured in that repository variable and was embedded in the CI-built `v1.1.0-beta.1` release. No Client ID is hardcoded into source; no Client Secret is used.
 
 To use your own OAuth app, create it in GitHub Settings → Developer settings → OAuth Apps, enable device flow, and copy its **Client ID**. Clone DevDock and build:
 
@@ -117,7 +117,7 @@ make race
 
 All tests use temporary workspaces and fakes for GitHub/tmux/editor boundaries. PTY tests run small local child processes. Race tests require Linux, CGO, and a C compiler; release binaries are built with CGO disabled. `govulncheck` needs network access to the advisory database.
 
-`VERSION` is an explicitly reviewed Semantic Version. The hosted beta lineage preserves historical `v1.0.0-beta` and `v1.1.0-beta`; the CI/CD rehearsal targets `1.1.0-beta.1`. Build local Linux artifacts and checksums with:
+`VERSION` is an explicitly reviewed Semantic Version. The hosted beta lineage preserves historical `v1.0.0-beta` and `v1.1.0-beta`; the CI/CD rehearsal published [`v1.1.0-beta.1`](https://github.com/richardnascimento18/devdock/releases/tag/v1.1.0-beta.1). Build local Linux artifacts and checksums with:
 
 ```sh
 DEVDOCK_GITHUB_CLIENT_ID=YOUR_PUBLIC_CLIENT_ID make release
@@ -129,8 +129,10 @@ Builds embed version, full commit SHA, and commit timestamp. No script guesses o
 
 Publication requires repository variable `DEVDOCK_RELEASES_ENABLED` to be exactly `true`. Unset/`false` disables publication while verification/builds still run, including initial production bootstrap. The official public Client ID remains in `DEVDOCK_GITHUB_CLIENT_ID`.
 
-The permanent branch model is `production` (stable/default/release) and `staging` (integration). Legacy `main` is removed only after the live release rehearsal and history-reachability verification; it is not part of the permanent workflow.
+The permanent branch model is `production` (stable/default/release) and `staging` (integration). Legacy `main` was deleted after the live release rehearsal and history-reachability verification; it is not part of the permanent workflow.
 
 Future work uses a purpose-specific branch → PR into `staging` → verified promotion PR from `staging` into `production` → verified release. Direct development on these permanent branches is prohibited after Pass 1. Read [CONTRIBUTING.md](CONTRIBUTING.md) for checks, exact branch protections, release setup, and hotfix procedure. [The audit](docs/pass-1-audit.md) and [engineering report](docs/pass-1-report.md) describe this pass and its remaining limits.
 
 Licensed under [MIT](LICENSE).
+
+The [Pass 1B live engineering report](docs/pass-1b-report.md) records verified branch protections, hosted CI runs, release artifacts, and remaining limitations.
