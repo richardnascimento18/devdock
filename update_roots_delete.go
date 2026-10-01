@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
+	uistate "github.com/richardnascimento18/devdock/internal/state"
 	"os"
 	"path/filepath"
 	"strings"
@@ -171,11 +173,25 @@ func (m model) updateRemoveRoot(msg tea.Msg) (tea.Model, tea.Cmd) {
 			root := m.cfg.ActiveRoots()[m.genericPicker.cursor]
 			proposed := m.cfg.Clone()
 			proposed.RemoveRoot(root)
+			proposedState := m.uiState.Clone()
+			proposedState.RemovePath(root)
 			if err := config.Save(proposed); err != nil {
 				m.genericPicker.err = fmt.Sprintf("error saving config: %v", err)
 				return m, nil
 			}
+			if err := uistate.Save(config.Dir(), proposedState); err != nil {
+				// These are separate files: compensate before changing live state.
+				rollback := config.Save(m.cfg)
+				if rollback != nil {
+					rollback = fmt.Errorf("configuration rollback failed: %w", rollback)
+				}
+				m.genericPicker.err = errors.Join(fmt.Errorf("root state cleanup failed: %w", err), rollback).Error()
+				return m, nil
+			}
 			m.cfg = proposed
+			m.uiState = proposedState
+			m.committedState = proposedState.Clone()
+			m.persistenceErr = nil
 			m.rootSel.SetRoots(m.cfg.ActiveRoots())
 			m = m.rescan()
 			m.state = stateList

@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"github.com/richardnascimento18/devdock/internal/pty"
 	"os"
 	"path/filepath"
@@ -262,13 +263,14 @@ func TestSnapshotKeepsStateForUnavailableRoots(t *testing.T) {
 	m := fixtureModel(t, root)
 	m.cfg.Roots = append(m.cfg.Roots, missing)
 	m.uiState.ToggleFavorite(filepath.Join(missing, "apps", "demo"))
+	m.uiState.AddRecent(core.Project{Path: filepath.Join(missing, "apps", "demo"), Root: missing, Domain: "apps", Name: "demo"})
 	snapshot := scanWorkspace(m.cfg.Roots, nil)
 	if snapshot.err == nil {
 		t.Fatal("scan failure suppressed")
 	}
 	next, _ := m.handleScanResult(scanResultMsg{id: m.scanID, snapshot: snapshot})
 	m = next.(model)
-	if !m.uiState.Favorites[filepath.Join(missing, "apps", "demo")] {
+	if !m.uiState.Favorites[filepath.Join(missing, "apps", "demo")] || len(m.uiState.Recents) != 1 {
 		t.Fatal("unavailable root state pruned")
 	}
 }
@@ -380,6 +382,114 @@ func TestProjectAndDomainDeletionConfirmation(t *testing.T) {
 			}
 			if len(m.uiState.Favorites) != 0 || len(m.uiState.Recents) != 0 {
 				t.Fatal("deleted project metadata remains")
+			}
+		})
+	}
+}
+
+func TestExplicitRootRemovalPrunesFavoritesAndRecents(t *testing.T) {
+	for _, removedCount := range []int{5, 4} {
+		t.Run(fmt.Sprintf("%d-removed-favorites", removedCount), func(t *testing.T) {
+			base := t.TempDir()
+			removed, other := filepath.Join(base, "code"), filepath.Join(base, "code2")
+			for _, root := range []string{removed, other} {
+				if err := os.Mkdir(root, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			m := fixtureModel(t, removed, other)
+			add := func(root, name string) core.Project {
+				p, err := core.CreateProject(root, "apps", name)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !m.uiState.ToggleFavorite(p.Path) {
+					t.Fatal("setup reached favorites limit early")
+				}
+				m.uiState.AddRecent(p)
+				return p
+			}
+			for i := 0; i < removedCount; i++ {
+				add(removed, fmt.Sprintf("demo%d", i))
+			}
+			var keep core.Project
+			if removedCount == 4 {
+				keep = add(other, "keep")
+			}
+			if len(m.uiState.Favorites) != state.MaxFavorites {
+				t.Fatal("did not reproduce full favorites map")
+			}
+			if err := config.Save(m.cfg); err != nil {
+				t.Fatal(err)
+			}
+			if !m.saveState() {
+				t.Fatal("setup save failed")
+			}
+			m.state = stateRemoveRoot
+			m.genericPicker.cursor = 0
+			next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			m = next.(model)
+			if len(m.cfg.Roots) != 1 || m.cfg.Roots[0] != other {
+				t.Fatal("removed wrong root")
+			}
+			expected := 5 - removedCount
+			if len(m.uiState.Favorites) != expected || len(m.uiState.Recents) != expected {
+				t.Fatal("removed root state still counts")
+			}
+			if removedCount == 4 && (!m.uiState.Favorites[keep.Path] || m.uiState.Recents[0].Path != keep.Path) {
+				t.Fatal("neighbor prefix root state was removed")
+			}
+			saved, err := state.Load(config.Dir())
+			if err != nil || len(saved.Favorites) != expected || len(saved.Recents) != expected {
+				t.Fatal("cleanup was not persisted", err)
+			}
+			fresh := add(other, "fresh")
+			if !m.uiState.Favorites[fresh.Path] {
+				t.Fatal("new favorite not accepted")
+			}
+			if _, err := os.Stat(removed); err != nil {
+				t.Fatal("root removal deleted workspace")
+			}
+		})
+	}
+}
+
+func TestFailedRootRemovalKeepsStateAndConfiguration(t *testing.T) {
+	for _, failedFile := range []string{"config.toml", "state.json"} {
+		t.Run(failedFile, func(t *testing.T) {
+			root, other := t.TempDir(), t.TempDir()
+			m := fixtureModel(t, root, other)
+			p, err := core.CreateProject(root, "apps", "demo")
+			if err != nil {
+				t.Fatal(err)
+			}
+			m.uiState.ToggleFavorite(p.Path)
+			m.uiState.AddRecent(p)
+			if err := config.Save(m.cfg); err != nil {
+				t.Fatal(err)
+			}
+			if !m.saveState() {
+				t.Fatal("setup save failed")
+			}
+			blocked := filepath.Join(config.Dir(), failedFile)
+			if err := os.Remove(blocked); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Mkdir(blocked, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			m.state = stateRemoveRoot
+			m.genericPicker.cursor = 0
+			next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			m = next.(model)
+			if len(m.cfg.Roots) != 2 || !m.uiState.Favorites[p.Path] || len(m.uiState.Recents) != 1 || m.genericPicker.err == "" {
+				t.Fatal("failed removal committed live state")
+			}
+			if failedFile == "state.json" {
+				saved, err := config.Load()
+				if err != nil || len(saved.Roots) != 2 {
+					t.Fatal("configuration was not rolled back", err)
+				}
 			}
 		})
 	}
