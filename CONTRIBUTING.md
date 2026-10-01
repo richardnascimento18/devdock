@@ -56,7 +56,7 @@ Bootstrap staging from the exact reviewed Pass 1 HEAD. Create production only fr
 For **both** staging and production, configure GitHub branch protection or rulesets:
 
 - Require a pull request before merging. Required approving-review count is zero for the solo maintainer; do not require approval from another human or the most recent push. Optional stale reviews are dismissed when new commits are pushed.
-- Require status check **Required validation** from the CI workflow. Production additionally requires **Production source validation**. Associate both with the GitHub Actions app; let actual runs register the check names.
+- Require status check **Required validation** from the CI workflow. Production requires **Production validation** and **Production source validation**, with names distinct from staging checks so an integration result cannot substitute for a production result. Associate both with the GitHub Actions app; let actual runs register the check names.
 - Require the branch to be up to date before merging and require conversation resolution.
 - Block force pushes and branch deletion; apply rules to administrators and bypass roles. Do not allow routine bypass actors.
 
