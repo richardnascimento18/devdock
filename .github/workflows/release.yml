@@ -1,0 +1,89 @@
+name: Production release
+on:
+  push:
+    branches: [production]
+permissions:
+  contents: read
+# Serialize publication; complete each release before the next promotion.
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+jobs:
+  checks:
+    uses: ./.github/workflows/verify.yml
+  build:
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.27.x'
+          check-latest: true
+          cache: true
+      - id: version
+        name: Read explicit release version
+        run: |
+          version=$(python3 scripts/version.py "$(cat VERSION)")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then echo 'prerelease=true' >> "$GITHUB_OUTPUT"; else echo 'prerelease=false' >> "$GITHUB_OUTPUT"; fi
+      - name: Build official binaries
+        env:
+          DEVDOCK_GITHUB_CLIENT_ID: ${{ vars.DEVDOCK_GITHUB_CLIENT_ID }}
+          DEVDOCK_COMMIT: ${{ github.sha }}
+        run: |
+          test -n "$DEVDOCK_GITHUB_CLIENT_ID" || { echo 'Set the public DEVDOCK_GITHUB_CLIENT_ID repository variable.' >&2; exit 1; }
+          make release
+          (cd dist && sha256sum --check SHA256SUMS)
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-binaries
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: production-release
+    permissions:
+      contents: write
+    steps:
+      # No repository code is checked out or executed in this write-permission job.
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: release-binaries
+          path: dist
+      - name: Create exact-commit tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          (cd dist && sha256sum --check SHA256SUMS)
+          tag="v$RELEASE_VERSION"
+          # Refuse to reuse a tag pointing elsewhere. GET/POST errors fail visibly.
+          if gh api "repos/$GH_REPO/git/ref/tags/$tag" > tag.json 2> tag-error.txt; then
+            existing=$(python3 -c 'import json; print(json.load(open("tag.json"))["object"]["sha"])')
+            test "$existing" = "$RELEASE_SHA" || { echo 'Release tag already points to another commit.' >&2; exit 1; }
+          else
+            grep -q 'HTTP 404' tag-error.txt || { cat tag-error.txt >&2; exit 1; }
+            gh api "repos/$GH_REPO/git/refs" -f "ref=refs/tags/$tag" -f "sha=$RELEASE_SHA"
+          fi
+          prerelease_args=()
+          if [[ "$PRERELEASE" == true ]]; then prerelease_args=(--prerelease); fi
+          # Support rerunning after an asset upload failure without moving a tag.
+          if gh release view "$tag" > /dev/null 2> release-error.txt; then
+            gh release upload "$tag" dist/* --clobber
+          else
+            grep -q -E 'HTTP 404|release not found' release-error.txt || { cat release-error.txt >&2; exit 1; }
+            gh release create "$tag" dist/* --verify-tag --title "DevDock $tag" --generate-notes "${prerelease_args[@]}"
+          fi

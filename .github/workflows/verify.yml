@@ -1,0 +1,34 @@
+name: Verify
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  validation:
+    name: Go ${{ matrix.go }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.26.x', '1.27.x']
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ matrix.go }}
+          check-latest: true
+          cache: true
+      - name: Install pinned analysis tools
+        run: make tools
+      - name: Full validation
+        run: make check
+      - name: Verify Linux release builds and checksums
+        env:
+          DEVDOCK_GITHUB_CLIENT_ID: ci-public-client-id
+        run: |
+          make release
+          (cd dist && sha256sum --check SHA256SUMS)
+          dist/devdock_$(cat VERSION)_linux_amd64 --version
