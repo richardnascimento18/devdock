@@ -55,6 +55,7 @@ const (
 // ---------------------------------------------------------------------------
 
 type editorScreen struct {
+	cfg      config.Config
 	revision uint64
 	tab      int
 	cursor   int
@@ -223,12 +224,18 @@ func (e editorScreen) updatePresetEditor(msg tea.Msg) (editorScreen, tea.Cmd) {
 		if !found {
 			proposed = append(proposed, p)
 		}
-		if err := preset.Save(config.Dir(), proposed); err != nil {
+		oldName := e.pe.originalName
+		if e.pe.isNew {
+			oldName = ""
+		}
+		proposedConfig, err := savePresetProposal(e.cfg, proposed, oldName, p.Name)
+		if err != nil {
 			e.pe.statusMsg = errorStyle.Render("✗  save failed: " + err.Error())
 			e.pe.result = editorResultNone
 			return e, nil
 		} else {
 			e.presets = proposed
+			e.cfg = proposedConfig
 			e.revision++
 			e.statusMsg = successStyle.Render("✓  preset \"" + p.Name + "\" saved")
 		}

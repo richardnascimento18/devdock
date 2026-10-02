@@ -444,6 +444,7 @@ func (m model) startCloneFlow(repo gh.Repo) model {
 
 func (m model) startEditor() (tea.Model, tea.Cmd) {
 	m.editorScr = newEditorScreen(m.presets, m.templates, m.termW, m.termH)
+	m.editorScr.cfg = m.cfg.Clone()
 	m.state = stateEditor
 	return m, nil
 }
