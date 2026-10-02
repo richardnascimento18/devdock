@@ -340,11 +340,7 @@ func (m model) startNewDomainOnly() (tea.Model, tea.Cmd) {
 		)
 		return m, nil
 	}
-	opts := make([]string, len(roots))
-	for i, r := range roots {
-		opts[i] = config.RootName(r)
-	}
-	m.genericPicker = newGenericPicker("Select root for new domain:", opts, "↑/↓  •  enter  •  esc")
+	m.genericPicker = newRootPicker("Select root for new domain:", roots, "↑/↓  •  enter  •  esc")
 	m.state = statePickRootForDomain
 	return m, nil
 }
@@ -396,11 +392,7 @@ func (m model) startRemoveRoot() (tea.Model, tea.Cmd) {
 		m.statusMsg = errorStyle.Render("no roots to remove")
 		return m, nil
 	}
-	opts := make([]string, len(roots))
-	for i, r := range roots {
-		opts[i] = config.RootName(r)
-	}
-	m.genericPicker = newGenericPicker("Select root to remove:", opts, "↑/↓  •  enter  •  esc")
+	m.genericPicker = newRootPicker("Select root to remove:", roots, "↑/↓  •  enter  •  esc")
 	m.state = stateRemoveRoot
 	return m, nil
 }
@@ -425,13 +417,9 @@ func (m model) startMoveProject() model {
 		m.pendingRoot = roots[0]
 		return m.openMoveDestDomainPicker()
 	}
-	opts := make([]string, len(roots))
-	for i, r := range roots {
-		opts[i] = config.RootName(r)
-	}
-	m.genericPicker = newGenericPicker(
+	m.genericPicker = newRootPicker(
 		fmt.Sprintf("Move \"%s\" — destination root:", proj.Name),
-		opts, "↑/↓  •  enter  •  esc",
+		roots, "↑/↓  •  enter  •  esc",
 	)
 	m.state = stateMovePickRoot
 	return m
@@ -446,13 +434,9 @@ func (m model) startCloneFlow(repo gh.Repo) model {
 		m.pendingRoot = roots[0]
 		return m.openDomainPickerForClone()
 	}
-	opts := make([]string, len(roots))
-	for i, r := range roots {
-		opts[i] = config.RootName(r)
-	}
-	m.genericPicker = newGenericPicker(
+	m.genericPicker = newRootPicker(
 		fmt.Sprintf("Clone \"%s\" — select root:", repo.Name),
-		opts, "↑/↓  •  enter  •  esc",
+		roots, "↑/↓  •  enter  •  esc",
 	)
 	m.state = statePickRootForClone
 	return m

@@ -44,7 +44,7 @@ func (m model) openPlacement(root, domain string, intent placementIntent) model 
 	for i, opt := range opts {
 		labels[i] = opt.label
 	}
-	m.genericPicker = newGenericPicker("Select workspace location:", labels, "↑/↓ • enter • esc")
+	m.genericPicker = newLocationPicker("Select workspace location:", locations, labels, "↑/↓ • enter • esc")
 	m.state = stateMovePickPlacement
 	return m
 }

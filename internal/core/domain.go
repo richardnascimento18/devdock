@@ -180,3 +180,21 @@ func CreateGroupPath(parent Location, names []string) error {
 	}
 	return nil
 }
+
+// CreateGroups uses the canonical snapshot to prevent creating workspace
+// hierarchy inside a discovered project's source tree.
+func (w Workspace) CreateGroups(parent Location, names []string) error {
+	target := parent
+	for _, name := range names {
+		target = target.Child(name)
+	}
+	if err := target.Validate(); err != nil {
+		return err
+	}
+	for _, project := range w.Projects {
+		if project.Root == target.Root && IsDescendant(project.Path, target.Path()) {
+			return fmt.Errorf("group location is inside project %q", project.Path)
+		}
+	}
+	return CreateGroupPath(parent, names)
+}

@@ -1,5 +1,11 @@
 package core
 
+import (
+	"crypto/sha256"
+	"fmt"
+	"path/filepath"
+)
+
 // ProjectKind describes a local discovery boundary.
 type ProjectKind string
 
@@ -21,3 +27,9 @@ type Project struct {
 type ProjectKey string
 
 func (p Project) Key() ProjectKey { return ProjectKey(p.Path) }
+
+// PathID is a compact display/session discriminator, not a permanent project ID.
+func PathID(path string) string {
+	sum := sha256.Sum256([]byte(filepath.Clean(path)))
+	return fmt.Sprintf("%x", sum[:8])
+}
