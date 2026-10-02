@@ -345,14 +345,7 @@ func (m model) openDomainPicker(root, projectName string) (model, tea.Cmd) {
 
 func (m model) openRootPickerForProject(projectName string) model {
 	m.pendingProjectName = projectName
-	opts := make([]string, len(m.cfg.ActiveRoots()))
-	for i, r := range m.cfg.ActiveRoots() {
-		opts[i] = config.RootName(r)
-	}
-	m.genericPicker = newGenericPicker(
-		fmt.Sprintf("Select root for \"%s\":", projectName),
-		opts, "↑/↓  •  enter  •  esc",
-	)
+	m.genericPicker = newRootPicker(fmt.Sprintf("Select root for %q:", projectName), m.cfg.ActiveRoots(), "↑/↓ • enter • esc")
 	m.state = statePickRoot
 	return m
 }

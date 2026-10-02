@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/core"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -38,10 +40,11 @@ func renderTabBar(active int) string {
 // ---------------------------------------------------------------------------
 
 type inputScreen struct {
-	title string
-	input textinput.Model
-	err   string
-	hint  string
+	title      string
+	targetPath string
+	input      textinput.Model
+	err        string
+	hint       string
 }
 
 func newInputScreen(title, placeholder, hint string) inputScreen {
@@ -53,7 +56,11 @@ func newInputScreen(title, placeholder, hint string) inputScreen {
 	ti.Cursor.Style = cursorStyle
 	ti.PromptStyle = promptStyle
 	ti.TextStyle = lipgloss.NewStyle().Foreground(colorWhite)
-	return inputScreen{title: title, input: ti, hint: hint}
+	s := inputScreen{title: title, input: ti, hint: hint}
+	if filepath.IsAbs(placeholder) {
+		s.targetPath = placeholder
+	}
+	return s
 }
 
 func (s inputScreen) Update(msg tea.Msg) (inputScreen, tea.Cmd) {
@@ -64,6 +71,10 @@ func (s inputScreen) Update(msg tea.Msg) (inputScreen, tea.Cmd) {
 
 func (s inputScreen) View(termW, termH int) string {
 	var inner strings.Builder
+	if s.targetPath != "" {
+		inner.WriteString(dimStyle.Render("Target ["+core.PathID(s.targetPath)+"]:") + "\n" + ansi.Hardwrap(s.targetPath, min(56, max(termW-16, 20)), false) + "\n\n")
+	}
+	s.input.Width = min(52, max(termW-16, 20))
 	inner.WriteString(s.input.View() + "\n")
 	if s.err != "" {
 		inner.WriteString("\n" + errorStyle.Render("✗  "+s.err))
@@ -171,12 +182,13 @@ func (g githubAuthScreen) View(termW, termH int) string {
 // ---------------------------------------------------------------------------
 
 type genericPickerScreen struct {
-	title    string
-	options  []string
-	cursor   int
-	disabled map[string]bool
-	err      string
-	hint     string
+	title      string
+	options    []string
+	identities []string
+	cursor     int
+	disabled   map[string]bool
+	err        string
+	hint       string
 }
 
 func newGenericPicker(title string, options []string, hint string) genericPickerScreen {
@@ -193,12 +205,17 @@ func (g genericPickerScreen) View(termW, termH int) string {
 	end := min(start+rows, len(g.options))
 	for i := start; i < end; i++ {
 		o := g.options[i]
-		available := max(termW-14, 12)
+		identity := ""
+		if i < len(g.identities) {
+			identity = g.identities[i] + " "
+		}
+		available := max(termW-14-ansi.StringWidth(identity), 8)
 		if ansi.StringWidth(o) > available {
 			o = ansi.TruncateLeft(o, ansi.StringWidth(o)-available+1, "…")
 		}
 
 		var line string
+		o = identity + o
 		switch {
 		case g.disabled[g.options[i]]:
 			line = dimStyle.Render("  "+o) + dimStyle.Render(" (already exists)")
@@ -435,4 +452,19 @@ func (s confirmDeleteTmuxScreen) View(termW, termH int) string {
 	inner.WriteString("\n\n" + hintStyle.Render("enter confirm  •  esc cancel"))
 	content := lipgloss.JoinVertical(lipgloss.Left, RenderTitle(), wrapInWarningBox("Kill tmux Session", inner.String()))
 	return centerInTerminal(termW, termH, content)
+}
+
+func newLocationPicker(title string, locations []core.Location, labels []string, hint string) genericPickerScreen {
+	picker := newGenericPicker(title, labels, hint)
+	for _, loc := range locations {
+		picker.identities = append(picker.identities, core.PathID(loc.Path()))
+	}
+	return picker
+}
+func newRootPicker(title string, roots []string, hint string) genericPickerScreen {
+	picker := newGenericPicker(title, roots, hint)
+	for _, root := range roots {
+		picker.identities = append(picker.identities, core.PathID(root))
+	}
+	return picker
 }

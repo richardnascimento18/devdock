@@ -1,7 +1,6 @@
 package tmux
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"os"
@@ -200,6 +199,5 @@ func SessionName(p core.Project) string {
 	if name == "" {
 		name = "project"
 	}
-	sum := sha256.Sum256([]byte(filepath.Clean(p.Path)))
-	return fmt.Sprintf("devdock-%s-%x", name, sum[:8])
+	return "devdock-" + name + "-" + core.PathID(p.Path)
 }

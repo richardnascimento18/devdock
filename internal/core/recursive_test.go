@@ -143,3 +143,22 @@ func TestFlattenDeepCollapseAndDistinctRoots(t *testing.T) {
 		t.Fatal("root filtering")
 	}
 }
+
+func TestGroupCreationCannotEnterProjectBoundary(t *testing.T) {
+	root := t.TempDir()
+	domain := Location{Root: root, Domain: "apps"}
+	p, err := CreateProject(domain, "api")
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := Workspace{Projects: []Project{p}}
+	if err := w.CreateGroups(domain, []string{"api", "internal", "group"}); err == nil {
+		t.Fatal("created workspace group inside source tree")
+	}
+	if _, err := os.Stat(filepath.Join(p.Path, "internal")); !os.IsNotExist(err) {
+		t.Fatal("project source modified")
+	}
+	if err := w.CreateGroups(domain, []string{"api-group", "internal"}); err != nil {
+		t.Fatal(err)
+	}
+}

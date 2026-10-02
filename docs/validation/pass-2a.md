@@ -37,3 +37,10 @@ Sandbox-only attempts initially failed on read-only Go/staticcheck caches.
 Writable temporary caches and network-enabled validation resolved those
 environment restrictions. Staticcheck also caught one obsolete style and an
 unused test variable; both were removed before the successful complete check.
+
+The focused `fix/deep-location-disambiguation` correction was validated with
+the same full local suite, Go 1.26.8 tests, both release builds/checksums and
+isolated TUI smoke. It adds regressions for identical truncated breadcrumbs,
+same-basename roots, complete long confirmation text, and rejection of group
+creation inside a discovered project's source tree. Display hashes are shared
+with tmux's existing path discriminator; session names are unchanged.

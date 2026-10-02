@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/core"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -101,7 +102,10 @@ func (m model) viewList(w, h int) string {
 	if group, ok := m.list.SelectedItem().(groupItem); ok {
 		selectedPath = group.location.Path()
 	}
-	locationLine := dimStyle.Render(ansi.Truncate(selectedPath, max(w-8, 10), "…"))
+	locationLine := ""
+	if selectedPath != "" {
+		locationLine = dimStyle.Render(core.PathID(selectedPath) + " " + ansi.Truncate(selectedPath, max(w-25, 10), "…"))
+	}
 
 	widgets := lipgloss.JoinVertical(lipgloss.Left,
 		"",

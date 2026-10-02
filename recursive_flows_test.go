@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/charmbracelet/x/ansi"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -220,5 +222,43 @@ func TestLongConfirmationAndScrollingPicker(t *testing.T) {
 	rendered := picker.View(60, 24)
 	if !strings.Contains(rendered, "destination-99") || strings.Contains(rendered, "destination-0") {
 		t.Fatal("selected destination offscreen")
+	}
+}
+
+func TestDeepLabelsRemainDistinctWhenBreadcrumbsTruncate(t *testing.T) {
+	a := core.Location{Root: "/workspace", Domain: "apps", GroupPath: []string{"backend"}}
+	b := core.Location{Root: "/workspace", Domain: "apps", GroupPath: []string{"frontend"}}
+	for i := 0; i < 40; i++ {
+		a = a.Child("shared")
+		b = b.Child("shared")
+	}
+	labels := []string{a.Breadcrumb(), b.Breadcrumb()}
+	picker := newLocationPicker("Location", []core.Location{a, b}, labels, "select")
+	rendered := picker.View(60, 30)
+	if core.PathID(a.Path()) == core.PathID(b.Path()) || !strings.Contains(rendered, core.PathID(a.Path())) || !strings.Contains(rendered, core.PathID(b.Path())) {
+		t.Fatal("truncation aliased locations")
+	}
+	rootPicker := newRootPicker("Root", []string{"/work/projects", "/personal/projects"}, "select")
+	rendered = rootPicker.View(80, 30)
+	if !strings.Contains(rendered, "/work/projects") || !strings.Contains(rendered, "/personal/projects") {
+		t.Fatal("root basename alias")
+	}
+}
+func TestLongConfirmationDisplaysWholeTarget(t *testing.T) {
+	path := "/workspace/apps/" + strings.Repeat("shared/", 50) + "distinct-group/api"
+	screen := newInputScreen("Delete", path, "type full path")
+	rendered := screen.View(80, 40)
+	flattened := strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) || r == '│' {
+			return -1
+		}
+		return r
+	}, ansi.Strip(rendered))
+	if !strings.Contains(rendered, core.PathID(path)) || !strings.Contains(flattened, path) {
+		t.Fatal("target text lost during wrapping")
+	}
+	screen.input.SetValue(path)
+	if screen.input.Value() != path {
+		t.Fatal("confirmation truncated")
 	}
 }

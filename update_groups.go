@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,11 +21,7 @@ func (m model) startCreateGroup() (tea.Model, tea.Cmd) {
 		m.pendingRoot = roots[0]
 		return m.openDomainPickerForGroup()
 	}
-	opts := make([]string, len(roots))
-	for i, r := range roots {
-		opts[i] = config.RootName(r)
-	}
-	m.genericPicker = newGenericPicker("Create Group — select root:", opts, "↑/↓  •  enter  •  esc")
+	m.genericPicker = newRootPicker("Create Group — select root:", roots, "↑/↓  •  enter  •  esc")
 	m.state = statePickRoot
 	m.rootIntent = rootForCreateGroup
 	return m, nil
@@ -82,7 +77,7 @@ func (m model) updateCreateGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputScr.err = "name cannot be empty"
 				return m, nil
 			}
-			if err := core.CreateGroupPath(m.groupFlow.parent, strings.Split(name, "/")); err != nil {
+			if err := m.workspaceTree.CreateGroups(m.groupFlow.parent, strings.Split(name, "/")); err != nil {
 				m.inputScr.err = err.Error()
 				return m, nil
 			}
@@ -115,11 +110,7 @@ func (m model) startDeleteGroup() (tea.Model, tea.Cmd) {
 		m.pendingRoot = roots[0]
 		return m.openGroupPickerForDelete()
 	}
-	opts := make([]string, len(roots))
-	for i, r := range roots {
-		opts[i] = config.RootName(r)
-	}
-	m.genericPicker = newGenericPicker("Delete Group — select root:", opts, "↑/↓  •  enter  •  esc")
+	m.genericPicker = newRootPicker("Delete Group — select root:", roots, "↑/↓  •  enter  •  esc")
 	m.rootIntent = rootForDeleteGroup
 	m.state = statePickRoot
 	return m, nil
@@ -142,7 +133,7 @@ func (m model) openGroupPickerForDelete() (tea.Model, tea.Cmd) {
 		m.state = stateList
 		return m, nil
 	}
-	m.genericPicker = newGenericPicker("Delete Group — select group:", groups, "↑/↓  •  enter  •  esc cancel")
+	m.genericPicker = newLocationPicker("Delete Group — select group:", m.groupFlow.deleteLocations, groups, "↑/↓  •  enter  •  esc cancel")
 	m.state = stateDeleteGroup
 	return m, nil
 }
