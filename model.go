@@ -71,6 +71,7 @@ type model struct {
 	ptyScr           ptyScreen
 	confirmDelDomain confirmDeleteDomainScreen
 	editorScr        editorScreen
+	editorRootReturn bool
 	confirmDelTmux   confirmDeleteTmuxScreen
 
 	// tmux-sessions tab

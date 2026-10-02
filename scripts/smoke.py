@@ -1,7 +1,8 @@
-import argparse, fcntl, os, pathlib, pty, select, struct, subprocess, tempfile, termios, time
+import argparse, fcntl, os, pathlib, pty, select, struct, subprocess, tempfile, termios, time, tomllib
 parser = argparse.ArgumentParser(description="Smoke-test a DevDock binary in an isolated terminal/workspace.")
 parser.add_argument("binary", type=pathlib.Path)
 parser.add_argument("--oauth-configured", action="store_true", help="expect an embedded public Client ID; never complete authorization")
+parser.add_argument("--configuration-editor", action="store_true", help="exercise the Settings tab and persist a default preset")
 args = parser.parse_args()
 binary = args.binary.resolve()
 with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
@@ -36,6 +37,15 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
         os.write(master, b'f'); drain(0.2)
         os.write(master, b'e'); drain(0.3)
         assert b'Presets' in captured and b'Templates' in captured, 'editor did not render'
+        if args.configuration_editor:
+            os.write(master, b'\t\t'); drain(0.3)
+            assert b'Settings' in captured, 'settings tab did not render'
+            os.write(master, b'\r'); drain(0.2)
+            os.write(master, b'i'); drain(0.2)
+            os.write(master, b'nvim'); drain(0.2)
+            os.write(master, b'\x13'); drain(0.3)
+            assert tomllib.loads((config_dir / 'config.toml').read_text()).get('default_preset') == 'nvim', 'configuration editor did not persist default preset'
+            print('PASS: Settings tab default-preset edit and persistence')
         os.write(master, b'\x1b'); drain(0.2)
         os.write(master, b'g'); drain(0.3)
         if args.oauth_configured:

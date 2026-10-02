@@ -1,0 +1,97 @@
+package main
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/richardnascimento18/devdock/internal/config"
+)
+
+type configurationEditor struct {
+	defaultPreset textinput.Model
+	typing        bool
+	statusMsg     string
+}
+
+func newConfigurationEditor(value string) configurationEditor {
+	input := newSmallInput(value, "blank selects the first preset", 45)
+	input.CharLimit = 0
+	return configurationEditor{defaultPreset: input}
+}
+
+func (e editorScreen) updateConfigurationEditor(msg tea.Msg) (editorScreen, tea.Cmd) {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		e.termW, e.termH = size.Width, size.Height
+		return e, nil
+	}
+	if key, ok := msg.(tea.KeyMsg); ok {
+		switch key.String() {
+		case "ctrl+c":
+			e.layer = editorLayerList
+			return e, nil
+		case "esc":
+			if e.ce.typing {
+				e.ce.typing = false
+				e.ce.defaultPreset.Blur()
+			} else {
+				e.layer = editorLayerList
+			}
+			return e, nil
+		case "ctrl+s":
+			proposed := e.cfg.Clone()
+			proposed.DefaultPreset = strings.TrimSpace(e.ce.defaultPreset.Value())
+			if proposed.DefaultPreset != "" {
+				found := false
+				for _, p := range e.presets {
+					found = found || p.Name == proposed.DefaultPreset
+				}
+				if !found {
+					e.ce.statusMsg = errorStyle.Render(fmt.Sprintf("unknown preset %q; choose an existing preset or leave blank", proposed.DefaultPreset))
+					return e, nil
+				}
+			}
+			committed, changed, err := config.Commit(e.cfg, proposed)
+			if err != nil {
+				e.ce.statusMsg = errorStyle.Render("save failed: " + err.Error())
+				return e, nil
+			}
+			e.cfg = committed
+			if changed {
+				e.revision++
+				e.statusMsg = successStyle.Render("✓  configuration saved")
+			} else {
+				e.statusMsg = dimStyle.Render("Configuration unchanged")
+			}
+			e.layer = editorLayerList
+			return e, nil
+		case "i", "enter":
+			if !e.ce.typing {
+				e.ce.typing = true
+				return e, e.ce.defaultPreset.Focus()
+			}
+		}
+	}
+	if e.ce.typing {
+		var cmd tea.Cmd
+		e.ce.defaultPreset, cmd = e.ce.defaultPreset.Update(msg)
+		return e, cmd
+	}
+	return e, nil
+}
+
+func (e editorScreen) viewConfigurationEditor() string {
+	var names []string
+	for _, p := range e.presets {
+		names = append(names, p.Name)
+	}
+	content := lipgloss.JoinVertical(lipgloss.Left,
+		RenderTitle(), promptStyle.Render("  Application configuration"), "",
+		editorListBoxStyle.Render("Default preset:\n"+e.ce.defaultPreset.View()+"\n\n"+
+			dimStyle.Render("Available: "+strings.Join(names, ", ")+"\nBlank selects the first preset.")),
+		e.ce.statusMsg, "",
+		hintStyle.Render("i / enter edit  •  ctrl+s save  •  esc stop editing / cancel"))
+	return centerInTerminal(e.termW, e.termH, content)
+}
