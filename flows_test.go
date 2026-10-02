@@ -212,20 +212,28 @@ func TestResizeAndStaleScanResults(t *testing.T) {
 }
 
 func TestDomainCreationRefreshesSnapshot(t *testing.T) {
-	root := t.TempDir()
-	m := fixtureModel(t, root)
-	next, _ := m.startNewDomainOnly()
-	m = next.(model)
-	m.inputScr.input.SetValue("new")
-	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	m = next.(model)
-	if cmd == nil {
-		t.Fatal("domain creation did not schedule rescan")
-	}
-	next, _ = m.Update(cmd())
-	m = next.(model)
-	if len(m.workspaceDomains[root]) != 1 || m.workspaceDomains[root][0] != "new" {
-		t.Fatal("new domain absent from picker snapshot")
+	for _, reduced := range []bool{false, true} {
+		t.Run(fmt.Sprintf("reduced-%v", reduced), func(t *testing.T) {
+			root := t.TempDir()
+			m := fixtureModel(t, root)
+			m.motion.reduced = reduced
+			next, _ := m.startNewDomainOnly()
+			m = next.(model)
+			m.inputScr.input.SetValue("new")
+			next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			m = next.(model)
+			if cmd == nil {
+				t.Fatal("domain creation did not schedule rescan")
+			}
+			if m.motion.pending == reduced {
+				t.Fatal("clock does not respect motion mode")
+			}
+			next, _ = m.Update(operationMessage(cmd))
+			m = next.(model)
+			if len(m.workspaceDomains[root]) != 1 || m.workspaceDomains[root][0] != "new" {
+				t.Fatal("new domain absent from picker snapshot")
+			}
+		})
 	}
 }
 

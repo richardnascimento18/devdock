@@ -28,7 +28,7 @@ available width/height and preserves its interrupt hint at 24×8.
   tests, race, vet, staticcheck, govulncheck, build, actionlint and 8 Python tests.
 - Exact Go 1.26.0 tests, Linux amd64/arm64 release builds, SHA256SUMS and ELF
   architecture checks; native amd64 smoke with normal and reduced motion.
-- 137 top-level Go tests, 355 including subtests, 40 ANSI/plain fixture pairs.
+- 137 top-level Go tests, 357 including subtests, 40 ANSI/plain fixture pairs.
 - All fixture states undergo repeated resize at 120×40, 100×30, 80×24, 60×20,
   40×15, 24×8, 1×1, 0×0 and 300×80, with cell/height/UTF-8/background checks.
 - Clock lifecycle, no duplicate timers, late/stale completion, reduced-motion
@@ -41,6 +41,11 @@ available width/height and preserves its interrupt hint at 24×8.
   verification includes both normal and reduced-motion smoke without weakening
   any existing check. No dependencies were added; existing uniseg is now direct
   for grapheme-safe progress.
+- Hosted run `37075950794` caught a domain-refresh test that passed a Tea command
+  bundle directly to Update instead of executing its scan command when animation
+  was enabled. The test now exercises both motion modes and still asserts the
+  real refreshed domain snapshot. Full local validation also runs with NO_COLOR
+  unset to match hosted behavior; no check or assertion was waived.
 - Staticcheck identified obsolete `centerInTerminal`; it was removed, not waived.
 - Coverage and performance reports are included in [pass-3e](pass-3e/). Diagnostics
   cover 1,000/5,000 projects, fuzzy input, deep trees, large selection and resize.
