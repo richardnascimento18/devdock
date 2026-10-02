@@ -65,25 +65,29 @@ func modalLayout(body, hint string, width, height int) ([]string, string, int, i
 	hint = ansi.Wrap(hint, inner, "")
 	hintLines := strings.Split(hint, "\n")
 	if len(hintLines) > 2 {
-		if strings.Contains(originalHint, "enter") {
-			hint = "enter · esc cancel"
-		} else {
-			hint = "esc cancel"
-		}
+		hint = compactModalHint(originalHint)
 		hintLines = strings.Split(ansi.Wrap(hint, inner, ""), "\n")
 	}
+
 	rows := max(height-3-len(hintLines), 1)
 	if len(bodyLines) > rows {
-		if inner < 35 {
-			if strings.Contains(originalHint, "enter") {
-				hint = "enter · esc cancel"
-			} else {
-				hint = "esc cancel"
+		if inner < 25 {
+			switch {
+			case strings.Contains(originalHint, "ctrl+s"):
+				hint = "ctrl+s save\nesc · pgup/pgdn"
+			case strings.Contains(originalHint, "y discard"):
+				hint = "y discard · esc\npgup/pgdn"
+			case strings.Contains(originalHint, "enter"):
+				hint = "enter · esc\npgup/pgdn"
+			default:
+				hint = "esc back\npgup/pgdn"
 			}
-			hint += "\npgup/pgdn details"
+		} else if inner < 35 {
+			hint = compactModalHint(originalHint) + "\npgup/pgdn details"
 		} else {
 			hint = originalHint + " · pgup/pgdn details"
 		}
+
 		hintLines = strings.Split(ansi.Wrap(hint, inner, ""), "\n")
 		if len(hintLines) > 2 {
 			hintLines = hintLines[:2]
@@ -107,4 +111,17 @@ func ModalAt(title, body, hint string, width, height, offset int) string {
 		BorderForeground(Default.BorderFocused).Padding(0, 1).Width(inner + 2).
 		Render(PaneTitle(title, true, inner) + "\n" + strings.Join(lines, "\n") + "\n" + Foreground(Default.Muted).Render(hint))
 	return Fit(lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, panel), width, height)
+}
+
+func compactModalHint(hint string) string {
+	switch {
+	case strings.Contains(hint, "ctrl+s"):
+		return "ctrl+s save · esc back"
+	case strings.Contains(hint, "y discard"):
+		return "y discard · esc"
+	case strings.Contains(hint, "enter"):
+		return "enter · esc cancel"
+	default:
+		return "esc back"
+	}
 }

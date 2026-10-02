@@ -5,6 +5,7 @@ parser.add_argument("binary", type=pathlib.Path)
 parser.add_argument("--oauth-configured", action="store_true", help="expect an embedded public Client ID; never complete authorization")
 parser.add_argument("--configuration-editor", action="store_true", help="exercise the Settings tab and persist a default preset")
 parser.add_argument("--capture", type=pathlib.Path, help="save actual ANSI output for terminal review or failure diagnosis")
+parser.add_argument("--reduced-motion", action="store_true", help="exercise the same workflows with static progress")
 args = parser.parse_args()
 binary = args.binary.resolve()
 with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
@@ -20,7 +21,11 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 140, 0, 0))
     child_env = os.environ.copy()
     child_env.update({'HOME': str(test_home), 'TERM': 'xterm-256color'})
+    # The harness chooses its profile; a caller's NO_COLOR must not silently
+    # turn both normal and reduced-motion runs into the same static test.
+    child_env.pop('NO_COLOR', None)
     child_env.pop('DEVDOCK_GITHUB_CLIENT_ID', None)
+    child_env['DEVDOCK_REDUCED_MOTION'] = '1' if args.reduced_motion else '0'
     process = subprocess.Popen([str(binary)], stdin=slave, stdout=slave, stderr=slave, env=child_env, start_new_session=True)
     os.close(slave)
     captured = bytearray()
@@ -34,6 +39,11 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
     try:
         drain(2)
         assert b'demo' in captured, 'main project navigation did not render'
+        os.write(master, b'!'); drain(0.2)
+        assert b'Status details' in captured, 'status detail view missing'
+        os.write(master, b'\x1b'); drain(0.2)
+        os.write(master, b'r'); drain(0.3)
+        assert process.poll() is None, 'refresh terminated the TUI'
         os.write(master, b'\t'); drain(0.2)
         assert b'Inspector' in captured, 'inspector did not render'
         os.write(master, b'\t'); drain(0.2)

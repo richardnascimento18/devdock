@@ -129,7 +129,7 @@ func (e editorScreen) View() string {
 		return ui.Modal("Discard unsaved changes?", "The draft has changes.\n\nDiscard the draft and return to the collection?", "y discard · esc continue editing", e.termW, e.termH)
 	}
 	if e.deleting {
-		return ui.ModalAt("Remove definition", e.deleteName+"\n\nRemove this definition from DevDock configuration.\n"+e.statusMsg, "enter remove · esc cancel", e.termW, e.termH, e.scroll)
+		return ui.ModalAt("Remove definition", e.definitionBody(), "enter remove · esc cancel", e.termW, e.termH, e.scroll)
 	}
 	if e.layer == editorLayerList {
 		return e.viewList()
@@ -371,4 +371,8 @@ func (e editorScreen) collectionDetails() ([]string, string) {
 		}
 	}
 	return labels, preview
+}
+
+func (e editorScreen) definitionBody() string {
+	return e.deleteName + "\n\nRemove this definition from DevDock configuration.\n" + e.statusMsg
 }

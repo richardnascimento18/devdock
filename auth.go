@@ -60,6 +60,7 @@ func (m model) handleDeviceStarted(msg gh.DeviceStartedMsg) (tea.Model, tea.Cmd)
 	}
 }
 func (m *model) fetchRepos() tea.Cmd {
+	m.repoLoading = true
 	m.repoLoadID++
 	return gh.CmdFetchRepos(m.cfg.GitHubToken, m.repoLoadID)
 }

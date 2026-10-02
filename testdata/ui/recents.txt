@@ -4,9 +4,9 @@ Search  ·  Recents  ·  Favorites  ·  tmux-sessions  1 projects
   Workspace               > Projects                                              Inspector
 > All workspaces          > ★ billing-api                                       Project
   ▾ work  d286              work › backend › services · 5cede2                  billing-api
-  │ ▾ /backend  2
-  │ │ · services  1                                                             Location
-  │ · /frontend  1                                                              /workspace/work
+  ├─▾ /backend  2
+  │ └─· services  1                                                             Location
+  └─· /frontend  1                                                              /workspace/work
                                                                                 backend › services
                                                                                 /workspace/work/backend/services/billi
                                                                                 ng-api
@@ -19,8 +19,8 @@ Search  ·  Recents  ·  Favorites  ·  tmux-sessions  1 projects
 
                                                                                 Tmux
                                                                                 Preset: walker
-                                                                                Session state is available in the tmux
-                                                                                 tab.
+                                                                                Not checked; the tmux tab refreshes se
+                                                                                ssions.
 
                                                                                 Favorite
                                                                                 ★ Favorite

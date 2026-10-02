@@ -69,8 +69,7 @@ func TestMultiRootGroupDeleteRequiresFullPath(t *testing.T) {
 	if m.state != stateDeletingWorkspace {
 		t.Fatal("delete did not enter async state")
 	}
-	commands := cmd().(tea.BatchMsg)
-	next, _ = m.Update(commands[0]())
+	next, _ = m.Update(operationMessage(cmd))
 	m = next.(model)
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatal("confirmed group remains")
@@ -125,17 +124,17 @@ func TestCloneNewDomainRetainsIntent(t *testing.T) {
 	// Do not execute the network clone command.
 }
 func TestSpinnerLifecycleAndEmptyRoots(t *testing.T) {
-	m := model{state: stateList, spinnerID: 1, spinnerScr: newSpinnerScreen("loading")}
-	_, cmd := m.Update(spinnerTickMsg{id: 1})
+	m := model{state: stateList, motion: animationClock{generation: 1, pending: true}, spinnerScr: newSpinnerScreen("loading")}
+	_, cmd := m.Update(animationTickMsg{generation: 1})
 	if cmd != nil {
 		t.Fatal("spinner continued after loading")
 	}
 	m.state = stateMovingProject
-	_, cmd = m.Update(spinnerTickMsg{id: 0})
+	_, cmd = m.Update(animationTickMsg{generation: 0})
 	if cmd != nil {
 		t.Fatal("stale spinner tick continued")
 	}
-	_, cmd = m.Update(spinnerTickMsg{id: 1})
+	_, cmd = m.Update(animationTickMsg{generation: 1})
 	if cmd == nil {
 		t.Fatal("active spinner stopped")
 	}
@@ -213,20 +212,28 @@ func TestResizeAndStaleScanResults(t *testing.T) {
 }
 
 func TestDomainCreationRefreshesSnapshot(t *testing.T) {
-	root := t.TempDir()
-	m := fixtureModel(t, root)
-	next, _ := m.startNewDomainOnly()
-	m = next.(model)
-	m.inputScr.input.SetValue("new")
-	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	m = next.(model)
-	if cmd == nil {
-		t.Fatal("domain creation did not schedule rescan")
-	}
-	next, _ = m.Update(cmd())
-	m = next.(model)
-	if len(m.workspaceDomains[root]) != 1 || m.workspaceDomains[root][0] != "new" {
-		t.Fatal("new domain absent from picker snapshot")
+	for _, reduced := range []bool{false, true} {
+		t.Run(fmt.Sprintf("reduced-%v", reduced), func(t *testing.T) {
+			root := t.TempDir()
+			m := fixtureModel(t, root)
+			m.motion.reduced = reduced
+			next, _ := m.startNewDomainOnly()
+			m = next.(model)
+			m.inputScr.input.SetValue("new")
+			next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			m = next.(model)
+			if cmd == nil {
+				t.Fatal("domain creation did not schedule rescan")
+			}
+			if m.motion.pending == reduced {
+				t.Fatal("clock does not respect motion mode")
+			}
+			next, _ = m.Update(operationMessage(cmd))
+			m = next.(model)
+			if len(m.workspaceDomains[root]) != 1 || m.workspaceDomains[root][0] != "new" {
+				t.Fatal("new domain absent from picker snapshot")
+			}
+		})
 	}
 }
 
@@ -386,7 +393,7 @@ func TestProjectAndDomainDeletionConfirmation(t *testing.T) {
 			if m.state != stateDeletingWorkspace || cmd == nil {
 				t.Fatal("full path did not start deletion")
 			}
-			next, _ = m.Update(cmd().(tea.BatchMsg)[0]())
+			next, _ = m.Update(operationMessage(cmd))
 			m = next.(model)
 			if _, err := os.Stat(target); !os.IsNotExist(err) {
 				t.Fatalf("confirmed target remains: %v", err)
@@ -504,4 +511,13 @@ func TestFailedRootRemovalKeepsStateAndConfiguration(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Operation commands can be alone (reduced motion) or batched with the UI clock.
+func operationMessage(cmd tea.Cmd) tea.Msg {
+	msg := cmd()
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		return operationMessage(batch[0])
+	}
+	return msg
 }

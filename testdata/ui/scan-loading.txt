@@ -1,0 +1,39 @@
+DevDock  all workspaces · preset walker
+Search  ·  Recents  ·  Favorites  ·  tmux-sessions  3 projects
+
+  Workspace               > Projects                                              Inspector
+> All workspaces          > ★ billing-api                                       Project
+  ▾ work  d286              work › backend › services · 5cede2                  billing-api
+  ├─▾ /backend  2           billing-api
+  │ └─· services  1         work › frontend · 1d5d4e                            Location
+  └─· /frontend  1          auth-日本語-é                                       /workspace/work
+                            work › backend · 121282                             backend › services
+                                                                                /workspace/work/backend/services/billi
+                                                                                ng-api
+
+                                                                                Detected stack
+                                                                                Go
+
+                                                                                GitHub
+                                                                                acme/billing-api
+
+                                                                                Tmux
+                                                                                Preset: walker
+                                                                                Not checked; the tmux tab refreshes se
+                                                                                ssions.
+
+                                                                                Favorite
+                                                                                ★ Favorite
+
+                                                                                Actions
+                                                                                enter open · f favorite
+                                                                                m move · x delete with confirmation
+
+
+
+
+
+
+
+⣻ Scanning workspace…
+/ search · space select · enter open · f favorite · tab focus · ctrl+p actions · ? help

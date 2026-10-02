@@ -18,9 +18,12 @@ func (m model) viewScreen() string {
 	}
 	switch m.state {
 	case stateBulkPreflight, stateBulkMoving, stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
-		return m.spinnerScr.View(w, h)
+		return m.spinnerScr.View(w, h, m.motion.frame, m.motion.reduced, m.state == stateBulkPreflight)
 	case statePTYExecution:
-		return m.ptyScr.View()
+		p := m.ptyScr
+		p.motionFrame = m.motion.frame
+		p.reducedMotion = m.motion.reduced
+		return p.View()
 	case stateHelp:
 		return renderHelpOverlay(w, h, m.helpScroll, m.availableActions())
 	case statePalette:

@@ -19,6 +19,9 @@ func (e *editorScreen) sizeInputs() {
 	}
 }
 func (e editorScreen) editorScrollLimit() int {
+	if e.deleting {
+		return ui.ModalScrollLimit(e.definitionBody(), "enter remove · esc cancel", e.termW, e.termH)
+	}
 	if e.layer == editorLayerList {
 		labels, preview := e.collectionDetails()
 		width := e.termW
@@ -62,6 +65,10 @@ func (e editorScreen) Update(msg tea.Msg) (editorScreen, tea.Cmd) {
 		}
 		if e.deleting {
 			switch key.String() {
+			case "pgdown":
+				e.scroll = min(e.scroll+max(e.termH-7, 1), e.editorScrollLimit())
+			case "pgup":
+				e.scroll = max(e.scroll-max(e.termH-7, 1), 0)
 			case "esc", "ctrl+c":
 				e.deleting = false
 				e.statusMsg = ""

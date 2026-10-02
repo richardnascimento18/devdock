@@ -318,13 +318,9 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 	}
 
 	if m.pendingCreateGH && m.cfg.IsGitHubConnected() {
-		m.spinnerID++
 		m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Creating GitHub repo \"%s\"...", m.pendingProjectName))
 		m.state = stateCreatingGitHub
-		return m, tea.Batch(
-			gh.CmdCreateRepo(m.cfg.GitHubToken, m.pendingProjectName, m.pendingGHPrivate),
-			spinnerTick(m.spinnerID),
-		)
+		return m, gh.CmdCreateRepo(m.cfg.GitHubToken, m.pendingProjectName, m.pendingGHPrivate)
 	}
 
 	if m.pendingTemplate != nil {
