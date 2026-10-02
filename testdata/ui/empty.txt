@@ -1,8 +1,12 @@
-DevDock  all roots · Search · preset walker
-  Workspace root │  all   ·  work  ({ / })
-> Projects  0 items
-No projects here yet.
-Press n to create a project or g to connect GitHub.
+DevDock  all workspaces · preset walker
+Search  ·  Recents  ·  Favorites  ·  tmux-sessions  0 projects
+
+  Workspace               > Projects                                              Inspector
+> All workspaces          No projects here yet.                                 Select a project to inspect.
+  ▾ work  d286            Press n to create or g to connect GitHub.             ctrl+p opens available actions.
+  │ ▾ /backend  2
+  │ │ · services  1
+  │ · /frontend  1
 
 
 
@@ -32,6 +36,4 @@ Press n to create a project or g to connect GitHub.
 
 
 
-
-
-/ search · enter open · tab focus · ? help · q quit
+/ search · enter open · f favorite · tab focus · ctrl+p actions · ? help

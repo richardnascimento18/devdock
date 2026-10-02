@@ -16,12 +16,23 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type model struct {
 	focus                  ui.Pane
+	workspaceRows          []workspaceRow
+	workspaceCursor        int
+	workspaceSelection     core.NodeKey
+	workspaceScope         *core.Location
+	inspectorScroll        int
+	palette                paletteScreen
+	searchInput            textinput.Model
+	searching              bool
+	searchRestore          string
 	helpScroll             int
+	modalScroll            int
 	filesystemStatePending bool
 	tmuxRefreshRequested   bool
 	tmuxRefreshID          uint64
@@ -174,6 +185,8 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 		}
 	}
 	m.list = l
+	m.searchInput = transparentInput()
+	m.searchInput.Prompt = "/ "
 	m.sizePresentation()
 	return m
 }
@@ -239,7 +252,7 @@ func (m model) refreshTabList() model {
 	case TabRecents:
 		var items []list.Item
 		for _, r := range m.uiState.Recents {
-			if !m.isAllMode() && r.Root != m.activeRoot() {
+			if !m.inWorkspaceScope(r.Location) {
 				continue
 			}
 			items = append(items, recentItem{entry: r})
@@ -249,7 +262,7 @@ func (m model) refreshTabList() model {
 		var items []list.Item
 		showRoot := m.isAllMode() && len(m.cfg.ActiveRoots()) > 1
 		for _, p := range m.rawProjects {
-			if m.uiState.Favorites[p.Path] && (m.isAllMode() || p.Root == m.activeRoot()) {
+			if m.uiState.Favorites[p.Path] && m.inWorkspaceScope(p.Location) {
 				items = append(items, favoriteItem{project: p, showRoot: showRoot, verified: verified})
 			}
 		}
@@ -268,15 +281,15 @@ func (m model) refreshTabList() model {
 	return m
 }
 
-func (m model) listHeight() int {
-	return max(ui.Measure(m.termW, m.termH).BodyHeight-2, 1)
-}
-
 func (m *model) sizePresentation() {
-	m.list.SetSize(max(m.termW, 1), m.listHeight())
+	l := m.dashboardLayout()
+	m.list.SetDelegate(projectDelegate{favorites: m.uiState.Favorites, focused: m.focus == ui.Projects})
+	m.list.SetSize(max(l.Projects, 1), max(l.BodyHeight-1, 1))
+	m.searchInput.Width = max(min(m.termW-6, 72), 1)
 }
 
 func (m model) rebuildList(verified bool) model {
+	m.refreshWorkspaceRows()
 	selected := rowIdentity(m.list.SelectedItem())
 	items := m.buildListItems(m.rawProjects, verified)
 	if len(m.githubRepos) > 0 {
@@ -284,6 +297,7 @@ func (m model) rebuildList(verified bool) model {
 	}
 	m.allItems = items
 	m = m.refreshTabList()
+	m = m.applySearch()
 	if selected != "" {
 		for i, it := range m.list.Items() {
 			if rowIdentity(it) == selected {

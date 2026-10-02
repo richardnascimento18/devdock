@@ -1,31 +1,33 @@
-DevDock  all roots · Search · preset walker
-  Workspace root │  all   ·  work  ({ / })
-> Projects  3 items
-> billing-api (backend) services ›   🐹 Go
-  billing-api (frontend)  Ts TS
-  auth-日本語-é (backend)
+DevDock  all workspaces · preset walker
+Search  ·  Recents  ·  Favorites  ·  tmux-sessions  3 projects
 
+  Workspace               > Projects                                              Inspector
+> All workspaces          > ★ billing-api                                       Project
+  ▾ work  d286              work › backend › services · 5cede2                  billing-api
+  │ ▾ /backend  2           billing-api
+  │ │ · services  1         work › frontend · 1d5d4e                            Location
+  │ · /frontend  1          auth-日本語-é                                       /workspace/work
+                            work › backend · 121282                             backend › services
+                                                                                /workspace/work/backend/services/billi
+                                                                                ng-api
 
+                                                                                Detected stack
+                                                                                Go
 
+                                                                                GitHub
+                                                                                acme/billing-api
 
+                                                                                Tmux
+                                                                                Preset: walker
+                                                                                Session state is available in the tmux
+                                                                                 tab.
 
+                                                                                Favorite
+                                                                                ★ Favorite
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                                                                                Actions
+                                                                                enter open · f favorite
+                                                                                m move · x delete with confirmation
 
 
 
@@ -34,4 +36,4 @@ DevDock  all roots · Search · preset walker
 
 
 ! Refresh failed: root unavailable. Press r to retry.
-/ search · enter open · tab focus · ? help · q quit
+/ search · enter open · f favorite · tab focus · ctrl+p actions · ? help

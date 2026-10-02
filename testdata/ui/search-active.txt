@@ -1,0 +1,39 @@
+DevDock  all workspaces · preset walker
+Search  ·  Recents  ·  Favorites  ·  tmux-sessions  2 projects
+
+  Workspace               / billing                                          …    Inspector
+> All workspaces            billing-api                                         Project
+  ▾ work  d286              work › frontend · 1d5d4e                            billing-api
+  │ ▾ /backend  2         > ★ billing-api
+  │ │ · services  1         work › backend › services · 5cede2                  Location
+  │ · /frontend  1                                                              /workspace/work
+                                                                                backend › services
+                                                                                /workspace/work/backend/services/billi
+                                                                                ng-api
+
+                                                                                Detected stack
+                                                                                Go
+
+                                                                                GitHub
+                                                                                acme/billing-api
+
+                                                                                Tmux
+                                                                                Preset: walker
+                                                                                Session state is available in the tmux
+                                                                                 tab.
+
+                                                                                Favorite
+                                                                                ★ Favorite
+
+                                                                                Actions
+                                                                                enter open · f favorite
+                                                                                m move · x delete with confirmation
+
+
+
+
+
+
+
+/workspace/work/backend/services/billing-api
+enter apply · esc cancel · ↑/↓ results

@@ -1,0 +1,34 @@
+
+
+
+
+
+
+                      ╭──────────────────────────────────────────────────────────────────────────╮
+                      │ > Commands                                                               │
+                      │ / Find an action…                                                        │
+                      │                                                                          │
+                      │ > Open project  [enter]                                                  │
+                      │   Attach tmux session · Select a session in the tmux tab                 │
+                      │   Toggle favorite  [f]                                                   │
+                      │   Move project  [m]                                                      │
+                      │   Delete project  [x]                                                    │
+                      │   Create project  [n]                                                    │
+                      │   Clone repository · Select an uncloned GitHub repository                │
+                      │   Create domain  [N]                                                     │
+                      │   Create nested group  [G]                                               │
+                      │   Delete group  [ctrl+g]                                                 │
+                      │   Delete domain  [X]                                                     │
+                      │   Add root  [a]                                                          │
+                      │   Remove root  [A]                                                       │
+                      │   Open Settings                                                          │
+                      │   Edit presets  [presets]                                                │
+                      │   Edit templates                                                         │
+                      │   Toggle workspace / flat view  [v]                                      │
+                      │   Switch root  [}]                                                       │
+                      │   Refresh workspace  [r]                                                 │
+                      │   Connect / refresh GitHub  [g]                                          │
+                      │   Keyboard help  [?]                                                     │
+                      │   Quit  [q]                                                              │
+                      │ ↑/↓ choose · enter run · esc cancel                                      │
+                      ╰──────────────────────────────────────────────────────────────────────────╯
