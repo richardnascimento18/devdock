@@ -14,6 +14,12 @@
                       │ ctrl+p  filterable command palette                                       │
                       │ v  workspace tree / flat projects                                        │
                       │                                                                          │
+                      │ Multi-select                                                             │
+                      │ space  toggle project selection                                          │
+                      │ m  preflight and move all visible selections                             │
+                      │ f  favorite all / unfavorite if all favorite                             │
+                      │ esc  clear filter, then clear selection                                  │
+                      │                                                                          │
                       │ Editors                                                                  │
                       │ tab / h / l  switch Presets / Templates / Settings                       │
                       │ i / enter  edit focused field or item                                    │
@@ -28,11 +34,5 @@
                       │ x            Delete project                                              │
                       │ n            Create project                                              │
                       │ clone        Clone repository                                            │
-                      │ N            Create domain                                               │
-                      │ G            Create nested group                                         │
-                      │ ctrl+g       Delete group                                                │
-                      │ X            Delete domain                                               │
-                      │ a            Add root                                                    │
-                      │ A            Remove root                                                 │
                       │ j/k scroll · ? / esc close                                               │
                       ╰──────────────────────────────────────────────────────────────────────────╯

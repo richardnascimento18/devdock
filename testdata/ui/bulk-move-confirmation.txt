@@ -1,0 +1,29 @@
+
+
+
+
+
+
+
+
+
+
+                      ╭──────────────────────────────────────────────────────────────────────────╮
+                      │ > Move 2 selected projects                                               │
+                      │ Destination: /workspace/work/destination                                 │
+                      │                                                                          │
+                      │ Every source and destination is checked before moving.                   │
+                      │ Filesystem moves are separate operations; failures may be partial.       │
+                      │                                                                          │
+                      │                                                                          │
+                      │ billing-api                                                              │
+                      │ From: /workspace/work/backend/services/billing-api                       │
+                      │ To:   /workspace/work/destination/billing-api                            │
+                      │ ✓ Ready                                                                  │
+                      │                                                                          │
+                      │ auth-日本語-é                                                            │
+                      │ From: /workspace/work/backend/auth-日本語-é                              │
+                      │ To:   /workspace/work/destination/auth-日本語-é                          │
+                      │ ✓ Ready                                                                  │
+                      │ enter move all · esc cancel                                              │
+                      ╰──────────────────────────────────────────────────────────────────────────╯

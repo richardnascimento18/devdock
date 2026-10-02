@@ -103,6 +103,7 @@ var helpSections = []struct {
 	entries []helpEntry
 }{
 	{"Navigation", []helpEntry{{"j/k · ↑/↓", "navigate focused pane"}, {"tab / shift+tab", "cycle Workspace / Projects / Inspector"}, {"←/→ · h/l", "collapse / expand workspace node"}, {"enter", "show workspace scope / open project"}, {"{ / }", "cycle root scope"}, {"[ / ]", "Search / Recents / Favorites / tmux"}, {"/", "live in-memory fuzzy search"}, {"esc", "cancel search / return to Projects"}, {"ctrl+p", "filterable command palette"}, {"v", "workspace tree / flat projects"}}},
+	{"Multi-select", []helpEntry{{"space", "toggle project selection"}, {"m", "preflight and move all visible selections"}, {"f", "favorite all / unfavorite if all favorite"}, {"esc", "clear filter, then clear selection"}}},
 	{"Editors", []helpEntry{{"tab / h / l", "switch Presets / Templates / Settings"}, {"i / enter", "edit focused field or item"}, {"ctrl+s", "validate and save"}, {"esc", "stop typing / cancel / return"}}},
 }
 

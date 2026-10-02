@@ -36,4 +36,4 @@ Search  ·  Recents  ·  Favorites  ·  tmux-sessions  0 projects
 
 
 
-/ search · enter open · f favorite · tab focus · ctrl+p actions · ? help
+/ search · space select · enter open · f favorite · tab focus · ctrl+p actions · ? help

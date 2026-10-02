@@ -15,11 +15,12 @@ type actionBinding struct {
 	project            bool
 }
 type paletteScreen struct {
-	input   textinput.Model
-	actions []actionBinding
-	visible []int
-	cursor  int
-	target  string
+	input     textinput.Model
+	actions   []actionBinding
+	visible   []int
+	cursor    int
+	target    string
+	selection string
 }
 
 // Action metadata supplies palette labels/shortcuts and grouped help.
@@ -50,7 +51,7 @@ func (m model) availableActions() []actionBinding {
 	if !session {
 		tmuxReason = "Select a session in the tmux tab"
 	}
-	return []actionBinding{
+	actions := []actionBinding{
 		{"Open project", "enter", projectReason, true},
 		{"Attach tmux session", "attach", tmuxReason, true},
 		{"Toggle favorite", "f", mutableReason, true},
@@ -74,10 +75,28 @@ func (m model) availableActions() []actionBinding {
 		{"Keyboard help", "?", "", false},
 		{"Quit", "q", "", false},
 	}
+	if len(m.selected) > 0 {
+		reason := ""
+		if m.hiddenSelection() > 0 {
+			reason = "Clear filter to review all selected projects"
+		}
+		for i := range actions {
+			switch actions[i].key {
+			case "m":
+				actions[i] = actionBinding{"Move selected projects", "m", reason, false}
+			case "f":
+				actions[i] = actionBinding{"Favorite / unfavorite selected projects", "f", reason, false}
+			case "x", "X", "ctrl+g", "A":
+				actions[i].reason = "Clear selection before destructive actions"
+			}
+		}
+		actions = append(actions, actionBinding{"Clear project selection", "clear-selection", "", false})
+	}
+	return actions
 }
 
 func (m model) openPalette() (tea.Model, tea.Cmd) {
-	m.palette = paletteScreen{input: transparentInput(), actions: m.availableActions(), target: rowIdentity(m.list.SelectedItem())}
+	m.palette = paletteScreen{input: transparentInput(), actions: m.availableActions(), target: rowIdentity(m.list.SelectedItem()), selection: m.selectionSignature()}
 	m.palette.input.Prompt = "/ "
 	m.palette.input.Placeholder = "Find an action…"
 	m.palette.filter()
@@ -157,6 +176,11 @@ func (m model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.reason != "" {
 				return m, nil
 			}
+			if m.palette.selection != m.selectionSignature() {
+				m.state = stateList
+				m.statusMsg = warningStyle.Render("! Selection changed. Open commands again.")
+				return m, nil
+			}
 			if a.project && rowIdentity(m.list.SelectedItem()) != m.palette.target {
 				m.statusMsg = warningStyle.Render("! Project selection changed. Choose the action again.")
 				m.state = stateList
@@ -164,6 +188,9 @@ func (m model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.state = stateList
 			switch a.key {
+			case "clear-selection":
+				m.selected = nil
+				return m, nil
 			case "settings", "presets", "templates":
 				result, cmd := m.startEditor()
 				next := result.(model)
