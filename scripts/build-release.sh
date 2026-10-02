@@ -10,7 +10,7 @@ output_dir=${DEVDOCK_DIST_DIR:-dist}
 [[ "$release_commit" =~ ^[0-9a-f]{40}$ ]] || { echo 'invalid commit SHA' >&2; exit 1; }
 [[ "$release_date" =~ ^[0-9TZ:+-]+$ ]] || { echo 'invalid build date' >&2; exit 1; }
 [[ "$client_id" =~ ^[a-zA-Z0-9._-]*$ ]] || { echo 'invalid public OAuth Client ID' >&2; exit 1; }
-mkdir -p "$output_dir"
+python3 scripts/release_output.py "$output_dir"
 flags="-s -w -X main.version=$release_version -X main.commit=$release_commit -X main.buildDate=$release_date -X github.com/richardnascimento18/devdock/internal/github.ClientID=$client_id"
 for architecture in amd64 arm64; do
   CGO_ENABLED=0 GOOS=linux GOARCH="$architecture" go build -trimpath -buildvcs=false \
