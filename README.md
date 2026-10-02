@@ -81,6 +81,8 @@ The editor opened with `e` has **Presets**, **Templates**, and **Settings** tabs
 
 The configuration file contains a GitHub access token after authorization. It is saved with mode `0600`; do not commit it or attach it to issue reports.
 
+Configured roots must own separate workspace trees: exact duplicates and parent/child roots are rejected using path components, so `/code` and `/code2` remain valid siblings. Existing paths are also compared after symlink resolution to reject physical aliases and physical parent/child overlap. Unavailable, broken-link, or inaccessible roots remain configured when physical identity cannot be resolved; lexical checks still apply, and scan warnings report unavailable workspaces. An old config containing a definite conflict produces a startup error identifying both roots and the config file. DevDock leaves that file unchanged; edit its roots list and restart. Add-root actions in the list and Settings use the same validation. Explicit root removal retains the existing state cleanup and does not delete the directory.
+
 A `.devdock` TOML marker can explicitly identify a `project` or `group`; project markers may set a display `name`. Legacy `type = "subgroup"` markers are read as ordinary groups. `.ddgroup` takes precedence and retains empty groups. Unmarked directories become groups when their descendants contain projects or explicit groups. A project is a discovery boundary: its source tree is never scanned as workspace hierarchy. Language markers and Git repositories identify projects. Hidden directories and common source/dependency/output directories (`src`, `node_modules`, `vendor`, `build`, `dist`, `target`, `__pycache__`, `venv`) are excluded as implicit workspace entries; explicit project/group markers override those descendant name exclusions. Hidden root entries remain excluded as domains. Directory symlinks below roots are not traversed, preventing cycles, escapes and alias discovery; configured roots may themselves be symlinks.
 
 Root `.ddignore` files contain root-relative glob patterns, one per line. Existing domain-name patterns retain their meaning; nested patterns such as `apps/backend/archived` exclude that directory and its descendants. Patterns use Go `filepath.Match` semantics (`*` does not span separators; there is no special `**`). Blank lines and `#` comments are ignored; invalid patterns produce a scan warning.
@@ -136,6 +138,8 @@ DEVDOCK_GITHUB_CLIENT_ID=YOUR_PUBLIC_CLIENT_ID make release
 ```
 
 Builds embed version, full commit SHA, and commit timestamp. No script guesses or increments release versions. Ordinary `go build` reports development metadata.
+
+Each release build removes previous DevDock release binaries and checksums before compiling. The output directory must be dedicated to release artifacts: unexpected files are preserved and cause a preparation error. `make clean-release` performs the same cleanup; `DEVDOCK_DIST_DIR` selects a custom dedicated directory. `dist/` stays ignored. For review source, use `make source-archive SOURCE_ARCHIVE=/tmp/devdock-source.zip`; it archives the current committed `HEAD`, excluding dirty edits and untracked build outputs, and reports the archived commit.
 
 Publication requires repository variable `DEVDOCK_RELEASES_ENABLED` to be exactly `true`. Unset/`false` disables publication while verification/builds still run, including initial production bootstrap. The official public Client ID remains in `DEVDOCK_GITHUB_CLIENT_ID`.
 

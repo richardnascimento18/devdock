@@ -67,7 +67,7 @@ func Load() (Config, error) {
 		cfg.Root = ""
 	}
 	if err := Validate(cfg); err != nil {
-		return Config{}, err
+		return Config{}, fmt.Errorf("invalid configuration %q: %w; correct the roots/settings in this file and restart (file unchanged)", Path(), err)
 	}
 	return cfg, nil
 }
@@ -89,13 +89,13 @@ func Save(cfg Config) error {
 	return fileutil.WriteFileAtomic(Path(), data, 0o600)
 }
 
-func (c *Config) AddRoot(path string) {
-	for _, r := range c.Roots {
-		if r == path {
-			return
-		}
+func (c *Config) AddRoot(path string) error {
+	roots := append(slices.Clone(c.ActiveRoots()), path)
+	if _, err := ValidateRoots(roots); err != nil {
+		return err
 	}
-	c.Roots = append(c.Roots, path)
+	c.Roots, c.Root = roots, ""
+	return nil
 }
 
 func (c *Config) RemoveRoot(path string) {
@@ -109,15 +109,8 @@ func (c *Config) RemoveRoot(path string) {
 }
 
 func Validate(cfg Config) error {
-	seen := map[string]bool{}
-	for _, root := range cfg.ActiveRoots() {
-		if !filepath.IsAbs(root) || root != filepath.Clean(root) {
-			return fmt.Errorf("root %q must be an absolute, clean path", root)
-		}
-		if seen[root] {
-			return fmt.Errorf("duplicate root %q", root)
-		}
-		seen[root] = true
+	if _, err := ValidateRoots(cfg.ActiveRoots()); err != nil {
+		return err
 	}
 	if (cfg.GitHubToken == "") != (cfg.GitHubUsername == "") {
 		return fmt.Errorf("GitHub token and username must be configured together")
