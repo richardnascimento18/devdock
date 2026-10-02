@@ -1,0 +1,32 @@
+all modules verified
+........
+----------------------------------------------------------------------
+Ran 8 tests in 0.063s
+
+OK
+1.1.0-beta.9
+ok  	github.com/richardnascimento18/devdock	0.553s
+ok  	github.com/richardnascimento18/devdock/internal/config	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/core	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/detect	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/fileutil	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/github	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/preset	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/pty	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/state	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/template	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/tmux	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/ui	(cached)
+ok  	github.com/richardnascimento18/devdock	4.208s
+ok  	github.com/richardnascimento18/devdock/internal/config	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/core	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/detect	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/fileutil	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/github	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/preset	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/pty	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/state	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/template	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/tmux	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/ui	(cached)
+No vulnerabilities found.

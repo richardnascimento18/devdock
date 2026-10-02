@@ -6,7 +6,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/richardnascimento18/devdock/internal/config"
 )
 
@@ -80,18 +79,4 @@ func (e editorScreen) updateConfigurationEditor(msg tea.Msg) (editorScreen, tea.
 		return e, cmd
 	}
 	return e, nil
-}
-
-func (e editorScreen) viewConfigurationEditor() string {
-	var names []string
-	for _, p := range e.presets {
-		names = append(names, p.Name)
-	}
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		RenderTitle(), promptStyle.Render("  Application configuration"), "",
-		editorListBoxStyle.Render("Default preset:\n"+e.ce.defaultPreset.View()+"\n\n"+
-			dimStyle.Render("Available: "+strings.Join(names, ", ")+"\nBlank selects the first preset.")),
-		e.ce.statusMsg, "",
-		hintStyle.Render("i / enter edit  •  ctrl+s save  •  esc stop editing / cancel"))
-	return centerInTerminal(e.termW, e.termH, content)
 }

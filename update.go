@@ -426,7 +426,7 @@ func navPicker(g *genericPickerScreen, key string) bool {
 func (m model) updateEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// ESC at the list layer returns to stateList
 	if k, ok := msg.(tea.KeyMsg); ok {
-		if k.String() == "enter" && m.editorScr.layer == editorLayerList && m.editorScr.tab == editorTabSettings && m.editorScr.cursor > 0 {
+		if k.String() == "enter" && m.editorScr.layer == editorLayerList && !m.editorScr.deleting && m.editorScr.tab == editorTabSettings && m.editorScr.cursor > 0 {
 			m.editorRootReturn = true
 			m.statusMsg = ""
 			if m.editorScr.cursor == 1 {
@@ -434,11 +434,11 @@ func (m model) updateEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m.startRemoveRoot()
 		}
-		if k.String() == "esc" && m.editorScr.layer == editorLayerList {
+		if k.String() == "esc" && m.editorScr.layer == editorLayerList && !m.editorScr.deleting {
 			m.state = stateList
 			return m, nil
 		}
-		if k.String() == "ctrl+c" {
+		if k.String() == "ctrl+c" && m.editorScr.layer == editorLayerList && !m.editorScr.deleting {
 			m.state = stateList
 			return m, nil
 		}

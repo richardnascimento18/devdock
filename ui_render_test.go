@@ -123,6 +123,68 @@ func fixtureScreens() map[string]model {
 	})
 	add("inspector-narrow", func(m *model) { m.termW, m.termH = 40, 15; m.focus = ui.Inspector })
 	add("workspace-narrow", func(m *model) { m.termW, m.termH = 40, 15; m.focus = ui.Workspace })
+	add("settings-narrow", func(m *model) {
+		m.termW, m.termH = 40, 15
+		m.state = stateEditor
+		m.editorScr = newEditorScreen(m.presets, m.templates, 40, 15)
+		m.editorScr.cfg = m.cfg.Clone()
+		m.editorScr.tab = editorTabSettings
+	})
+	add("preset-window", func(m *model) {
+		m.state = stateEditor
+		m.editorScr = newEditorScreen(m.presets, m.templates, 120, 40)
+		m.editorScr.layer = editorLayerPreset
+		m.editorScr.pe = newPresetEditor(m.presets[0], false)
+		m.editorScr.pe, _ = m.editorScr.pe.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		m.editorScr.pe.editFocus = 1
+	})
+	add("preset-pane", func(m *model) {
+		m.state = stateEditor
+		m.editorScr = newEditorScreen(m.presets, m.templates, 120, 40)
+		m.editorScr.layer = editorLayerPreset
+		m.editorScr.pe = newPresetEditor(preset.DefaultPresets[2], false)
+		m.editorScr.pe.layer = pelWindowSplit
+		m.editorScr.pe.splitEditor = newSplitPaneEditor(*m.editorScr.pe.windows[0].layout)
+	})
+	add("template-step", func(m *model) {
+		m.termW, m.termH = 40, 15
+		m.state = stateEditor
+		m.editorScr = newEditorScreen(m.presets, m.templates, 40, 15)
+		m.editorScr.layer = editorLayerTemplate
+		m.editorScr.te = newTemplateEditor(tmpl.Template{Name: "service", Steps: []tmpl.TemplateStep{{Type: "command", Run: `printf "日本語 é"`, Output: "result.txt"}}}, false)
+		m.editorScr.te.openStepEdit(m.editorScr.te.steps[0])
+		m.editorScr.te.editFocus = 2
+	})
+	add("template-metadata", func(m *model) {
+		m.state = stateEditor
+		m.editorScr = newEditorScreen(m.presets, m.templates, 120, 40)
+		m.editorScr.layer = editorLayerTemplate
+		m.editorScr.te = newTemplateEditor(m.templates[0], false)
+		m.editorScr.te.layer = telMetaEdit
+		m.editorScr.te.metaFocus = 1
+	})
+	add("editor-unsaved", func(m *model) {
+		m.state = stateEditor
+		m.editorScr = newEditorScreen(m.presets, m.templates, 120, 40)
+		m.editorScr.layer = editorLayerPreset
+		m.editorScr.pe = newPresetEditor(m.presets[0], false)
+		m.editorScr.pe.nameInput.SetValue("my-preset")
+		m.editorScr.discarding = true
+	})
+	add("editor-validation", func(m *model) {
+		m.state = stateEditor
+		m.editorScr = newEditorScreen(m.presets, m.templates, 120, 40)
+		m.editorScr.layer = editorLayerConfig
+		m.editorScr.ce = newConfigurationEditor("unknown")
+		m.editorScr.ce.statusMsg = errorStyle.Render("! Choose an existing preset or leave blank.")
+	})
+	add("definition-confirmation", func(m *model) {
+		m.state = stateEditor
+		m.editorScr = newEditorScreen(m.presets, m.templates, 120, 40)
+		m.editorScr.tab = editorTabTemplates
+		m.editorScr.deleting = true
+		m.editorScr.deleteName = "service"
+	})
 	add("multi-selection", func(m *model) { m.selected = map[string]bool{m.rawProjects[0].Path: true, m.rawProjects[1].Path: true} })
 	add("bulk-move-confirmation", func(m *model) {
 		m.state = stateBulkConfirm

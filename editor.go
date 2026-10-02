@@ -69,9 +69,14 @@ type editorScreen struct {
 	te templateEditor
 	ce configurationEditor
 
-	statusMsg string
-	termW     int
-	termH     int
+	discarding   bool
+	deleting     bool
+	deleteName   string
+	scroll       int
+	manualScroll bool
+	statusMsg    string
+	termW        int
+	termH        int
 }
 
 func newEditorScreen(presets []preset.Preset, templates []tmpl.Template, w, h int) editorScreen {
@@ -120,7 +125,7 @@ func (e *editorScreen) clampCursor() {
 // Update — editorScreen
 // ---------------------------------------------------------------------------
 
-func (e editorScreen) Update(msg tea.Msg) (editorScreen, tea.Cmd) {
+func (e editorScreen) updateDraft(msg tea.Msg) (editorScreen, tea.Cmd) {
 	switch e.layer {
 	case editorLayerPreset:
 		return e.updatePresetEditor(msg)
@@ -325,129 +330,6 @@ func (e editorScreen) updateTemplateEditor(msg tea.Msg) (editorScreen, tea.Cmd) 
 // View — editorScreen
 // ---------------------------------------------------------------------------
 
-func (e editorScreen) View() string {
-	switch e.layer {
-	case editorLayerPreset:
-		return e.pe.View(e.termW, e.termH)
-	case editorLayerTemplate:
-		return e.te.View(e.termW, e.termH)
-	case editorLayerConfig:
-		return e.viewConfigurationEditor()
-	default:
-		return e.viewList()
-	}
-}
-
-func (e editorScreen) viewList() string {
-	// Tab bar
-	var tabBar strings.Builder
-	for i, name := range editorTabNames {
-		if i > 0 {
-			tabBar.WriteString(dimStyle.Render("  │  "))
-		}
-		if i == e.tab {
-			tabBar.WriteString(activeStyle.Render(" " + name + " "))
-		} else {
-			tabBar.WriteString(dimStyle.Render(name))
-		}
-	}
-	tabBar.WriteString(dimStyle.Render("  (tab / h / l to switch)"))
-
-	// List
-	var listLines []string
-	switch e.tab {
-	case editorTabSettings:
-		value := e.cfg.DefaultPreset
-		if value == "" {
-			value = "(first preset)"
-		}
-		listLines = append(listLines,
-			renderEditorListItem(e.cursor == 0, "Default preset", dimStyle.Render("  "+value)),
-			renderEditorListItem(e.cursor == 1, "Add root", ""),
-			renderEditorListItem(e.cursor == 2, "Remove root", ""),
-			"", dimStyle.Render("Configured roots:"))
-		for _, root := range e.cfg.ActiveRoots() {
-			listLines = append(listLines, "  "+root)
-		}
-	case editorTabPresets:
-		for i, p := range e.presets {
-			var windows []string
-			for _, w := range p.Windows {
-				if w.Layout != nil {
-					windows = append(windows, w.Name+dimStyle.Render("[split]"))
-				} else {
-					windows = append(windows, w.Name)
-				}
-			}
-			summary := dimStyle.Render("  [" + strings.Join(windows, " · ") + "]")
-			line := renderEditorListItem(i == e.cursor, p.Name, summary)
-			listLines = append(listLines, line)
-		}
-		// "create new" entry
-		createLabel := lipgloss.NewStyle().Foreground(theme.Info).Bold(true).Render("✦  new preset")
-		idx := len(e.presets)
-		if e.cursor == idx {
-			listLines = append(listLines, activeStyle.Render("▶ ")+createLabel)
-		} else {
-			listLines = append(listLines, "  "+createLabel)
-		}
-	case editorTabTemplates:
-		for i, t := range e.tmpls {
-			desc := dimStyle.Render("  " + t.Description)
-			line := renderEditorListItem(i == e.cursor, t.Name, desc)
-			listLines = append(listLines, line)
-		}
-		createLabel := lipgloss.NewStyle().Foreground(theme.Info).Bold(true).Render("✦  new template")
-		idx := len(e.tmpls)
-		if e.cursor == idx {
-			listLines = append(listLines, activeStyle.Render("▶ ")+createLabel)
-		} else {
-			listLines = append(listLines, "  "+createLabel)
-		}
-	}
-
-	listContent := strings.Join(listLines, "\n")
-	boxed := editorListBoxStyle.Render(listContent)
-
-	statusLine := ""
-	if e.statusMsg != "" {
-		statusLine = "\n" + e.statusMsg
-	}
-
-	hint := hintStyle.Render("j/k navigate  •  enter select/edit  •  tab switch  •  esc back")
-
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		RenderTitle(),
-		promptStyle.Render("  Config Editor"),
-		"",
-		tabBar.String(),
-		"",
-		boxed,
-		statusLine,
-		"",
-		hint,
-	)
-	return centerInTerminal(e.termW, e.termH, content)
-}
-
-func renderEditorListItem(selected bool, name, extra string) string {
-	nameStr := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(name)
-	if selected {
-		return activeStyle.Render("▶ "+name) + extra
-	}
-	return "  " + nameStr + extra
-}
-
-var editorListBoxStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(theme.Accent).
-	Padding(0, 2).
-	Width(70)
-
-// ---------------------------------------------------------------------------
-// editorResult — signals from sub-editors back to editorScreen
-// ---------------------------------------------------------------------------
-
 type editorResult int
 
 const (
@@ -466,9 +348,10 @@ const (
 
 func newSmallInput(value, placeholder string, width int) textinput.Model {
 	ti := transparentInput()
+	ti.Prompt = "  "
 	ti.Placeholder = placeholder
 	ti.SetValue(value)
-	ti.CharLimit = 300
+	ti.CharLimit = 0
 	ti.Width = width
 	ti.Cursor.Style = cursorStyle
 	ti.PromptStyle = promptStyle

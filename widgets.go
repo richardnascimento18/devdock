@@ -69,7 +69,14 @@ func (s presetSelectorWidget) Selected() preset.Preset {
 func (s presetSelectorWidget) SelectedName() string { return s.Selected().Name }
 
 func (s *presetSelectorWidget) SetPresets(presets []preset.Preset) {
+	selected := s.SelectedName()
 	s.presets = presets
+	for i, p := range presets {
+		if p.Name == selected {
+			s.cursor = i
+			return
+		}
+	}
 	if s.cursor >= len(presets) {
 		s.cursor = 0
 	}

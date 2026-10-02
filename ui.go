@@ -26,8 +26,6 @@ var (
 	domainStyle      = ui.Foreground(theme.Muted)
 	selectedStyle    = ui.Foreground(theme.Selection).Bold(true)
 	boxStyle         = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(theme.Border).Padding(0, 1)
-	inputBoxStyle    = boxStyle.BorderForeground(theme.BorderFocused)
-	warningBoxStyle  = boxStyle.BorderForeground(theme.Error)
 	groupHeaderStyle = ui.Foreground(theme.Accent).Bold(true)
 	countBadgeStyle  = ui.Foreground(theme.Faint)
 	titleStyle       = ui.Foreground(theme.Accent).Bold(true)
@@ -43,14 +41,6 @@ func RenderTitle() string { return titleStyle.Render("DevDock") }
 
 func centerInTerminal(w, h int, content string) string {
 	return ui.Fit(lipgloss.Place(max(w, 0), max(h, 0), lipgloss.Center, lipgloss.Center, content), w, h)
-}
-
-func wrapInBox(title, content string) string {
-	return lipgloss.JoinVertical(lipgloss.Left, promptStyle.Render(title), inputBoxStyle.Render(content))
-}
-
-func wrapInWarningBox(title, content string) string {
-	return lipgloss.JoinVertical(lipgloss.Left, warningStyle.Render("! "+title), warningBoxStyle.Render(content))
 }
 
 // Technology labels use semantic foregrounds rather than colored badge fills.

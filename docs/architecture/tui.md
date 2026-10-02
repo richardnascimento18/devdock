@@ -97,7 +97,15 @@ flag intra-batch collisions, confirm full paths, then re-plan every target befor
 any mutation. Each execution still revalidates. Results distinguish moved,
 cleanup warnings and failed, reconcile completed locations, preserve pending
 state saves, rescan explicitly, and clear executed selection. All modals page.
-3D: editor presentation, validation, draft/unsaved handling; keep persistence.
+3D separates editor presentation (`editor_views.go`) from navigation/guards
+(`editor_navigation.go`) and existing draft/persistence handlers. Collection views
+have responsive previews; shared form blocks expose the active field and bounded
+manual detail scrolling. Draft snapshots drive an explicit unsaved indicator and
+confirmation before leaving a document. Nested Escape stops typing, then returns;
+field discard is labeled. Collection removal uses existing validated atomic saves,
+with a default-preset guard. Settings reuses the approved root workflows. Template
+command quoting/output/path checks run before accepting a step and again on save.
+No credentials enter presentation. Optional external handoff is not included.
 3E: one on-demand animation clock; foreground-only progress shimmer; environment
 reduced motion; final Unicode/resize/PTY/golden/performance diagnostics.
 Animation never drives operations; stale ticks are ignored and idle UI stops

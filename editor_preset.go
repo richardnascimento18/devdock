@@ -26,6 +26,7 @@ type windowDraft struct {
 }
 
 type presetEditor struct {
+	original     preset.Preset
 	originalName string
 	isNew        bool
 
@@ -54,6 +55,7 @@ type presetEditor struct {
 
 func newPresetEditor(p preset.Preset, isNew bool) presetEditor {
 	nameInp := transparentInput()
+	nameInp.Prompt = "  "
 	nameInp.SetValue(p.Name)
 	nameInp.CharLimit = 60
 	nameInp.Width = 40
@@ -74,6 +76,7 @@ func newPresetEditor(p preset.Preset, isNew bool) presetEditor {
 	}
 
 	return presetEditor{
+		original:     preset.Clone([]preset.Preset{p})[0],
 		originalName: p.Name,
 		isNew:        isNew,
 		nameInput:    nameInp,
@@ -313,6 +316,11 @@ func (pe presetEditor) updateWindowSplit(msg tea.Msg) (presetEditor, tea.Cmd) {
 			pe.result = editorResultCancel
 			return pe, nil
 		case "esc":
+			if pe.splitEditor.editing {
+				var cmd tea.Cmd
+				pe.splitEditor, cmd = pe.splitEditor.Update(msg)
+				return pe, cmd
+			}
 			pe.layer = pelWindowEdit
 			return pe, nil
 		case "ctrl+s":
@@ -359,138 +367,3 @@ func (pe presetEditor) updateConfirmDelete(msg tea.Msg) (presetEditor, tea.Cmd) 
 // ---------------------------------------------------------------------------
 // presetEditor.View
 // ---------------------------------------------------------------------------
-
-func (pe presetEditor) View(w, h int) string {
-	switch pe.layer {
-	case pelWindowEdit:
-		return pe.viewWindowEdit(w, h)
-	case pelWindowSplit:
-		return pe.viewWindowSplit(w, h)
-	case pelConfirmDelete:
-		return pe.viewConfirmDelete(w, h)
-	default:
-		return pe.viewWindowList(w, h)
-	}
-}
-
-func (pe presetEditor) viewWindowList(w, h int) string {
-	title := "Edit Preset"
-	if pe.isNew {
-		title = "New Preset"
-	}
-	var inner strings.Builder
-	inner.WriteString(promptStyle.Render("Preset name:") + "\n")
-	inner.WriteString(pe.nameInput.View() + "\n\n")
-	inner.WriteString(promptStyle.Render("Windows:") + "\n")
-	for i, wd := range pe.windows {
-		var suffix string
-		if wd.layout != nil {
-			suffix = dimStyle.Render(" [split]")
-		} else if wd.command != "" {
-			suffix = dimStyle.Render("  $ " + wd.command)
-		}
-		name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(wd.name)
-		var line string
-		if i == pe.cursor {
-			line = activeStyle.Render("▶ "+wd.name) + suffix
-		} else {
-			line = "  " + name + suffix
-		}
-		inner.WriteString(line + "\n")
-	}
-	// "add window" entry
-	addLabel := lipgloss.NewStyle().Foreground(theme.Info).Bold(true).Render("✦  add window")
-	if pe.cursor == len(pe.windows) {
-		inner.WriteString(activeStyle.Render("▶ ") + addLabel + "\n")
-	} else {
-		inner.WriteString("  " + addLabel + "\n")
-	}
-	if pe.statusMsg != "" {
-		inner.WriteString("\n" + pe.statusMsg)
-	}
-	inner.WriteString("\n\n" + hintStyle.Render("j/k navigate  •  i to edit name  •  enter open  •  d/x delete  •  ctrl+s save  •  esc cancel"))
-
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		RenderTitle(),
-		promptStyle.Render("  "+title),
-		"",
-		wrapInBox(title, inner.String()),
-	)
-	return centerInTerminal(w, h, content)
-}
-
-func (pe presetEditor) viewWindowEdit(w, h int) string {
-
-	focusIndicator := func(idx int, label string) string {
-		if pe.editFocus == idx {
-			return promptStyle.Render("▶ " + label)
-		}
-		return dimStyle.Render("  " + label)
-	}
-
-	splitStatus := "disabled"
-	if pe.editHasSplit {
-		splitStatus = "enabled"
-	}
-	splitLine := focusIndicator(2, "split layout: "+splitStatus)
-	if pe.editFocus == 2 {
-		if pe.editHasSplit {
-			splitLine += dimStyle.Render("  (enter to edit, or press enter again to disable)")
-		} else {
-			splitLine += dimStyle.Render("  (enter to enable)")
-		}
-	}
-
-	var inner strings.Builder
-	inner.WriteString(focusIndicator(0, "Window name:") + "\n")
-	inner.WriteString(pe.editNameInp.View() + "\n\n")
-	inner.WriteString(focusIndicator(1, "Command (blank = shell):") + "\n")
-	inner.WriteString(pe.editCmdInp.View() + "\n\n")
-	inner.WriteString(splitLine + "\n")
-	if pe.statusMsg != "" {
-		inner.WriteString("\n" + pe.statusMsg)
-	}
-	if pe.typing {
-		inner.WriteString("\n\n" + hintStyle.Render("typing mode  •  esc to stop typing  •  ctrl+s save all"))
-	} else {
-		inner.WriteString("\n\n" + hintStyle.Render("j/k navigate  •  i to type  •  enter confirm  •  esc back  •  ctrl+s save all"))
-	}
-
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		RenderTitle(),
-		promptStyle.Render("  Edit Window"),
-		"",
-		wrapInBox("Edit Window", inner.String()),
-	)
-	return centerInTerminal(w, h, content)
-}
-
-func (pe presetEditor) viewWindowSplit(w, h int) string {
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		RenderTitle(),
-		promptStyle.Render("  Pane Layout Editor"),
-		"",
-		pe.splitEditor.View(),
-		"",
-		hintStyle.Render("enter confirm  •  esc back"),
-	)
-	return centerInTerminal(w, h, content)
-}
-
-func (pe presetEditor) viewConfirmDelete(w, h int) string {
-	name := ""
-	if pe.cursor < len(pe.windows) {
-		name = pe.windows[pe.cursor].name
-	}
-	inner := warningStyle.Render(fmt.Sprintf("Delete window \"%s\"?", name)) + "\n\n" +
-		hintStyle.Render("y/enter — yes  •  n/esc — no")
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		RenderTitle(),
-		wrapInWarningBox("Confirm Delete", inner),
-	)
-	return centerInTerminal(w, h, content)
-}
-
-// ===========================================================================
-// SPLIT PANE EDITOR — simplified flat representation
-// ===========================================================================

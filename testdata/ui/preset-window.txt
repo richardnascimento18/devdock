@@ -1,0 +1,27 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+                      ╭──────────────────────────────────────────────────────────────────────────╮
+                      │ > Window · Default                                                       │
+                      │   Window name                                                            │
+                      │   nvim                                                                   │
+                      │                                                                          │
+                      │                                                                          │
+                      │ > Command (blank = shell)                                                │
+                      │   nvim                                                                   │
+                      │                                                                          │
+                      │                                                                          │
+                      │   Split layout: disabled                                                 │
+                      │ enter toggles · e edits enabled layout                                   │
+                      │ tab field · i type · enter accept · ctrl+s save all · esc discard fields │
+                      ╰──────────────────────────────────────────────────────────────────────────╯
