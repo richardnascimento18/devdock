@@ -16,26 +16,6 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// renderTabBar
-// ---------------------------------------------------------------------------
-
-func renderTabBar(active int) string {
-	var b strings.Builder
-	for i, name := range tabNames {
-		if i > 0 {
-			b.WriteString(dimStyle.Render("  │  "))
-		}
-		if i == active {
-			b.WriteString(activeStyle.Render(" " + name + " "))
-		} else {
-			b.WriteString(dimStyle.Render(name))
-		}
-	}
-	b.WriteString(dimStyle.Render("  ([ / ] to switch)"))
-	return b.String()
-}
-
-// ---------------------------------------------------------------------------
 // inputScreen
 // ---------------------------------------------------------------------------
 
@@ -48,14 +28,14 @@ type inputScreen struct {
 }
 
 func newInputScreen(title, placeholder, hint string) inputScreen {
-	ti := textinput.New()
+	ti := transparentInput()
 	ti.Placeholder = placeholder
 	ti.Focus()
 	ti.CharLimit = 0
 	ti.Width = 52
 	ti.Cursor.Style = cursorStyle
 	ti.PromptStyle = promptStyle
-	ti.TextStyle = lipgloss.NewStyle().Foreground(colorWhite)
+	ti.TextStyle = lipgloss.NewStyle().Foreground(theme.Primary)
 	s := inputScreen{title: title, input: ti, hint: hint}
 	if filepath.IsAbs(placeholder) {
 		s.targetPath = placeholder
@@ -103,7 +83,7 @@ func (y yesNoScreen) View(termW, termH int) string {
 		if i == y.cursor {
 			inner.WriteString(activeStyle.Render(opt) + "\n")
 		} else {
-			inner.WriteString(lipgloss.NewStyle().Foreground(colorGray).Render(opt) + "\n")
+			inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render(opt) + "\n")
 		}
 	}
 	if y.err != "" {
@@ -138,8 +118,8 @@ func spinnerTick(id uint64) tea.Cmd {
 }
 
 func (s spinnerScreen) View(termW, termH int) string {
-	spinner := lipgloss.NewStyle().Foreground(colorPink).Bold(true).Render(s.frames[s.frame])
-	msg := lipgloss.NewStyle().Foreground(colorGray).Render(s.message)
+	spinner := lipgloss.NewStyle().Foreground(theme.Accent).Bold(true).Render(s.frames[s.frame])
+	msg := lipgloss.NewStyle().Foreground(theme.Secondary).Render(s.message)
 	inner := spinner + "  " + msg + "\n\n" + hintStyle.Render("please wait...")
 	content := lipgloss.JoinVertical(lipgloss.Center, RenderTitle(), boxStyle.Render(inner))
 	return centerInTerminal(termW, termH, content)
@@ -158,16 +138,16 @@ type githubAuthScreen struct {
 
 func (g githubAuthScreen) View(termW, termH int) string {
 	var inner strings.Builder
-	inner.WriteString(lipgloss.NewStyle().Foreground(colorGray).Render("1. Open this URL in your browser:") + "\n")
-	inner.WriteString("   " + lipgloss.NewStyle().Foreground(colorCyan).Underline(true).Render(g.verificationURI) + "\n\n")
-	inner.WriteString(lipgloss.NewStyle().Foreground(colorGray).Render("2. Enter this one-time code:") + "\n")
+	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render("1. Open this URL in your browser:") + "\n")
+	inner.WriteString("   " + lipgloss.NewStyle().Foreground(theme.Info).Underline(true).Render(g.verificationURI) + "\n\n")
+	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render("2. Enter this one-time code:") + "\n")
 	inner.WriteString("   " + lipgloss.NewStyle().
-		Bold(true).Foreground(colorYellow).Background(colorDark).Padding(0, 2).
+		Bold(true).Foreground(theme.Favorite).Padding(0, 2).
 		Render(g.userCode) + "\n\n")
 	if g.done {
 		inner.WriteString(successStyle.Render("✓  Authorized! Loading your repositories..."))
 	} else {
-		inner.WriteString(lipgloss.NewStyle().Foreground(colorPurpleDim).Render("Waiting for authorization..."))
+		inner.WriteString(lipgloss.NewStyle().Foreground(theme.Muted).Render("Waiting for authorization..."))
 	}
 	if g.err != "" {
 		inner.WriteString("\n\n" + errorStyle.Render("✗  "+g.err))
@@ -222,7 +202,7 @@ func (g genericPickerScreen) View(termW, termH int) string {
 		case i == g.cursor:
 			line = activeStyle.Render("▶ " + o)
 		default:
-			line = lipgloss.NewStyle().Foreground(colorGray).Render("  " + o)
+			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render("  " + o)
 		}
 		inner.WriteString(line + "\n")
 	}
@@ -285,7 +265,7 @@ func (p presetPickerScreen) View(termW, termH int) string {
 		if i == p.cursor {
 			line = activeStyle.Render("▶ "+label) + summary
 		} else {
-			line = lipgloss.NewStyle().Foreground(colorGray).Render("  "+label) + summary
+			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render("  "+label) + summary
 		}
 		inner.WriteString(line + "\n")
 	}
@@ -323,7 +303,7 @@ func (t templatePickerScreen) View(termW, termH int) string {
 	if t.cursor == 0 {
 		inner.WriteString(activeStyle.Render("▶  No template  ") + dimStyle.Render("  create an empty project") + "\n")
 	} else {
-		inner.WriteString(lipgloss.NewStyle().Foreground(colorGray).Render("   No template") + dimStyle.Render("  create an empty project") + "\n")
+		inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render("   No template") + dimStyle.Render("  create an empty project") + "\n")
 	}
 	for i, tmpl := range t.templates {
 		idx := i + 1
@@ -332,7 +312,7 @@ func (t templatePickerScreen) View(termW, termH int) string {
 		if idx == t.cursor {
 			line = activeStyle.Render("▶  "+tmpl.Name) + desc
 		} else {
-			line = lipgloss.NewStyle().Foreground(colorGray).Render("   "+tmpl.Name) + desc
+			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render("   "+tmpl.Name) + desc
 		}
 		inner.WriteString(line + "\n")
 	}
@@ -375,14 +355,14 @@ type confirmDeleteDomainScreen struct {
 }
 
 func newConfirmDeleteDomainScreen(domainName string) confirmDeleteDomainScreen {
-	ti := textinput.New()
+	ti := transparentInput()
 	ti.Placeholder = domainName
 	ti.Focus()
 	ti.CharLimit = 0
 	ti.Width = 52
 	ti.Cursor.Style = cursorStyle
 	ti.PromptStyle = promptStyle
-	ti.TextStyle = lipgloss.NewStyle().Foreground(colorWhite)
+	ti.TextStyle = lipgloss.NewStyle().Foreground(theme.Primary)
 	return confirmDeleteDomainScreen{domainName: domainName, input: ti}
 }
 
@@ -397,7 +377,7 @@ func (s confirmDeleteDomainScreen) View(termW, termH int) string {
 	inner.WriteString(errorStyle.Render(fmt.Sprintf(
 		"ALL projects inside \"%s\" will be permanently deleted.", s.domainName,
 	)) + "\n\n")
-	inner.WriteString(lipgloss.NewStyle().Foreground(colorGray).Render(
+	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render(
 		fmt.Sprintf("Type \"%s\" to confirm:", s.domainName),
 	) + "\n\n")
 	inner.WriteString(s.input.View())
@@ -420,14 +400,14 @@ type confirmDeleteTmuxScreen struct {
 }
 
 func newConfirmDeleteTmuxScreen(sessionName string) confirmDeleteTmuxScreen {
-	ti := textinput.New()
+	ti := transparentInput()
 	ti.Placeholder = sessionName
 	ti.Focus()
 	ti.CharLimit = 80
 	ti.Width = 52
 	ti.Cursor.Style = cursorStyle
 	ti.PromptStyle = promptStyle
-	ti.TextStyle = lipgloss.NewStyle().Foreground(colorWhite)
+	ti.TextStyle = lipgloss.NewStyle().Foreground(theme.Primary)
 	return confirmDeleteTmuxScreen{sessionName: sessionName, input: ti}
 }
 
@@ -442,7 +422,7 @@ func (s confirmDeleteTmuxScreen) View(termW, termH int) string {
 	inner.WriteString(warningStyle.Render(fmt.Sprintf(
 		"Kill tmux session \"%s\"? All windows and panes will be lost.", s.sessionName,
 	)) + "\n\n")
-	inner.WriteString(lipgloss.NewStyle().Foreground(colorGray).Render(
+	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render(
 		fmt.Sprintf("Type \"%s\" to confirm:", s.sessionName),
 	) + "\n\n")
 	inner.WriteString(s.input.View())

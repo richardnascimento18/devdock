@@ -7,6 +7,7 @@ import (
 	"github.com/richardnascimento18/devdock/internal/core"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
+	"github.com/richardnascimento18/devdock/internal/ui"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,6 +16,35 @@ import (
 func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if !m.list.SettingFilter() {
+			switch msg.String() {
+			case "tab", "shift+tab":
+				delta := 1
+				if msg.String() == "shift+tab" {
+					delta = -1
+				}
+				m.focus = m.focus.Cycle(delta, false)
+				return m, nil
+			case "q":
+				return m, tea.Quit
+			}
+			if m.focus == ui.Workspace {
+				switch msg.String() {
+				case "j", "down", "l", "right":
+					m.rootSel.Next()
+				case "k", "up", "h", "left":
+					m.rootSel.Prev()
+				case "enter", "esc":
+					m.focus = ui.Projects
+					return m, nil
+				default:
+					break
+				}
+				if msg.String() == "j" || msg.String() == "down" || msg.String() == "l" || msg.String() == "right" || msg.String() == "k" || msg.String() == "up" || msg.String() == "h" || msg.String() == "left" {
+					return m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0), nil
+				}
+			}
+		}
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
@@ -22,6 +52,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "?":
 			if !m.list.SettingFilter() {
 				m.state = stateHelp
+				m.helpScroll = 0
 				return m, nil
 			}
 
@@ -79,11 +110,11 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
-		case "tab":
+		case "}":
 			m.rootSel.Next()
 			m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 			return m, nil
-		case "shift+tab":
+		case "{":
 			m.rootSel.Prev()
 			m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 			return m, nil

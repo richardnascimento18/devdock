@@ -12,6 +12,7 @@ import (
 	uistate "github.com/richardnascimento18/devdock/internal/state"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
 	"github.com/richardnascimento18/devdock/internal/tmux"
+	"github.com/richardnascimento18/devdock/internal/ui"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -19,6 +20,8 @@ import (
 )
 
 type model struct {
+	focus                  ui.Pane
+	helpScroll             int
 	filesystemStatePending bool
 	tmuxRefreshRequested   bool
 	tmuxRefreshID          uint64
@@ -111,6 +114,7 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 	roots := cfg.ActiveRoots()
 
 	m := model{
+		focus:          ui.Projects,
 		cfg:            cfg,
 		repoLoadID:     1,
 		tmuxRefreshID:  1,
@@ -134,19 +138,22 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 		m.statusMsg = dimStyle.Render("↻  loading GitHub repos...")
 	}
 
-	delegate := list.NewDefaultDelegate()
-	delegate.ShowDescription = false
-	delegate.SetHeight(1)
-	delegate.Styles.NormalTitle = listNormalStyle
-	delegate.Styles.SelectedTitle = selectedStyle
+	delegate := projectDelegate{}
 
 	items := m.buildListItems(projects, false)
 	m.allItems = items
 
 	l := list.New(items, delegate, 100, 30)
 	l.Title = ""
+	l.Styles.Title = promptStyle
+	l.Styles.FilterPrompt = promptStyle
+	l.Styles.FilterCursor = cursorStyle
+	l.Styles.NoItems = dimStyle
+	ui.ConfigureInput(&l.FilterInput)
+	l.DisableQuitKeybindings()
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
+	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetShowPagination(false)
 	l.AdditionalShortHelpKeys = func() []key.Binding {
@@ -167,6 +174,7 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 		}
 	}
 	m.list = l
+	m.sizePresentation()
 	return m
 }
 
@@ -261,15 +269,11 @@ func (m model) refreshTabList() model {
 }
 
 func (m model) listHeight() int {
-	reserved := 22
-	h := m.termH - reserved
-	if h < 5 {
-		h = 5
-	}
-	if h > 40 {
-		h = 40
-	}
-	return h
+	return max(ui.Measure(m.termW, m.termH).BodyHeight-2, 1)
+}
+
+func (m *model) sizePresentation() {
+	m.list.SetSize(max(m.termW, 1), m.listHeight())
 }
 
 func (m model) rebuildList(verified bool) model {

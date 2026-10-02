@@ -1,4 +1,5 @@
-import argparse, fcntl, os, pathlib, pty, select, struct, subprocess, tempfile, termios, time, tomllib
+import argparse, fcntl, os, pathlib, pty, select, signal, struct, subprocess, tempfile, termios, time, tomllib
+from terminal_style import decorative_background
 parser = argparse.ArgumentParser(description="Smoke-test a DevDock binary in an isolated terminal/workspace.")
 parser.add_argument("binary", type=pathlib.Path)
 parser.add_argument("--oauth-configured", action="store_true", help="expect an embedded public Client ID; never complete authorization")
@@ -32,8 +33,17 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
     try:
         drain(2)
         assert b'demo' in captured, 'main project navigation did not render'
+        for width, height in ((120, 40), (100, 30), (80, 24), (60, 20), (40, 15), (140, 40)):
+            fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", height, width, 0, 0))
+            os.kill(process.pid, signal.SIGWINCH)
+            drain(0.15)
+            assert process.poll() is None, 'resize terminated the TUI'
+        os.write(master, b'?'); drain(0.2)
+        assert b'Keyboard Reference' in captured, 'help did not render'
+        os.write(master, b'j\x1b'); drain(0.2)
         os.write(master, b'v'); drain(0.2)
         os.write(master, b'\t'); drain(0.2)
+        os.write(master, b'\r'); drain(0.2)
         os.write(master, b'f'); drain(0.2)
         os.write(master, b'e'); drain(0.3)
         assert b'Presets' in captured and b'Templates' in captured, 'editor did not render'
@@ -57,6 +67,7 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
         assert process.wait(timeout=5) == 0, 'TUI shutdown failed'
         assert (config_dir / 'presets.json').exists(), 'defaults not generated'
         assert (config_dir / 'templates.json').exists(), 'templates not generated'
+        assert decorative_background(captured) is None, 'explicit background/inverse video emitted'
         print('PASS: isolated TUI startup, project rendering, flat view, root switching, favorite toggle, editor, OAuth screen, cancellation, shutdown')
         print('Captured terminal bytes:', len(captured))
     finally:

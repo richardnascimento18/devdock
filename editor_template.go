@@ -517,7 +517,7 @@ func (te templateEditor) viewStepList(w, h int) string {
 		name = "(unnamed)"
 	}
 	inner.WriteString(promptStyle.Render("Template: ") +
-		lipgloss.NewStyle().Bold(true).Foreground(colorWhite).Render(name) +
+		lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(name) +
 		dimStyle.Render("  (m to edit meta)") + "\n\n")
 
 	inner.WriteString(promptStyle.Render("Steps:") + "\n")
@@ -530,14 +530,14 @@ func (te templateEditor) viewStepList(w, h int) string {
 		if i == te.cursor {
 			inner.WriteString(activeStyle.Render("▶ "+label) + postTag + "\n")
 		} else {
-			inner.WriteString("  " + lipgloss.NewStyle().Foreground(colorGray).Render(label) + postTag + "\n")
+			inner.WriteString("  " + lipgloss.NewStyle().Foreground(theme.Secondary).Render(label) + postTag + "\n")
 		}
 	}
 
 	addIdx := len(te.steps)
 	addPostIdx := len(te.steps) + 1
-	addLabel := lipgloss.NewStyle().Foreground(colorCyan).Bold(true).Render("✦  add step")
-	addPostLabel := lipgloss.NewStyle().Foreground(colorCyan).Bold(true).Render("✦  add post-step")
+	addLabel := lipgloss.NewStyle().Foreground(theme.Info).Bold(true).Render("✦  add step")
+	addPostLabel := lipgloss.NewStyle().Foreground(theme.Info).Bold(true).Render("✦  add post-step")
 
 	if te.cursor == addIdx {
 		inner.WriteString(activeStyle.Render("▶ ") + addLabel + "\n")
@@ -598,7 +598,7 @@ func (te templateEditor) viewStepEdit(w, h int) string {
 
 	postLabel := "add to post-steps: "
 	if te.editIsPost {
-		postLabel += lipgloss.NewStyle().Foreground(colorGreen).Bold(true).Render("yes")
+		postLabel += lipgloss.NewStyle().Foreground(theme.Success).Bold(true).Render("yes")
 	} else {
 		postLabel += dimStyle.Render("no")
 	}
@@ -665,7 +665,7 @@ func (te templateEditor) viewMetaEdit(w, h int) string {
 	}
 	boolStr := func(b bool) string {
 		if b {
-			return lipgloss.NewStyle().Foreground(colorGreen).Bold(true).Render("yes")
+			return lipgloss.NewStyle().Foreground(theme.Success).Bold(true).Render("yes")
 		}
 		return dimStyle.Render("no")
 	}

@@ -1,0 +1,27 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+                 DevDock
+                   Edit Template
+
+                 Edit Template
+                 ╭────────────────────────────────────────────────────────────────────────────────────╮
+                 │ Template: service  (m to edit meta)                                                │
+                 │                                                                                    │
+                 │ Steps:                                                                             │
+                 │ ▶ ✦  add step                                                                      │
+                 │   ✦  add post-step                                                                 │
+                 │                                                                                    │
+                 │                                                                                    │
+                 │ j/k navigate  •  enter edit  •  d delete  •  m meta  •  ctrl+s save  •  esc cancel │
+                 ╰────────────────────────────────────────────────────────────────────────────────────╯
