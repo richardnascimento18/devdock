@@ -338,16 +338,16 @@ func ExecuteStepsContext(ctx context.Context, steps []TemplateStep, workDir stri
 	return nil
 }
 
-func Run(t Template, domainPath, projectName string) (string, error) {
+func Run(t Template, location core.Location, projectName string) (string, error) {
 	if errs := ValidateFile(TemplateFile{Templates: []Template{t}}); len(errs) > 0 {
 		return "", fmt.Errorf("%s", strings.Join(errs, "; "))
 	}
 	vars := Vars{
 		ProjectName: projectName,
-		Domain:      filepath.Base(domainPath),
-		Root:        filepath.Dir(domainPath),
+		Domain:      location.Domain,
+		Root:        location.Root,
 	}
-	projectPath, workDir, err := core.PrepareProject(vars.Root, vars.Domain, projectName, t.CreatesProjectFolder)
+	projectPath, workDir, err := core.PrepareProject(location, projectName, t.CreatesProjectFolder)
 	if err != nil {
 		return "", err
 	}

@@ -68,37 +68,35 @@ func CreateDomain(root, name string) error {
 	return os.Mkdir(path, 0o755)
 }
 
-func PrepareProject(root, domainName, projectName string, createsFolder bool) (string, string, error) {
-	if !ValidName(domainName) || !ValidName(projectName) {
-		return "", "", fmt.Errorf("invalid domain or project name")
-	}
-	domainPath := filepath.Join(root, domainName)
-	projectPath := filepath.Join(domainPath, projectName)
-	if err := CheckDestination(root, projectPath); err != nil {
+func PrepareProject(location Location, projectName string, createsFolder bool) (string, string, error) {
+	projectPath, err := location.ProjectPath(projectName)
+	if err != nil {
 		return "", "", err
 	}
-	if err := os.MkdirAll(domainPath, 0o755); err != nil {
+	if err := CheckDestination(location.Root, projectPath); err != nil {
+		return "", "", err
+	}
+	parent := location.Path()
+	if err := os.MkdirAll(parent, 0o755); err != nil {
 		return "", "", err
 	}
 	if createsFolder {
-		return projectPath, domainPath, nil
+		return projectPath, parent, nil
 	}
 	if err := os.Mkdir(projectPath, 0o755); err != nil {
 		return "", "", err
 	}
 	return projectPath, projectPath, nil
 }
-
-func CreateProject(root, domainName, projectName string) (Project, error) {
-	path, _, err := PrepareProject(root, domainName, projectName, false)
+func CreateProject(location Location, projectName string) (Project, error) {
+	path, _, err := PrepareProject(location, projectName, false)
 	if err != nil {
 		return Project{}, err
 	}
-	return Project{Name: projectName, Path: path, Domain: domainName, Root: root, Kind: KindProject}, nil
+	return Project{Location: location, Name: projectName, Path: path, Kind: KindProject}, nil
 }
-
-func CreateGroup(root, domain, name string) error {
-	path, _, err := PrepareProject(root, domain, name, false)
+func CreateGroup(parent Location, name string) error {
+	path, _, err := PrepareProject(parent, name, false)
 	if err != nil {
 		return err
 	}
@@ -106,6 +104,16 @@ func CreateGroup(root, domain, name string) error {
 		return fmt.Errorf("group directory created but marker failed: %w", err)
 	}
 	return nil
+}
+func DeleteGroup(location Location) error {
+	if len(location.GroupPath) == 0 {
+		return fmt.Errorf("group path required")
+	}
+	path, err := location.Resolve()
+	if err != nil {
+		return err
+	}
+	return DeletePath(location.Root, path)
 }
 
 func DeletePath(root, path string) error {
@@ -124,17 +132,51 @@ func DeletePath(root, path string) error {
 	return errors.Join(err, workspace.Close())
 }
 func DeleteProject(p Project) error {
-	if !ValidName(p.Domain) {
-		return fmt.Errorf("invalid project domain")
-	}
-	if err := ValidateDescendant(filepath.Join(p.Root, p.Domain), p.Path); err != nil {
+	path, err := p.Location.ProjectPath(filepath.Base(p.Path))
+	if err != nil {
 		return err
 	}
-	return DeletePath(p.Root, p.Path)
+	if path != p.Path {
+		return fmt.Errorf("project path disagrees with location")
+	}
+	return DeletePath(p.Root, path)
 }
 func DeleteDomain(root, domain string) error {
 	if !ValidName(domain) {
 		return fmt.Errorf("invalid domain name %q", domain)
 	}
 	return DeletePath(root, filepath.Join(root, domain))
+}
+
+// CreateGroupPath validates the entire proposal before creating any component.
+// Existing parents are allowed; the final group must not already exist.
+func CreateGroupPath(parent Location, names []string) error {
+	if len(names) == 0 {
+		return fmt.Errorf("group path required")
+	}
+	target := parent
+	for _, name := range names {
+		target = target.Child(name)
+	}
+	path, err := target.Resolve()
+	if err != nil {
+		return err
+	}
+	if err := CheckDestination(target.Root, path); err != nil {
+		return err
+	}
+	for _, name := range names {
+		child := parent.Child(name)
+		if info, err := os.Lstat(child.Path()); os.IsNotExist(err) {
+			if err := CreateGroup(parent, name); err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		} else if !info.IsDir() {
+			return fmt.Errorf("group parent is not a directory: %s", child.Path())
+		}
+		parent = child
+	}
+	return nil
 }

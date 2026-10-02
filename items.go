@@ -19,15 +19,10 @@ type item struct {
 }
 
 func (i item) Title() string {
-	prefix := strings.Repeat("  ", i.indent)
-	if i.indent == 1 {
-		prefix = "  · "
-	} else if i.indent == 2 {
-		prefix = "    · "
-	}
+	prefix := visualIndent(i.indent)
 	name := lipgloss.NewStyle().Bold(true).Foreground(colorWhite).Render(i.project.Name)
 	domain := domainStyle.Render(" (" + i.project.Domain + ")")
-	line := prefix + name + domain
+	line := prefix + name + domain + RenderGroupBreadcrumb(i.project.GroupPath)
 	if i.showRoot {
 		line += " " + rootTagStyle.Render("("+config.RootName(i.project.Root)+")")
 	}
@@ -40,16 +35,17 @@ func (i item) Title() string {
 	return line
 }
 func (i item) Description() string { return "" }
-func (i item) FilterValue() string { return i.project.Name }
+func (i item) FilterValue() string {
+	return i.project.Name + " " + i.project.Location.Breadcrumb() + " " + i.project.Root
+}
 
 type flatItem struct{ item }
 
 func (f flatItem) Title() string {
-	crumb := RenderGroupBreadcrumb(f.item.project.Group, f.item.project.Subgroup)
-	return crumb + f.item.Title()
+	return f.item.Title()
 }
 func (f flatItem) Description() string { return "" }
-func (f flatItem) FilterValue() string { return f.item.project.Name }
+func (f flatItem) FilterValue() string { return f.item.FilterValue() }
 
 type githubItem struct{ repo gh.Repo }
 
@@ -75,10 +71,12 @@ func (r recentItem) Title() string {
 	name := lipgloss.NewStyle().Bold(true).Foreground(colorWhite).Render(r.entry.Name)
 	domain := domainStyle.Render(" (" + r.entry.Domain + ")")
 	ts := dimStyle.Render("  " + r.entry.OpenedAt.Format("Jan 02  15:04"))
-	return name + domain + ts
+	return name + domain + RenderGroupBreadcrumb(r.entry.GroupPath) + " " + rootTagStyle.Render(r.entry.Root) + ts
 }
 func (r recentItem) Description() string { return "" }
-func (r recentItem) FilterValue() string { return r.entry.Name }
+func (r recentItem) FilterValue() string {
+	return r.entry.Name + " " + r.entry.Location.Breadcrumb() + " " + r.entry.Root
+}
 
 type favoriteItem struct {
 	project  core.Project
@@ -90,7 +88,7 @@ func (f favoriteItem) Title() string {
 	star := lipgloss.NewStyle().Foreground(colorYellow).Bold(true).Render("★ ")
 	name := lipgloss.NewStyle().Bold(true).Foreground(colorWhite).Render(f.project.Name)
 	domain := domainStyle.Render(" (" + f.project.Domain + ")")
-	line := star + name + domain
+	line := star + name + domain + RenderGroupBreadcrumb(f.project.GroupPath)
 	if f.showRoot {
 		line += " " + rootTagStyle.Render("("+config.RootName(f.project.Root)+")")
 	}
@@ -103,17 +101,17 @@ func (f favoriteItem) Title() string {
 	return line
 }
 func (f favoriteItem) Description() string { return "" }
-func (f favoriteItem) FilterValue() string { return f.project.Name }
+func (f favoriteItem) FilterValue() string {
+	return f.project.Name + " " + f.project.Location.Breadcrumb() + " " + f.project.Root
+}
 
 type groupItem struct {
-	groupKey   string
+	nodeKey    core.NodeKey
 	name       string
-	domain     string
-	root       string
+	location   core.Location
+	depth      int
 	collapsed  bool
 	totalCount int
-	shownCount int
-	empty      bool
 }
 
 func (g groupItem) Title() string {
@@ -121,77 +119,22 @@ func (g groupItem) Title() string {
 	if g.collapsed {
 		icon = "▶"
 	}
-	var count string
-	if g.empty {
-		count = countBadgeStyle.Render(" (no projects)")
-	} else if g.collapsed {
-		count = countBadgeStyle.Render(fmt.Sprintf(" [%d]", g.totalCount))
-	} else if g.shownCount < g.totalCount {
-		count = countBadgeStyle.Render(fmt.Sprintf(" [%d/%d]", g.shownCount, g.totalCount))
-	} else {
-		count = countBadgeStyle.Render(fmt.Sprintf(" [%d]", g.totalCount))
+	count := fmt.Sprintf(" [%d]", g.totalCount)
+	if g.totalCount == 0 {
+		count = " (no projects)"
 	}
-	return groupHeaderStyle.Render(icon+" "+g.name) + count + " " + domainStyle.Render("("+g.domain+")")
+	return visualIndent(g.depth) + groupHeaderStyle.Render(icon+" "+g.name) + countBadgeStyle.Render(count) + " " + dimStyle.Render(g.location.Domain+" › "+compactBreadcrumb(g.location.GroupPath)) + " " + rootTagStyle.Render(g.location.Root)
 }
 func (g groupItem) Description() string { return "" }
-func (g groupItem) FilterValue() string { return g.name }
-
-type subgroupItem struct {
-	subgroupKey string
-	name        string
-	parentGroup string
-	domain      string
-	root        string
-	collapsed   bool
-	totalCount  int
-	shownCount  int
+func (g groupItem) FilterValue() string {
+	return g.name + " " + g.location.Breadcrumb() + " " + g.location.Root
 }
-
-func (s subgroupItem) Title() string {
-	icon := "  ▼"
-	if s.collapsed {
-		icon = "  ▶"
+func visualIndent(depth int) string {
+	if depth > 4 {
+		return strings.Repeat("  ", 4) + "… "
 	}
-	var count string
-	if s.collapsed {
-		count = countBadgeStyle.Render(fmt.Sprintf(" [%d]", s.totalCount))
-	} else if s.shownCount < s.totalCount {
-		count = countBadgeStyle.Render(fmt.Sprintf(" [%d/%d]", s.shownCount, s.totalCount))
-	} else {
-		count = countBadgeStyle.Render(fmt.Sprintf(" [%d]", s.totalCount))
-	}
-	return subgroupHeaderStyle.Render(icon+" "+s.name) + count
+	return strings.Repeat("  ", max(depth, 0))
 }
-func (s subgroupItem) Description() string { return "" }
-func (s subgroupItem) FilterValue() string { return s.name }
-
-func groupKey(root, domain, group string) string {
-	return root + "::" + domain + "::" + group
-}
-
-func subgroupKey(root, domain, group, subgroup string) string {
-	return root + "::" + domain + "::" + group + "::" + subgroup
-}
-
-type emptyGroupFlatItem struct {
-	name     string
-	domain   string
-	root     string
-	showRoot bool
-}
-
-func (e emptyGroupFlatItem) Title() string {
-	nameStr := lipgloss.NewStyle().Bold(true).Foreground(colorPurpleLight).Render(e.name)
-	domainStr := domainStyle.Render(" (" + e.domain + ")")
-	empty := lipgloss.NewStyle().Foreground(colorPurpleDim).Render(" (no projects)")
-	line := nameStr + domainStr + empty
-	if e.showRoot {
-		line += " " + rootTagStyle.Render("("+config.RootName(e.root)+")")
-	}
-	return line
-}
-func (e emptyGroupFlatItem) Description() string { return "" }
-func (e emptyGroupFlatItem) FilterValue() string { return e.name }
 
 // tmuxSessionItem represents a live tmux session in the TabTmux list.
 type tmuxSessionItem struct{ name string }

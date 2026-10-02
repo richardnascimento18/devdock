@@ -1,8 +1,8 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/richardnascimento18/devdock/internal/config"
@@ -22,13 +22,6 @@ import (
 type moveProjectDoneMsg struct {
 	newProject core.Project
 	err        error
-}
-
-func CmdMoveProjectToPath(p core.Project, destPath, destRoot, destDomain string) tea.Cmd {
-	return func() tea.Msg {
-		next, err := core.MoveProject(p, destPath, destRoot, destDomain)
-		return moveProjectDoneMsg{newProject: next, err: err}
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -154,7 +147,7 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 	case stateMovePickDomain:
 		return m.updateMovePickDomain(msg)
 	case stateMovePickPlacement:
-		return m.updateMovePickPlacement(msg)
+		return m.updatePlacement(msg)
 	case stateHelp:
 		return m.updateHelp(msg)
 	case stateCreateGroup:
@@ -232,7 +225,7 @@ func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cm
 			Domain:      m.pendingDomain,
 			Root:        m.pendingRoot,
 		}
-		projectPath, workDir, err := core.PrepareProject(vars.Root, vars.Domain, vars.ProjectName, m.pendingTemplate.CreatesProjectFolder)
+		projectPath, workDir, err := core.PrepareProject(m.currentLocation(), vars.ProjectName, m.pendingTemplate.CreatesProjectFolder)
 		if err != nil {
 			m.statusMsg = errorStyle.Render("create project: " + err.Error())
 			m.state = stateList
@@ -248,7 +241,7 @@ func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cm
 		return m, m.ptyScr.startNextStep()
 	}
 
-	p, err := core.CreateProject(m.pendingRoot, m.pendingDomain, m.pendingProjectName)
+	p, err := core.CreateProject(m.currentLocation(), m.pendingProjectName)
 	if err != nil {
 		m.statusMsg = errorStyle.Render("✗  project create error: " + err.Error())
 		m.state = stateList
@@ -287,12 +280,18 @@ func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd
 		return m, nil
 	}
 	if msg.err != nil {
+		var partial *core.PartialMoveError
+		if errors.As(msg.err, &partial) {
+			m.uiState.MoveProject(m.moveTarget.Path, msg.newProject)
+			m.saveFilesystemState()
+			m = m.rescan()
+		}
 		m.statusMsg = errorStyle.Render("✗  move failed: " + msg.err.Error())
 		m.state = stateList
 		return m, nil
 	}
 	m.uiState.MoveProject(m.moveTarget.Path, msg.newProject)
-	if !m.saveState() {
+	if !m.saveFilesystemState() {
 		m = m.rescan()
 		m.state = stateList
 		return m, nil
@@ -319,47 +318,7 @@ func (m model) openMoveDestDomainPicker() model {
 }
 
 func (m model) openMovePlacementPicker(destRoot, destDomain string) model {
-	domainPath := filepath.Join(destRoot, destDomain)
-	groups := m.workspaceGroups[domainPath]
-
-	var opts []movePlacementOption
-	opts = append(opts, movePlacementOption{
-		label:    "(place directly in domain)",
-		destPath: filepath.Join(domainPath, filepath.Base(m.moveTarget.Path)),
-		domain:   destDomain,
-	})
-	for _, g := range groups {
-		opts = append(opts, movePlacementOption{
-			label:    g.Name,
-			destPath: filepath.Join(g.Path, filepath.Base(m.moveTarget.Path)),
-			domain:   destDomain,
-		})
-		for _, sg := range g.Subgroups {
-			opts = append(opts, movePlacementOption{
-				label:    g.Name + " > " + sg.Name,
-				destPath: filepath.Join(sg.Path, filepath.Base(m.moveTarget.Path)),
-				domain:   destDomain,
-			})
-			for _, nested := range sg.Subgroups {
-				opts = append(opts, movePlacementOption{
-					label:    g.Name + " > " + sg.Name + " > " + nested.Name,
-					destPath: filepath.Join(nested.Path, filepath.Base(m.moveTarget.Path)),
-					domain:   destDomain,
-				})
-			}
-		}
-	}
-	labels := make([]string, len(opts))
-	for i, o := range opts {
-		labels[i] = o.label
-	}
-	m.movePlacementOpts = opts
-	m.genericPicker = newGenericPicker(
-		fmt.Sprintf("Move \"%s\" — place in:", m.moveTarget.Name),
-		labels, "↑/↓  •  enter  •  esc",
-	)
-	m.state = stateMovePickPlacement
-	return m
+	return m.openPlacement(destRoot, destDomain, placeMove)
 }
 
 func (m model) openDomainPickerForClone() model {
@@ -375,12 +334,8 @@ func (m model) openDomainPickerForClone() model {
 
 func (m model) openDomainPicker(root, projectName string) (model, tea.Cmd) {
 	domains := m.workspaceDomains[root]
+	// Collisions belong to the selected location, not the entire domain.
 	existing := map[string]bool{}
-	for _, p := range m.rawProjects {
-		if p.Name == projectName && p.Root == root {
-			existing[p.Domain] = true
-		}
-	}
 	m.pendingProjectName = projectName
 	m.pendingRoot = root
 	m.domainPicker = newDomainPickerScreen(projectName, domains, existing)

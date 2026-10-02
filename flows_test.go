@@ -28,15 +28,15 @@ func fixtureModel(t *testing.T, roots ...string) model {
 	}
 	m := newModel(snapshot.projects, config.Config{Roots: roots}, preset.DefaultPresets, tmpl.DefaultTemplates, ui)
 	m.workspaceDomains = snapshot.domains
-	m.workspaceGroups = snapshot.groups
+	m.workspaceTree = snapshot.tree
 	return m.rebuildList(false)
 }
 func TestMultiRootGroupDeleteRequiresFullPath(t *testing.T) {
 	a, b := t.TempDir(), t.TempDir()
-	if err := core.CreateGroup(b, "apps", "team"); err != nil {
+	if err := core.CreateGroup(core.Location{Root: b, Domain: "apps"}, "team"); err != nil {
 		t.Fatal(err)
 	}
-	project, err := core.CreateProject(b, "apps", "other")
+	project, err := core.CreateProject(core.Location{Root: b, Domain: "apps"}, "other")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,6 +112,11 @@ func TestCloneNewDomainRetainsIntent(t *testing.T) {
 		t.Fatal("expected new domain input")
 	}
 	m.inputScr.input.SetValue("apps")
+	next, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = next.(model)
+	if m.state != stateMovePickPlacement {
+		t.Fatal("missing clone placement")
+	}
 	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = next.(model)
 	if m.state != stateCloningRepo || cmd == nil {
@@ -143,7 +148,7 @@ func TestSpinnerLifecycleAndEmptyRoots(t *testing.T) {
 }
 func TestPickerCollisionsIndependentOfPresentation(t *testing.T) {
 	root := t.TempDir()
-	p, err := core.CreateProject(root, "apps", "demo")
+	p, err := core.CreateProject(core.Location{Root: root, Domain: "apps"}, "demo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,17 +157,23 @@ func TestPickerCollisionsIndependentOfPresentation(t *testing.T) {
 	m.allItems = nil
 	m.treeMode = false
 	next, _ := m.openDomainPicker(root, "demo")
-	if !next.domainPicker.disabled["apps"] {
-		t.Fatal("flat/collapsed picker missed collision")
+	if next.domainPicker.disabled["apps"] {
+		t.Fatal("domain incorrectly disabled for all locations")
+	}
+	next = next.openPlacement(root, "apps", placeProject)
+	returned, _ := next.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next = returned.(model)
+	if next.genericPicker.err == "" || next.state != stateMovePickPlacement {
+		t.Fatal("placement missed collision")
 	}
 }
 func TestFavoritesAndRecentsRespectRootWithoutPruning(t *testing.T) {
 	a, b := t.TempDir(), t.TempDir()
-	p, err := core.CreateProject(a, "apps", "a")
+	p, err := core.CreateProject(core.Location{Root: a, Domain: "apps"}, "a")
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := core.CreateProject(b, "apps", "b")
+	q, err := core.CreateProject(core.Location{Root: b, Domain: "apps"}, "b")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +274,7 @@ func TestSnapshotKeepsStateForUnavailableRoots(t *testing.T) {
 	m := fixtureModel(t, root)
 	m.cfg.Roots = append(m.cfg.Roots, missing)
 	m.uiState.ToggleFavorite(filepath.Join(missing, "apps", "demo"))
-	m.uiState.AddRecent(core.Project{Path: filepath.Join(missing, "apps", "demo"), Root: missing, Domain: "apps", Name: "demo"})
+	m.uiState.AddRecent(core.Project{Location: core.Location{Root: missing, Domain: "apps"}, Path: filepath.Join(missing, "apps", "demo"), Name: "demo"})
 	snapshot := scanWorkspace(m.cfg.Roots, nil)
 	if snapshot.err == nil {
 		t.Fatal("scan failure suppressed")
@@ -276,7 +287,7 @@ func TestSnapshotKeepsStateForUnavailableRoots(t *testing.T) {
 }
 func TestMainNavigationAndScreensRender(t *testing.T) {
 	root := t.TempDir()
-	if _, err := core.CreateProject(root, "apps", "demo"); err != nil {
+	if _, err := core.CreateProject(core.Location{Root: root, Domain: "apps"}, "demo"); err != nil {
 		t.Fatal(err)
 	}
 	m := fixtureModel(t, root)
@@ -305,7 +316,7 @@ func TestTemplateFailureNeverQueuesSuccessfulLaunch(t *testing.T) {
 }
 func TestSuccessfulMoveReconcilesFavoritesAndRecents(t *testing.T) {
 	root := t.TempDir()
-	p, err := core.CreateProject(root, "apps", "demo")
+	p, err := core.CreateProject(core.Location{Root: root, Domain: "apps"}, "demo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,7 +326,7 @@ func TestSuccessfulMoveReconcilesFavoritesAndRecents(t *testing.T) {
 	if !m.saveState() {
 		t.Fatal("save")
 	}
-	moved, err := core.MoveProject(p, filepath.Join(root, "tools", "demo"), root, "tools")
+	moved, err := core.MoveProject(p, core.Location{Root: root, Domain: "tools"}, "demo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +347,7 @@ func TestProjectAndDomainDeletionConfirmation(t *testing.T) {
 	for _, domainDeletion := range []bool{false, true} {
 		t.Run(map[bool]string{false: "project", true: "domain"}[domainDeletion], func(t *testing.T) {
 			root := t.TempDir()
-			project, err := core.CreateProject(root, "apps", "demo")
+			project, err := core.CreateProject(core.Location{Root: root, Domain: "apps"}, "demo")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -399,7 +410,7 @@ func TestExplicitRootRemovalPrunesFavoritesAndRecents(t *testing.T) {
 			}
 			m := fixtureModel(t, removed, other)
 			add := func(root, name string) core.Project {
-				p, err := core.CreateProject(root, "apps", name)
+				p, err := core.CreateProject(core.Location{Root: root, Domain: "apps"}, name)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -416,7 +427,7 @@ func TestExplicitRootRemovalPrunesFavoritesAndRecents(t *testing.T) {
 			if removedCount == 4 {
 				keep = add(other, "keep")
 			}
-			if len(m.uiState.Favorites) != state.MaxFavorites {
+			if len(m.uiState.Favorites) != 5 {
 				t.Fatal("did not reproduce full favorites map")
 			}
 			if err := config.Save(m.cfg); err != nil {
@@ -459,7 +470,7 @@ func TestFailedRootRemovalKeepsStateAndConfiguration(t *testing.T) {
 		t.Run(failedFile, func(t *testing.T) {
 			root, other := t.TempDir(), t.TempDir()
 			m := fixtureModel(t, root, other)
-			p, err := core.CreateProject(root, "apps", "demo")
+			p, err := core.CreateProject(core.Location{Root: root, Domain: "apps"}, "demo")
 			if err != nil {
 				t.Fatal(err)
 			}

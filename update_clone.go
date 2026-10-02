@@ -60,7 +60,7 @@ func (m model) updatePickDomainForClone(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.pendingDomain = chosen
-			return m.beginClone(chosen)
+			return m.openPlacement(m.pendingRoot, chosen, placeClone), nil
 		}
 	}
 	return m, nil
@@ -71,5 +71,5 @@ func (m model) beginClone(domain string) (tea.Model, tea.Cmd) {
 	m.spinnerID++
 	m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Cloning %s...", m.pendingGHRepo.Name))
 	m.state = stateCloningRepo
-	return m, tea.Batch(gh.CmdCloneRepo(m.pendingGHRepo.CloneURL, m.pendingRoot, domain, m.pendingGHRepo.Name), spinnerTick(m.spinnerID))
+	return m, tea.Batch(gh.CmdCloneRepo(m.pendingGHRepo.CloneURL, m.currentLocation(), m.pendingGHRepo.Name), spinnerTick(m.spinnerID))
 }

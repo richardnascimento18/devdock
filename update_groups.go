@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/richardnascimento18/devdock/internal/config"
@@ -71,12 +70,7 @@ func (m model) updateCreateGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			case "enter":
 				m.groupFlow.domain = m.genericPicker.options[m.genericPicker.cursor]
-				m.groupFlow.phase = groupEnterName
-				m.inputScr = newInputScreen(
-					fmt.Sprintf("New Group in \"%s/%s\" — enter name:", config.RootName(m.pendingRoot), m.groupFlow.domain),
-					"group-name", "enter confirm  •  esc cancel",
-				)
-				return m, nil
+				return m.openPlacement(m.pendingRoot, m.groupFlow.domain, placeGroup), nil
 			}
 			return m, nil
 		}
@@ -88,14 +82,11 @@ func (m model) updateCreateGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputScr.err = "name cannot be empty"
 				return m, nil
 			}
-			if !isSafePathName(name) {
-				m.inputScr.err = "name contains invalid characters (/ and \\ are not allowed)"
-				return m, nil
-			}
-			if err := core.CreateGroup(m.pendingRoot, m.groupFlow.domain, name); err != nil {
+			if err := core.CreateGroupPath(m.groupFlow.parent, strings.Split(name, "/")); err != nil {
 				m.inputScr.err = err.Error()
 				return m, nil
 			}
+
 			m.pendingDomain = ""
 			m = m.rescan()
 			m.state = stateList
@@ -137,11 +128,13 @@ func (m model) startDeleteGroup() (tea.Model, tea.Cmd) {
 func (m model) openGroupPickerForDelete() (tea.Model, tea.Cmd) {
 	domains := m.workspaceDomains[m.pendingRoot]
 	var groups []string
+	m.groupFlow.deleteLocations = nil
 	for _, d := range domains {
-		domainPath := filepath.Join(m.pendingRoot, d)
-		gs := m.workspaceGroups[domainPath]
-		for _, g := range gs {
-			groups = append(groups, d+"/"+g.Name)
+		for _, loc := range m.workspaceTree.Locations(m.pendingRoot, d) {
+			if len(loc.GroupPath) > 0 {
+				groups = append(groups, loc.Breadcrumb())
+				m.groupFlow.deleteLocations = append(m.groupFlow.deleteLocations, loc)
+			}
 		}
 	}
 	if len(groups) == 0 {
@@ -174,8 +167,13 @@ func (m model) updateDeleteGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.genericPicker.options) == 0 {
 				return m, nil
 			}
-			chosen := m.genericPicker.options[m.genericPicker.cursor]
-			m.groupFlow.deletePath = filepath.Join(m.pendingRoot, chosen)
+			location := m.groupFlow.deleteLocations[m.genericPicker.cursor]
+			path, err := location.Resolve()
+			if err != nil {
+				m.genericPicker.err = err.Error()
+				return m, nil
+			}
+			m.groupFlow.deletePath = path
 			if err := core.ValidateDescendant(m.pendingRoot, m.groupFlow.deletePath); err != nil {
 				m.genericPicker.err = err.Error()
 				return m, nil

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -96,6 +97,12 @@ func (m model) viewList(w, h int) string {
 			Render(fmt.Sprintf("%d/%d", currentPage, totalPages))
 	}
 
+	selectedPath := rowIdentity(m.list.SelectedItem())
+	if group, ok := m.list.SelectedItem().(groupItem); ok {
+		selectedPath = group.location.Path()
+	}
+	locationLine := dimStyle.Render(ansi.Truncate(selectedPath, max(w-8, 10), "…"))
+
 	widgets := lipgloss.JoinVertical(lipgloss.Left,
 		"",
 		m.rootSel.View()+viewMode,
@@ -108,6 +115,7 @@ func (m model) viewList(w, h int) string {
 		renderTabBar(m.activeTab),
 		pageIndicator,
 		listStr,
+		locationLine,
 		statusLine,
 		widgets,
 	)

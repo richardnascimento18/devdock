@@ -19,42 +19,42 @@ import (
 )
 
 type model struct {
-	tmuxRefreshRequested bool
-	tmuxRefreshID        uint64
-	tmuxDeleting         bool
-	spinnerID            uint64
-	scanRequested        bool
-	scanID               uint64
-	workspaceGroups      map[string][]core.GroupInfo
-	workspaceDomains     map[string][]string
-	rootIntent           rootPickerIntent
-	domainIntent         domainIntent
-	groupFlow            groupWorkflow
-	operationID          uint64
-	authID               uint64
-	repoLoadID           uint64
-	authContext          context.Context
-	authCancel           context.CancelFunc
-	authClient           authClient
-	cfg                  config.Config
-	state                appState
-	list                 list.Model
-	allItems             []list.Item
-	rootSel              rootSelectorWidget
-	presetSel            presetSelectorWidget
-	presets              []preset.Preset
-	templates            []tmpl.Template
-	termW                int
-	termH                int
+	filesystemStatePending bool
+	tmuxRefreshRequested   bool
+	tmuxRefreshID          uint64
+	tmuxDeleting           bool
+	spinnerID              uint64
+	scanRequested          bool
+	scanID                 uint64
+	workspaceTree          core.Workspace
+	workspaceDomains       map[string][]string
+	rootIntent             rootPickerIntent
+	domainIntent           domainIntent
+	groupFlow              groupWorkflow
+	operationID            uint64
+	authID                 uint64
+	repoLoadID             uint64
+	authContext            context.Context
+	authCancel             context.CancelFunc
+	authClient             authClient
+	cfg                    config.Config
+	state                  appState
+	list                   list.Model
+	allItems               []list.Item
+	rootSel                rootSelectorWidget
+	presetSel              presetSelectorWidget
+	presets                []preset.Preset
+	templates              []tmpl.Template
+	termW                  int
+	termH                  int
 
 	activeTab int
 
-	uiState            uistate.UIState
-	committedState     uistate.UIState
-	persistenceErr     error
-	treeMode           bool
-	collapsedGroups    map[string]bool
-	collapsedSubgroups map[string]bool
+	uiState        uistate.UIState
+	committedState uistate.UIState
+	persistenceErr error
+	treeMode       bool
+	collapsedNodes map[core.NodeKey]bool
 
 	githubRepos   []gh.Repo
 	githubAuthScr githubAuthScreen
@@ -81,11 +81,13 @@ type model struct {
 	pendingDomainName  string
 	pendingRoot        string
 	pendingDomain      string
+	pendingLocation    core.Location
 	pendingPreset      preset.Preset
 	pendingTemplate    *tmpl.Template
 	pendingGHRepo      gh.Repo
 	pendingCreateGH    bool
 	pendingGHPrivate   bool
+	placementIntent    placementIntent
 	moveTarget         core.Project
 	movePlacementOpts  []movePlacementOption
 	deleteTarget       core.Project
@@ -101,36 +103,31 @@ type model struct {
 
 type movePlacementOption struct {
 	label    string
-	destPath string
-	domain   string
+	location core.Location
 }
 
 func newModel(projects []core.Project, cfg config.Config, presets []preset.Preset, templates []tmpl.Template, uiSt uistate.UIState) model {
 	roots := cfg.ActiveRoots()
 
 	m := model{
-		cfg:                cfg,
-		repoLoadID:         1,
-		tmuxRefreshID:      1,
-		presets:            presets,
-		templates:          templates,
-		uiState:            uiSt.Clone(),
-		committedState:     uiSt.Clone(),
-		rootSel:            newRootSelector(roots),
-		presetSel:          newPresetSelector(presets, cfg.DefaultPreset),
-		treeMode:           uiSt.TreeMode,
-		collapsedGroups:    uiSt.CollapsedGroups,
-		collapsedSubgroups: uiSt.CollapsedSubgroups,
-		activeTab:          uiSt.ActiveTab,
-		rawProjects:        projects,
-		termW:              120,
-		termH:              40,
+		cfg:            cfg,
+		repoLoadID:     1,
+		tmuxRefreshID:  1,
+		presets:        presets,
+		templates:      templates,
+		uiState:        uiSt.Clone(),
+		committedState: uiSt.Clone(),
+		rootSel:        newRootSelector(roots),
+		presetSel:      newPresetSelector(presets, cfg.DefaultPreset),
+		treeMode:       uiSt.TreeMode,
+		collapsedNodes: cloneCollapsed(uiSt.CollapsedNodes),
+		activeTab:      uiSt.ActiveTab,
+		rawProjects:    projects,
+		termW:          120,
+		termH:          40,
 	}
-	if m.collapsedGroups == nil {
-		m.collapsedGroups = make(map[string]bool)
-	}
-	if m.collapsedSubgroups == nil {
-		m.collapsedSubgroups = make(map[string]bool)
+	if m.collapsedNodes == nil {
+		m.collapsedNodes = make(map[core.NodeKey]bool)
 	}
 	if cfg.IsGitHubConnected() {
 		m.statusMsg = dimStyle.Render("↻  loading GitHub repos...")
@@ -191,15 +188,15 @@ func (m model) activeRoot() string { return m.rootSel.Selected() }
 func (m model) isAllMode() bool    { return m.activeRoot() == "" }
 
 func (m *model) saveState() bool {
-	m.uiState.CollapsedGroups = m.collapsedGroups
-	m.uiState.CollapsedSubgroups = m.collapsedSubgroups
+	m.uiState.CollapsedNodes = m.collapsedNodes
 	m.uiState.TreeMode = m.treeMode
 	m.uiState.ActiveTab = m.activeTab
 	if err := uistate.Save(config.Dir(), m.uiState); err != nil {
 		m.persistenceErr = fmt.Errorf("save state: %w", err)
-		m.uiState = m.committedState.Clone()
-		m.collapsedGroups = m.uiState.CollapsedGroups
-		m.collapsedSubgroups = m.uiState.CollapsedSubgroups
+		if !m.filesystemStatePending {
+			m.uiState = m.committedState.Clone()
+		}
+		m.collapsedNodes = m.uiState.CollapsedNodes
 		m.treeMode = m.uiState.TreeMode
 		m.activeTab = m.uiState.ActiveTab
 		*m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
@@ -208,6 +205,7 @@ func (m *model) saveState() bool {
 	}
 	m.committedState = m.uiState.Clone()
 	m.persistenceErr = nil
+	m.filesystemStatePending = false
 	return true
 }
 
@@ -274,11 +272,55 @@ func (m model) listHeight() int {
 }
 
 func (m model) rebuildList(verified bool) model {
+	selected := rowIdentity(m.list.SelectedItem())
 	items := m.buildListItems(m.rawProjects, verified)
 	if len(m.githubRepos) > 0 {
 		items = m.appendGitHubItems(items, m.rawProjects)
 	}
 	m.allItems = items
 	m = m.refreshTabList()
+	if selected != "" {
+		for i, it := range m.list.Items() {
+			if rowIdentity(it) == selected {
+				m.list.Select(i)
+				break
+			}
+		}
+	}
 	return m
+}
+
+func cloneCollapsed(src map[core.NodeKey]bool) map[core.NodeKey]bool {
+	dst := make(map[core.NodeKey]bool, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+// Filesystem changes cannot be rolled back by reverting UI state. Retain their
+// reconciliation in memory on write failure so the next successful save retries.
+func (m *model) saveFilesystemState() bool {
+	m.filesystemStatePending = true
+	return m.saveState()
+}
+
+func rowIdentity(it list.Item) string {
+	switch x := it.(type) {
+	case item:
+		return string(x.project.Key())
+	case flatItem:
+		return string(x.project.Key())
+	case favoriteItem:
+		return string(x.project.Key())
+	case groupItem:
+		return string(x.nodeKey)
+	case recentItem:
+		return x.entry.Path
+	case githubItem:
+		return x.repo.FullName
+	case tmuxSessionItem:
+		return x.name
+	}
+	return ""
 }

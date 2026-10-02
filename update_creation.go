@@ -100,7 +100,7 @@ func (m model) updateDomainPicker(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.pendingDomain = chosen
-			return m.openPresetPicker(), nil
+			return m.openPlacement(m.pendingRoot, chosen, placeProject), nil
 		}
 	}
 	return m, nil
@@ -128,9 +128,9 @@ func (m model) updateNewDomainName(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.inputScr.err = err.Error()
 					return m, nil
 				}
-				return m.beginClone(name)
+				return m.openPlacement(m.pendingRoot, name, placeClone), nil
 			}
-			return m.openPresetPicker(), nil
+			return m.openPlacement(m.pendingRoot, name, placeProject), nil
 		}
 	}
 	var cmd tea.Cmd
@@ -306,7 +306,12 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 		m.state = stateList
 		return m, nil
 	}
-	if err := core.CheckDestination(root, filepath.Join(root, domainName, m.pendingProjectName)); err != nil {
+	location := m.currentLocation()
+	path, err := location.ProjectPath(m.pendingProjectName)
+	if err == nil {
+		err = core.CheckDestination(location.Root, path)
+	}
+	if err != nil {
 		m.statusMsg = errorStyle.Render(err.Error())
 		m.state = stateList
 		return m, nil
@@ -328,7 +333,7 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 			Domain:      domainName,
 			Root:        root,
 		}
-		projectPath, workDir, err := core.PrepareProject(vars.Root, vars.Domain, vars.ProjectName, m.pendingTemplate.CreatesProjectFolder)
+		projectPath, workDir, err := core.PrepareProject(location, vars.ProjectName, m.pendingTemplate.CreatesProjectFolder)
 		if err != nil {
 			m.statusMsg = errorStyle.Render("create project: " + err.Error())
 			m.state = stateList
@@ -344,7 +349,7 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 		return m, m.ptyScr.startNextStep()
 	}
 
-	p, err := core.CreateProject(root, domainName, m.pendingProjectName)
+	p, err := core.CreateProject(location, m.pendingProjectName)
 	if err != nil {
 		m.inputScr.err = fmt.Sprintf("error: %v", err)
 		return m, nil
@@ -386,11 +391,8 @@ func (m model) updatePTYExecution(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		projectPath := m.ptyScr.projectPath
-		p := core.Project{
-			Name:   filepath.Base(projectPath),
-			Path:   projectPath,
-			Domain: m.pendingDomain,
-			Root:   m.pendingRoot,
+		p := core.Project{Location: m.currentLocation(), Name: filepath.Base(projectPath),
+			Path: projectPath,
 		}
 		if m.pendingGHRepo.FullName != "" {
 			p.GitHubRepo = m.pendingGHRepo.FullName

@@ -73,21 +73,23 @@ func TestScanGroupsAndMarkers(t *testing.T) {
 		t.Fatal(err)
 	}
 	detector := New()
-	projects, err := core.ScanRoot(root, detector.CollectProjects)
+	workspace, err := core.ScanWorkspace([]string{root}, detector.Inspect)
+	projects := workspace.Projects
 	if err != nil || len(projects) != 2 {
 		t.Fatalf("scan: %v %v", projects, err)
 	}
-	if projects[0].Name != "alias" || projects[1].Group != "group" || projects[1].Subgroup != "sub" {
+	if projects[0].Name != "alias" || !reflect.DeepEqual(projects[1].GroupPath, []string{"group", "sub"}) {
 		t.Fatalf("classification: %+v", projects)
 	}
-	groups, err := core.ScanGroupsInDomain(domain, detector.ClassifyDir)
-	if err != nil || len(groups) != 2 {
-		t.Fatalf("groups: %v %v", groups, err)
+	locations := workspace.Locations(root, "apps")
+	if len(locations) != 4 {
+		t.Fatalf("locations: %v", locations)
 	}
 	if err := os.WriteFile(filepath.Join(paths[3], ".devdock"), []byte("not toml!"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	projects, err = core.ScanRoot(root, New().CollectProjects)
+	workspace, err = core.ScanWorkspace([]string{root}, New().Inspect)
+	projects = workspace.Projects
 	if err == nil || len(projects) != 2 {
 		t.Fatalf("marker failure suppressed: %v %v", projects, err)
 	}
@@ -127,8 +129,13 @@ func TestAllPrimaryMarkers(t *testing.T) {
 			if labels := Languages(dir); !slices.Contains(labels, marker.label) {
 				t.Fatalf("marker %s: %v", marker.file, labels)
 			}
-			if kind := ClassifyDir(dir, 0); kind != core.KindProject {
-				t.Fatalf("marker %s classified %s", marker.file, kind)
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			found, err := New().Inspect(dir, entries)
+			if err != nil || found.Kind != core.KindProject {
+				t.Fatalf("marker %s classified %s", marker.file, found.Kind)
 			}
 		})
 	}
@@ -154,7 +161,8 @@ func TestUnreadableDomainReturnsPartialProjects(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	projects, err := core.ScanRoot(root, New().CollectProjects)
+	workspace, err := core.ScanWorkspace([]string{root}, New().Inspect)
+	projects := workspace.Projects
 	if err == nil || len(projects) != 1 {
 		t.Fatalf("unreadable domain: %v %v", projects, err)
 	}

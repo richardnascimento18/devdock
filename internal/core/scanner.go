@@ -9,14 +9,6 @@ import (
 	"strings"
 )
 
-// ScanFunc collects projects from a domain directory.
-// Injected by the caller (using detect.CollectProjects) to avoid import cycles.
-type ScanFunc func(root, domain, domainPath string) ([]Project, error)
-
-// ClassifyDirFunc classifies a directory as project/group/subgroup.
-// Injected by the caller (using detect.ClassifyDir) to avoid import cycles.
-type ClassifyDirFunc func(path string, depth int) ProjectKind
-
 func loadIgnoreList(root string) (map[string]struct{}, error) {
 	ignored := make(map[string]struct{})
 	f, err := os.Open(filepath.Join(root, ".ddignore"))
@@ -52,129 +44,220 @@ func isDomainIgnored(domainName string, ignored map[string]struct{}) bool {
 	return false
 }
 
-func ScanRoot(root string, collect ScanFunc) ([]Project, error) {
-	ignored, err := loadIgnoreList(root)
-	if err != nil {
-		return nil, fmt.Errorf("read .ddignore: %w", err)
-	}
-	var projects []Project
-	var failures []error
-	domains, err := os.ReadDir(root)
-	if err != nil {
-		return nil, err
-	}
-	for _, domain := range domains {
-		if !domain.IsDir() {
-			continue
-		}
-		domainName := domain.Name()
-		if isDomainIgnored(domainName, ignored) {
-			continue
-		}
-		domainPath := filepath.Join(root, domainName)
-		ps, err := collect(root, domainName, domainPath)
-		projects = append(projects, ps...)
-		if err != nil {
-			failures = append(failures, fmt.Errorf("domain %q: %w", domainPath, err))
-		}
-	}
-	return projects, errors.Join(failures...)
-}
+// NodeKind describes navigation, distinct from project discovery markers.
+type NodeKind string
 
-func ScanRoots(roots []string, collect ScanFunc) ([]Project, error) {
-	var all []Project
+const (
+	NodeRoot   NodeKind = "root"
+	NodeDomain NodeKind = "domain"
+	NodeGroup  NodeKind = "group"
+)
+
+type Node struct {
+	Location
+	Kind         NodeKind
+	Name         string
+	Children     []*Node
+	Projects     []Project
+	ProjectCount int
+}
+type Workspace struct {
+	Roots    []*Node
+	Projects []Project
+}
+type Discovery struct {
+	Explicit  bool
+	Kind      ProjectKind
+	Name      string
+	Languages []string
+}
+type InspectFunc func(string, []os.DirEntry) (Discovery, error)
+
+// ScanWorkspace performs a single postorder traversal with local inspection.
+// Symlink entries are never followed. Projects terminate hierarchy traversal.
+func ScanWorkspace(roots []string, inspect InspectFunc) (Workspace, error) {
+	var w Workspace
 	var failures []error
 	for _, root := range roots {
-		ps, err := ScanRoot(root, collect)
+		entries, err := os.ReadDir(root)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("scan root %q: %w", root, err))
-		}
-		all = append(all, ps...)
-	}
-	return all, errors.Join(failures...)
-}
-
-func ScanDomainsInRoot(root string) ([]string, error) {
-	ignored, err := loadIgnoreList(root)
-	if err != nil {
-		return nil, fmt.Errorf("read .ddignore: %w", err)
-	}
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return nil, err
-	}
-	var domains []string
-	for _, e := range entries {
-		if !e.IsDir() {
 			continue
 		}
-		if isDomainIgnored(e.Name(), ignored) {
+		r := &Node{Location: Location{Root: root}, Kind: NodeRoot, Name: filepath.Base(root)}
+		w.Roots = append(w.Roots, r)
+		ignored, err := loadIgnoreList(root)
+		if err != nil {
+			failures = append(failures, fmt.Errorf("read .ddignore in %q: %w", root, err))
 			continue
 		}
-		domains = append(domains, e.Name())
-	}
-	return domains, nil
-}
-
-// GroupInfo describes a group found inside a domain directory.
-type GroupInfo struct {
-	Name      string
-	Path      string
-	Subgroups []SubgroupInfo
-}
-
-// SubgroupInfo describes a subgroup.
-type SubgroupInfo struct {
-	Name      string
-	Path      string
-	Subgroups []SubgroupInfo
-}
-
-func ScanGroupsInDomain(domainPath string, classify ClassifyDirFunc) ([]GroupInfo, error) {
-	entries, err := os.ReadDir(domainPath)
-	if err != nil {
-		return nil, err
-	}
-	var groups []GroupInfo
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		childPath := filepath.Join(domainPath, e.Name())
-		if classify(childPath, 0) == KindGroup {
-			gi := GroupInfo{Name: e.Name(), Path: childPath}
-			gi.Subgroups, err = scanSubgroups(childPath, 0, classify)
-			if err != nil {
-				return groups, err
+		for _, entry := range entries {
+			if !workspaceDirectory(entry) || strings.HasPrefix(entry.Name(), ".") || isDomainIgnored(entry.Name(), ignored) {
+				continue
 			}
-			groups = append(groups, gi)
+			domain := &Node{Location: Location{Root: root, Domain: entry.Name()}, Kind: NodeDomain, Name: entry.Name()}
+			r.Children = append(r.Children, domain)
+			err := scanChildren(domain, inspect, ignored, &w)
+			if err != nil {
+				failures = append(failures, err)
+			}
+			r.ProjectCount += domain.ProjectCount
 		}
 	}
-	return groups, nil
+	return w, errors.Join(failures...)
 }
-
-func scanSubgroups(groupPath string, depth int, classify ClassifyDirFunc) ([]SubgroupInfo, error) {
-	if depth > 3 {
-		return nil, nil
+func workspaceDirectory(entry os.DirEntry) bool {
+	return entry.IsDir() && entry.Type()&os.ModeSymlink == 0
+}
+func excludedContainer(name string) bool {
+	if strings.HasPrefix(name, ".") {
+		return true
 	}
-	entries, err := os.ReadDir(groupPath)
+	switch name {
+	case "node_modules", "vendor", "src", "build", "dist", "target", "__pycache__", "venv":
+		return true
+	}
+	return false
+}
+func ignoredPath(root, path string, ignored map[string]struct{}) bool {
+	rel, err := filepath.Rel(root, path)
 	if err != nil {
-		return nil, err
+		return false
 	}
-	var subs []SubgroupInfo
-	for _, e := range entries {
-		if !e.IsDir() {
+	for pattern := range ignored {
+		if matched, _ := filepath.Match(filepath.Clean(pattern), rel); matched {
+			return true
+		}
+	}
+	return false
+}
+func scanChildren(parent *Node, inspect InspectFunc, ignored map[string]struct{}, w *Workspace) error {
+	entries, err := os.ReadDir(parent.Location.Path())
+	if err != nil {
+		return fmt.Errorf("read %q: %w", parent.Location.Path(), err)
+	}
+	return scanEntries(parent, entries, inspect, ignored, w)
+}
+func scanEntries(parent *Node, entries []os.DirEntry, inspect InspectFunc, ignored map[string]struct{}, w *Workspace) error {
+	var failures []error
+	for _, entry := range entries {
+		if !workspaceDirectory(entry) {
 			continue
 		}
-		childPath := filepath.Join(groupPath, e.Name())
-		if classify(childPath, 0) == KindGroup {
-			si := SubgroupInfo{Name: e.Name(), Path: childPath}
-			si.Subgroups, err = scanSubgroups(childPath, depth+1, classify)
-			if err != nil {
-				return subs, err
+		loc := parent.Location.Child(entry.Name())
+		path := loc.Path()
+		if ignoredPath(loc.Root, path, ignored) {
+			continue
+		}
+		children, err := os.ReadDir(path)
+		if err != nil {
+			failures = append(failures, fmt.Errorf("read %q: %w", path, err))
+			continue
+		}
+		found, err := inspect(path, children)
+		if err != nil {
+			failures = append(failures, fmt.Errorf("inspect %q: %w", path, err))
+			continue
+		}
+		if excludedContainer(entry.Name()) && !found.Explicit {
+			continue
+		}
+		if found.Kind == KindProject {
+			name := entry.Name()
+			if found.Name != "" {
+				name = found.Name
 			}
-			subs = append(subs, si)
+			p := Project{Location: parent.Location, Name: name, Path: path, Kind: KindProject, Languages: found.Languages}
+			// Own the ancestry so consumers cannot mutate another project's location.
+			p.GroupPath = append([]string(nil), p.GroupPath...)
+			parent.Projects = append(parent.Projects, p)
+			parent.ProjectCount++
+			w.Projects = append(w.Projects, p)
+			continue
+		}
+		group := &Node{Location: loc, Name: entry.Name(), Kind: NodeGroup}
+		if err := scanEntries(group, children, inspect, ignored, w); err != nil {
+			failures = append(failures, err)
+		}
+		if found.Kind == KindGroup || len(group.Children) > 0 || len(group.Projects) > 0 {
+			parent.Children = append(parent.Children, group)
+			parent.ProjectCount += group.ProjectCount
 		}
 	}
-	return subs, nil
+	return errors.Join(failures...)
+}
+
+// Row has stable identity and logical depth independent of rendering width.
+type Row struct {
+	Node    *Node
+	Project *Project
+	Key     string
+	Depth   int
+}
+
+// Flatten visits only in-memory nodes. includeContainers adds root/domain rows.
+func (w Workspace) Flatten(collapsed map[NodeKey]bool, root string, includeContainers bool) []Row {
+	var rows []Row
+	var visit func(*Node, int)
+	visit = func(n *Node, depth int) {
+		visible := includeContainers || n.Kind == NodeGroup
+		if visible {
+			rows = append(rows, Row{Node: n, Key: string(n.Key()), Depth: depth})
+		}
+		if collapsed[n.Key()] {
+			return
+		}
+		next := depth
+		if visible {
+			next++
+		}
+		for i := range n.Projects {
+			p := &n.Projects[i]
+			rows = append(rows, Row{Project: p, Key: string(p.Key()), Depth: next})
+		}
+		for _, child := range n.Children {
+			visit(child, next)
+		}
+	}
+	for _, r := range w.Roots {
+		if root == "" || r.Root == root {
+			visit(r, 0)
+		}
+	}
+	return rows
+}
+
+// Locations returns the domain and all nested groups for placement pickers.
+func (w Workspace) Locations(root, domain string) []Location {
+	var locations []Location
+	var visit func(*Node)
+	visit = func(n *Node) {
+		if n.Domain == domain {
+			locations = append(locations, n.Location)
+		}
+		for _, c := range n.Children {
+			visit(c)
+		}
+	}
+	for _, r := range w.Roots {
+		if r.Root == root {
+			for _, d := range r.Children {
+				if d.Domain == domain {
+					visit(d)
+				}
+			}
+		}
+	}
+	return locations
+}
+func (w Workspace) Domains(root string) []string {
+	var names []string
+	for _, r := range w.Roots {
+		if r.Root == root {
+			for _, d := range r.Children {
+				names = append(names, d.Name)
+			}
+		}
+	}
+	return names
 }

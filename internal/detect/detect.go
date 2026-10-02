@@ -2,7 +2,6 @@ package detect
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,20 +12,11 @@ import (
 	"github.com/richardnascimento18/devdock/internal/core"
 )
 
-// Detector caches filesystem reads only for the lifetime of one scan.
-type Detector struct {
-	classifications map[string]core.ProjectKind
-	languages       map[string][]string
-}
+// Detector owns local marker inspection; recursive traversal belongs to core.
+type Detector struct{}
 
-func New() *Detector {
-	return &Detector{classifications: map[string]core.ProjectKind{}, languages: map[string][]string{}}
-}
-func Languages(path string) []string                      { return New().Languages(path) }
-func ClassifyDir(path string, depth int) core.ProjectKind { return New().ClassifyDir(path, depth) }
-func CollectProjects(root, domain, path string) ([]core.Project, error) {
-	return New().CollectProjects(root, domain, path)
-}
+func New() *Detector                 { return &Detector{} }
+func Languages(path string) []string { return New().Languages(path) }
 
 func sniffPackageJSON(projectPath string) []string {
 	data, err := os.ReadFile(filepath.Join(projectPath, "package.json"))
@@ -129,14 +119,13 @@ func sniffPyproject(path string) []string {
 
 // Languages performs broad detection and returns a prioritised, deduplicated list of tech labels.
 func (d *Detector) Languages(projectPath string) []string {
-	if v, ok := d.languages[projectPath]; ok {
-		return append([]string(nil), v...)
-	}
-
 	entries, err := os.ReadDir(projectPath)
 	if err != nil {
 		return nil
 	}
+	return d.languagesFromEntries(projectPath, entries)
+}
+func (d *Detector) languagesFromEntries(projectPath string, entries []os.DirEntry) []string {
 	fileSet := make(map[string]bool)
 	dirSet := make(map[string]bool)
 	extCount := make(map[string]int)
@@ -270,7 +259,6 @@ func (d *Detector) Languages(projectPath string) []string {
 		results = filtered
 	}
 
-	d.languages[projectPath] = append([]string(nil), results...)
 	return results
 }
 
@@ -298,120 +286,42 @@ func ReadDevDockMarker(dir string) (*DevDockMarker, error) {
 	return &m, nil
 }
 
-const maxScanDepth = 5
-
-func (d *Detector) ClassifyDir(path string, depth int) core.ProjectKind {
-	if depth > maxScanDepth {
-		return ""
-	}
-
-	// Only cache at depth 0 — recursive calls are internal and short-lived.
-	if depth == 0 {
-		if v, ok := d.classifications[path]; ok {
-			return v
+// Inspect classifies only this directory. A blank kind means traversal may
+// discover an implicit group; it never scans descendants to classify a parent.
+func (d *Detector) Inspect(path string, entries []os.DirEntry) (core.Discovery, error) {
+	for _, entry := range entries {
+		if entry.Name() == ".ddgroup" && entry.Type()&os.ModeSymlink == 0 {
+			return core.Discovery{Kind: core.KindGroup, Explicit: true}, nil
 		}
 	}
-
-	var result core.ProjectKind
-
-	if _, err := os.Stat(filepath.Join(path, ".ddgroup")); err == nil {
-		result = core.KindGroup
-	} else {
-		// CollectProjects reports marker parse errors; classification is best effort.
-		marker, _ := ReadDevDockMarker(path)
+	var marker *DevDockMarker
+	for _, entry := range entries {
+		if entry.Name() == ".devdock" {
+			if entry.Type()&os.ModeSymlink != 0 {
+				return core.Discovery{}, fmt.Errorf("symlinked .devdock marker in %q", path)
+			}
+			var err error
+			marker, err = ReadDevDockMarker(path)
+			if err != nil {
+				return core.Discovery{}, err
+			}
+		}
+	}
+	if marker != nil && marker.Type != "project" {
+		return core.Discovery{Kind: core.KindGroup, Explicit: true}, nil
+	}
+	languages := d.languagesFromEntries(path, entries)
+	if marker != nil || len(languages) > 0 {
+		result := core.Discovery{Kind: core.KindProject, Languages: languages, Explicit: marker != nil}
 		if marker != nil {
-			if marker.Type == "group" || marker.Type == "subgroup" {
-				result = core.KindGroup
-			} else {
-				result = core.KindProject
-			}
-		} else if langs := d.Languages(path); len(langs) > 0 {
-			result = core.KindProject
-		} else {
-			entries, err := os.ReadDir(path)
-			if err != nil {
-				result = ""
-			} else {
-				for _, e := range entries {
-					if !e.IsDir() {
-						continue
-					}
-					sub := filepath.Join(path, e.Name())
-					if k := d.ClassifyDir(sub, depth+1); k == core.KindProject || k == core.KindGroup {
-						result = core.KindGroup
-						break
-					}
-				}
-			}
+			result.Name = marker.Name
+		}
+		return result, nil
+	}
+	for _, entry := range entries {
+		if entry.Name() == ".git" && entry.Type()&os.ModeSymlink == 0 {
+			return core.Discovery{Kind: core.KindProject}, nil
 		}
 	}
-
-	if depth == 0 {
-		d.classifications[path] = result
-	}
-	return result
-}
-
-func (d *Detector) CollectProjects(root, domain, domainPath string) ([]core.Project, error) {
-	return d.collectAt(root, domain, domainPath, "", "", 0)
-}
-
-func (d *Detector) collectAt(root, domain, dir, group, subgroup string, depth int) ([]core.Project, error) {
-	if depth > maxScanDepth {
-		return nil, nil
-	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, fmt.Errorf("read %q: %w", dir, err)
-	}
-	var projects []core.Project
-	var failures []error
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		childPath := filepath.Join(dir, e.Name())
-		if _, err := os.ReadDir(childPath); err != nil {
-			failures = append(failures, fmt.Errorf("read %q: %w", childPath, err))
-			continue
-		}
-		marker, err := ReadDevDockMarker(childPath)
-		if err != nil {
-			failures = append(failures, fmt.Errorf("marker in %q: %w", childPath, err))
-			continue
-		}
-		kind := d.ClassifyDir(childPath, 0)
-		switch kind {
-		case core.KindProject:
-			langs := d.Languages(childPath)
-			name := e.Name()
-			if marker != nil && marker.Name != "" {
-				name = marker.Name
-			}
-			projects = append(projects, core.Project{
-				Name:      name,
-				Path:      childPath,
-				Domain:    domain,
-				Root:      root,
-				Languages: langs,
-				Group:     group,
-				Subgroup:  subgroup,
-				Kind:      core.KindProject,
-			})
-		case core.KindGroup:
-			newGroup := group
-			newSub := subgroup
-			if group == "" {
-				newGroup = e.Name()
-			} else {
-				newSub = e.Name()
-			}
-			children, err := d.collectAt(root, domain, childPath, newGroup, newSub, depth+1)
-			projects = append(projects, children...)
-			if err != nil {
-				failures = append(failures, err)
-			}
-		}
-	}
-	return projects, errors.Join(failures...)
+	return core.Discovery{}, nil
 }
