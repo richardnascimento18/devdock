@@ -31,6 +31,12 @@ type moveProjectDoneMsg struct {
 func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 	defer func() {
 		if next, ok := result.(model); ok {
+			if next.editorRootReturn && (next.state == stateList || next.state == stateEditor) {
+				next.editorRootReturn = false
+				next.state = stateEditor
+				next.editorScr.cfg = next.cfg.Clone()
+				next.editorScr.statusMsg = next.statusMsg
+			}
 			var commands []tea.Cmd
 			if cmd != nil {
 				commands = append(commands, cmd)
@@ -379,6 +385,14 @@ func navPicker(g *genericPickerScreen, key string) bool {
 func (m model) updateEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// ESC at the list layer returns to stateList
 	if k, ok := msg.(tea.KeyMsg); ok {
+		if k.String() == "enter" && m.editorScr.layer == editorLayerList && m.editorScr.tab == editorTabSettings && m.editorScr.cursor > 0 {
+			m.editorRootReturn = true
+			m.statusMsg = ""
+			if m.editorScr.cursor == 1 {
+				return m.startAddRoot()
+			}
+			return m.startRemoveRoot()
+		}
 		if k.String() == "esc" && m.editorScr.layer == editorLayerList {
 			m.state = stateList
 			return m, nil
@@ -393,10 +407,14 @@ func (m model) updateEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
 	revision := m.editorScr.revision
 	m.editorScr, cmd = m.editorScr.Update(msg)
 	if m.editorScr.revision != revision {
+		oldDefault := m.cfg.DefaultPreset
 		m.cfg = m.editorScr.cfg.Clone()
 		m.presets = deepCopyPresets(m.editorScr.presets)
 		m.templates = deepCopyTemplates(m.editorScr.tmpls)
 		m.presetSel.SetPresets(m.presets)
+		if oldDefault != m.cfg.DefaultPreset {
+			m.presetSel = newPresetSelector(m.presets, m.cfg.DefaultPreset)
+		}
 	}
 
 	return m, cmd
