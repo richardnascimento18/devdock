@@ -1,7 +1,33 @@
-DevDock  all roots · Favorites · preset walker
-  Workspace root │  all   ·  work  ({ / })
-> Projects  1 items
-> ★ billing-api (backend) services ›   🐹 Go
+DevDock  all workspaces · preset walker
+Search  ·  Recents  ·  Favorites  ·  tmux-sessions  1 projects
+
+  Workspace               > Projects                                              Inspector
+> All workspaces          > ★ billing-api                                       Project
+  ▾ work  d286              work › backend › services · 5cede2                  billing-api
+  │ ▾ /backend  2
+  │ │ · services  1                                                             Location
+  │ · /frontend  1                                                              /workspace/work
+                                                                                backend › services
+                                                                                /workspace/work/backend/services/billi
+                                                                                ng-api
+
+                                                                                Detected stack
+                                                                                Go
+
+                                                                                GitHub
+                                                                                acme/billing-api
+
+                                                                                Tmux
+                                                                                Preset: walker
+                                                                                Session state is available in the tmux
+                                                                                 tab.
+
+                                                                                Favorite
+                                                                                ★ Favorite
+
+                                                                                Actions
+                                                                                enter open · f favorite
+                                                                                m move · x delete with confirmation
 
 
 
@@ -9,29 +35,5 @@ DevDock  all roots · Favorites · preset walker
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-5cede220befcfae8  /workspace/work/backend/services/billing-api
-/ search · enter open · tab focus · ? help · q quit
+/workspace/work/backend/services/billing-api
+/ search · enter open · f favorite · tab focus · ctrl+p actions · ? help

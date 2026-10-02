@@ -130,20 +130,30 @@ func TestTreeStateRenderingAndNoFilesystemReads(t *testing.T) {
 	}
 	m.state = stateList
 	m = m.rebuildList(false)
-	var deepest groupItem
-	for _, it := range m.list.Items() {
-		if g, ok := it.(groupItem); ok && g.location.Key() == loc.Key() {
-			deepest = g
+	// Hierarchy now lives in Workspace. Collapsing it retains the project action
+	// list and selected project; the complete loaded hierarchy is still available.
+	deepest := loc.Key()
+	foundNode := false
+	for _, row := range m.workspaceRows {
+		if row.node != nil && row.node.Key() == deepest {
+			foundNode = true
 		}
 	}
-	m.collapsedNodes[deepest.nodeKey] = true
+	if !foundNode {
+		t.Fatal("deep workspace node missing")
+	}
+	m.collapsedNodes[deepest] = true
 	m = m.rebuildList(false)
+	projectVisible := false
 	for _, it := range m.list.Items() {
 		if rowIdentity(it) == p.Path {
-			t.Fatal("collapsed project visible")
+			projectVisible = true
 		}
 	}
-	m.collapsedNodes[deepest.nodeKey] = false
+	if !projectVisible {
+		t.Fatal("workspace collapse hid project action list")
+	}
+	m.collapsedNodes[deepest] = false
 	m = m.rebuildList(false)
 	found := false
 	for i, it := range m.list.Items() {

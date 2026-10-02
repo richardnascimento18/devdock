@@ -1,38 +1,38 @@
 
 
-                       ╭────────────────────────────────────────────────────────────────────────╮
-                       │ > Keyboard Reference                                                   │
-                       │ Navigation                                                             │
-                       │ ↑ / k  move up                                                         │
-                       │ ↓ / j  move down                                                       │
-                       │ enter  open project / toggle group                                     │
-                       │ space  collapse / expand group                                         │
-                       │ v  toggle tree / flat view                                             │
-                       │ /  filter list                                                         │
-                       │ c  /  esc  clear active filter                                         │
-                       │ [  /  ]  switch tab (Search / Recents / Favorites)                     │
-                       │ tab / shift+tab  cycle pane focus                                      │
-                       │ { / }  cycle root filter                                               │
-                       │ p / P  cycle default preset →/←                                        │
-                       │                                                                        │
-                       │ Projects                                                               │
-                       │ n  new project                                                         │
-                       │ N  new domain                                                          │
-                       │ m  move selected project                                               │
-                       │ f  toggle favorite on selected project                                 │
-                       │ x  delete selected project                                             │
-                       │ X  delete a domain                                                     │
-                       │ r  rescan projects                                                     │
-                       │ G  new group                                                           │
-                       │ ctrl+g  delete group                                                   │
-                       │ e  open preset/template editor                                         │
-                       │                                                                        │
-                       │ Roots                                                                  │
-                       │ a  add root directory                                                  │
-                       │ A  remove root directory                                               │
-                       │                                                                        │
-                       │ GitHub                                                                 │
-                       │ g  connect / refresh GitHub                                            │
-                       │                                                                        │
-                       │ j/k scroll · ? / esc close                                             │
-                       ╰────────────────────────────────────────────────────────────────────────╯
+                      ╭──────────────────────────────────────────────────────────────────────────╮
+                      │ > Keyboard Reference                                                     │
+                      │ Navigation                                                               │
+                      │ j/k · ↑/↓  navigate focused pane                                         │
+                      │ tab / shift+tab  cycle Workspace / Projects / Inspector                  │
+                      │ ←/→ · h/l  collapse / expand workspace node                              │
+                      │ enter  show workspace scope / open project                               │
+                      │ { / }  cycle root scope                                                  │
+                      │ [ / ]  Search / Recents / Favorites / tmux                               │
+                      │ /  live in-memory fuzzy search                                           │
+                      │ esc  cancel search / return to Projects                                  │
+                      │ ctrl+p  filterable command palette                                       │
+                      │ v  workspace tree / flat projects                                        │
+                      │                                                                          │
+                      │ Editors                                                                  │
+                      │ tab / h / l  switch Presets / Templates / Settings                       │
+                      │ i / enter  edit focused field or item                                    │
+                      │ ctrl+s  validate and save                                                │
+                      │ esc  stop typing / cancel / return                                       │
+                      │                                                                          │
+                      │ Actions                                                                  │
+                      │ enter        Open project                                                │
+                      │ attach       Attach tmux session                                         │
+                      │ f            Toggle favorite                                             │
+                      │ m            Move project                                                │
+                      │ x            Delete project                                              │
+                      │ n            Create project                                              │
+                      │ clone        Clone repository                                            │
+                      │ N            Create domain                                               │
+                      │ G            Create nested group                                         │
+                      │ ctrl+g       Delete group                                                │
+                      │ X            Delete domain                                               │
+                      │ a            Add root                                                    │
+                      │ A            Remove root                                                 │
+                      │ j/k scroll · ? / esc close                                               │
+                      ╰──────────────────────────────────────────────────────────────────────────╯

@@ -4,6 +4,7 @@ parser = argparse.ArgumentParser(description="Smoke-test a DevDock binary in an 
 parser.add_argument("binary", type=pathlib.Path)
 parser.add_argument("--oauth-configured", action="store_true", help="expect an embedded public Client ID; never complete authorization")
 parser.add_argument("--configuration-editor", action="store_true", help="exercise the Settings tab and persist a default preset")
+parser.add_argument("--capture", type=pathlib.Path, help="save actual ANSI output for terminal review or failure diagnosis")
 args = parser.parse_args()
 binary = args.binary.resolve()
 with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
@@ -33,6 +34,21 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
     try:
         drain(2)
         assert b'demo' in captured, 'main project navigation did not render'
+        os.write(master, b'\t'); drain(0.2)
+        assert b'Inspector' in captured, 'inspector did not render'
+        os.write(master, b'\t'); drain(0.2)
+        os.write(master, b'j'); drain(0.2)
+        os.write(master, b'\r'); drain(0.2)
+        os.write(master, b'/'); drain(0.15)
+        os.write(master, b'demo'); drain(0.2)
+        os.write(master, b'\r'); drain(0.2)
+        os.write(master, b'\x1b'); drain(0.2)
+        os.write(master, b'\x10'); drain(0.2)
+        assert b'Commands' in captured, 'command palette did not render'
+        os.write(master, b'settings'); drain(0.2)
+        os.write(master, b'\r'); drain(0.2)
+        assert b'Settings' in captured, 'palette did not launch Settings'
+        os.write(master, b'\x1b'); drain(0.2)
         for width, height in ((120, 40), (100, 30), (80, 24), (60, 20), (40, 15), (140, 40)):
             fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", height, width, 0, 0))
             os.kill(process.pid, signal.SIGWINCH)
@@ -42,11 +58,17 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
         assert b'Keyboard Reference' in captured, 'help did not render'
         os.write(master, b'j\x1b'); drain(0.2)
         os.write(master, b'v'); drain(0.2)
-        os.write(master, b'\t'); drain(0.2)
-        os.write(master, b'\r'); drain(0.2)
+        os.write(master, b'}'); drain(0.2)
         os.write(master, b'f'); drain(0.2)
         os.write(master, b'e'); drain(0.3)
         assert b'Presets' in captured and b'Templates' in captured, 'editor did not render'
+        os.write(master, b'\r'); drain(0.2)
+        assert b'Preset name' in captured, 'preset form did not render'
+        os.write(master, b'\x1b'); drain(0.2)
+        os.write(master, b'\t\r'); drain(0.2)
+        assert b'Edit Template' in captured, 'template form did not render'
+        os.write(master, b'\x1b'); drain(0.2)
+        os.write(master, b'\x1b[Z'); drain(0.2)
         if args.configuration_editor:
             os.write(master, b'\t\t'); drain(0.3)
             assert b'Settings' in captured, 'settings tab did not render'
@@ -68,8 +90,10 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
         assert (config_dir / 'presets.json').exists(), 'defaults not generated'
         assert (config_dir / 'templates.json').exists(), 'templates not generated'
         assert decorative_background(captured) is None, 'explicit background/inverse video emitted'
-        print('PASS: isolated TUI startup, project rendering, flat view, root switching, favorite toggle, editor, OAuth screen, cancellation, shutdown')
+        print('PASS: isolated TUI startup, project rendering, workspace, inspector, live search, palette/Settings, help, resize, flat view, root switching, favorite, preset/template forms, OAuth, cancellation, shutdown, transparency')
         print('Captured terminal bytes:', len(captured))
     finally:
+        if args.capture:
+            args.capture.write_bytes(captured)
         if process.poll() is None: process.kill(); process.wait()
         os.close(master)

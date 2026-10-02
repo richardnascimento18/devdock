@@ -3,65 +3,130 @@ package main
 import (
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
 )
 
-// The foundation frame hosts the existing snapshot list. Dashboard panes extend
-// this composition in 3B without changing the operation dispatchers.
+func (m model) dashboardLayout() ui.Layout {
+	l := ui.Measure(m.termW, m.termH)
+	if l.Mode == ui.Narrow || l.Mode == ui.Medium && m.focus == ui.Inspector || !m.treeMode && m.focus == ui.Workspace {
+		l.Workspace, l.Projects, l.Inspector = l.Width, l.Width, l.Width
+	} else if !m.treeMode {
+		l.Projects += l.Workspace + ui.PaneGap
+		l.Workspace = 0
+	}
+	return l
+}
+
+func paneContent(content string, width, height int) string {
+	return lipgloss.NewStyle().Width(max(width, 1)).Height(max(height, 1)).Render(ui.Fit(content, width, height))
+}
+
 func (m model) viewList(w, h int) string {
-	context := "all roots"
-	if root := m.activeRoot(); root != "" {
-		context = root
-	}
-	context += " · " + tabNames[m.activeTab] + " · preset " + m.presetSel.SelectedName()
-	rootLine := ui.PaneTitle("Workspace", m.focus == ui.Workspace, 14) + " " + m.rootSel.View()
-	listTitle := ui.PaneTitle("Projects", m.focus == ui.Projects, 14)
-	if m.activeTab == TabTmux {
-		listTitle = ui.PaneTitle("Tmux sessions", m.focus == ui.Projects, 18)
-	}
-	if m.list.SettingFilter() {
-		listTitle += " / searching"
-	} else if m.isFiltered {
-		listTitle += " / " + m.lastFilter
-	}
-	listTitle += dimStyle.Render(fmt.Sprintf("  %d items", len(m.list.VisibleItems())))
-	listContent := m.list.View()
-	if len(m.list.Items()) == 0 {
-		empty := "No projects here yet.\nPress n to create a project or g to connect GitHub."
-		switch m.activeTab {
-		case TabFavorites:
-			empty = "No favorites yet.\nPress f on a project to add one."
-		case TabRecents:
-			empty = "No recent projects.\nOpen a project to find it here."
-		case TabTmux:
-			empty = "No tmux sessions.\nOpen a project to start a workspace."
+	l := m.dashboardLayout()
+	context := "all workspaces"
+	if m.workspaceScope != nil {
+		context = m.workspaceScope.Breadcrumb()
+		if context == "" {
+			context = m.activeRoot()
 		}
-		if len(m.cfg.ActiveRoots()) == 0 {
-			empty = "No workspace roots configured.\nPress a to add a root."
-		}
-		if m.isFiltered {
-			empty = fmt.Sprintf("No projects match %q.\nPress esc to clear search.", m.lastFilter)
-		}
-		listContent = dimStyle.Render(empty)
 	}
-	l := ui.Measure(w, h)
-	body := lipgloss.NewStyle().Width(w).Height(max(l.BodyHeight-2, 1)).Render(ui.Fit(listContent, w, max(l.BodyHeight-2, 1)))
-	location := rowIdentity(m.list.SelectedItem())
-	if group, ok := m.list.SelectedItem().(groupItem); ok {
-		location = group.location.Path()
+	if m.workspaceScope == nil && m.activeRoot() != "" {
+		context = m.activeRoot()
+	}
+	header := ui.Header(context+" · preset "+m.presetSel.SelectedName(), w)
+	var tabs []string
+	for i, name := range tabNames {
+		if i == m.activeTab {
+			tabs = append(tabs, activeStyle.Render(name))
+		} else {
+			tabs = append(tabs, dimStyle.Render(name))
+		}
+	}
+	collectionLine := strings.Join(tabs, "  ·  ")
+	if w < 60 {
+		collectionLine = activeStyle.Render(tabNames[m.activeTab]) + dimStyle.Render("  [ / ] switch")
+	}
+	collectionLine += "  " + dimStyle.Render(fmt.Sprintf("%d projects", len(m.list.Items())))
+	var body string
+	switch {
+	case l.Mode == ui.Narrow || l.Mode == ui.Medium && m.focus == ui.Inspector || !m.treeMode && m.focus == ui.Workspace:
+		switch m.focus {
+		case ui.Workspace:
+			body = m.viewWorkspace(w, l.BodyHeight)
+		case ui.Inspector:
+			body = m.viewInspector(w, l.BodyHeight)
+		default:
+			body = m.viewProjects(w, l.BodyHeight)
+		}
+	case l.Mode == ui.Wide:
+		panes := []string{}
+		if m.treeMode {
+			panes = append(panes, m.viewWorkspace(l.Workspace, l.BodyHeight), strings.Repeat(" ", ui.PaneGap))
+		}
+		panes = append(panes, m.viewProjects(l.Projects, l.BodyHeight), strings.Repeat(" ", ui.PaneGap), m.viewInspector(l.Inspector, l.BodyHeight))
+		body = lipgloss.JoinHorizontal(lipgloss.Top, panes...)
+	default:
+		if m.treeMode {
+			body = lipgloss.JoinHorizontal(lipgloss.Top, m.viewWorkspace(l.Workspace, l.BodyHeight), strings.Repeat(" ", ui.PaneGap), m.viewProjects(l.Projects, l.BodyHeight))
+		} else {
+			body = m.viewProjects(l.Projects, l.BodyHeight)
+		}
 	}
 	status := m.statusMsg
-	if status == "" && location != "" {
-		status = dimStyle.Render(core.PathID(location) + "  " + location)
+	if status == "" {
+		status = dimStyle.Render(m.currentLocationLabel())
 	}
-	hint := "/ search · enter open · tab focus · ? help · q quit"
+	return strings.Join([]string{header, ui.Fit(collectionLine, w, 1), "", body, ui.Footer(m.dashboardHint(w), status, w)}, "\n")
+}
+
+func (m model) dashboardHint(width int) string {
+	if m.searching {
+		return "enter apply · esc cancel · ↑/↓ results"
+	}
+	if width < 60 {
+		return "tab " + m.focus.String() + " · ctrl+p actions · ? help"
+	}
 	if m.focus == ui.Workspace {
-		hint = "j/k roots · enter projects · tab focus · { / } root · ? help"
+		return "j/k navigate · ←/→ fold · enter scope · tab focus · ctrl+p actions · ? help"
 	}
-	return strings.Join([]string{
-		ui.Header(context, w), ui.Fit(rootLine, w, 1), ui.Fit(listTitle, w, 1),
-		body, ui.Footer(hint, status, w),
-	}, "\n")
+	if m.focus == ui.Inspector {
+		return "j/k scroll · enter open · f favorite · m move · esc projects · ctrl+p actions"
+	}
+	return "/ search · enter open · f favorite · tab focus · ctrl+p actions · ? help"
+}
+
+func (m model) viewProjects(width, height int) string {
+	title := ui.PaneTitle("Projects", m.focus == ui.Projects, width)
+	if m.activeTab == TabTmux {
+		title = ui.PaneTitle("Tmux sessions", m.focus == ui.Projects, width)
+	}
+	var content string
+	switch {
+	case m.searching:
+		title = ui.Fit(m.searchInput.View(), width, 1)
+	case m.isFiltered:
+		title = ui.Fit(title+dimStyle.Render(" / "+m.lastFilter), width, 1)
+	}
+	if len(m.list.Items()) > 0 {
+		content = m.list.View()
+	} else {
+		content = "No projects here yet.\nPress n to create or g to connect GitHub."
+		switch m.activeTab {
+		case TabFavorites:
+			content = "No favorites yet.\nPress f on a project to add one."
+		case TabRecents:
+			content = "No recent projects.\nOpen a project to find it here."
+		case TabTmux:
+			content = "No tmux sessions.\nOpen a project to start a workspace."
+		}
+		if len(m.cfg.ActiveRoots()) == 0 {
+			content = "No workspace roots configured.\nPress a to add a root."
+		}
+		if m.lastFilter != "" {
+			content = fmt.Sprintf("No projects match %q.\nEsc clears search; n creates a project.", m.lastFilter)
+		}
+		content = dimStyle.Render(content)
+	}
+	return paneContent(title+"\n"+content, width, height)
 }

@@ -11,17 +11,15 @@
 
 
 
-                              DevDock
-                              Delete project
-                              ╭──────────────────────────────────────────────────────────╮
-                              │ Target [c4d395c890afbe6f]:                               │
-                              │ /workspace/very-long-group/very-long-group/very-long-gro │
-                              │ up/very-long-group/very-long-group/very-long-group/very- │
-                              │ long-group/very-long-group/very-long-group/very-long-gro │
-                              │ up/billing-api                                           │
-                              │                                                          │
-                              │ > /workspace/very-long-group/very-long-group/very-l…     │
-                              │                                                          │
-                              │                                                          │
-                              │ esc cancel                                               │
-                              ╰──────────────────────────────────────────────────────────╯
+
+
+                      ╭──────────────────────────────────────────────────────────────────────────╮
+                      │ > Delete project                                                         │
+                      │ > /workspace/very-long-group/very-long-group/very-long-group/very-lon…   │
+                      │                                                                          │
+                      │ Filesystem target [c4d395c890afbe6f]:                                    │
+                      │ /workspace/very-long-group/very-long-group/very-long-group/very-long-gro │
+                      │ up/very-long-group/very-long-group/very-long-group/very-long-group/very- │
+                      │ long-group/very-long-group/billing-api                                   │
+                      │ esc cancel                                                               │
+                      ╰──────────────────────────────────────────────────────────────────────────╯

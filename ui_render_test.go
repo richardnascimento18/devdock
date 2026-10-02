@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -33,7 +32,16 @@ func renderFixture() model {
 		{Location: core.Location{Root: "/workspace/work", Domain: "backend"}, Name: "auth-日本語-e\u0301", Path: "/workspace/work/backend/auth-日本語-e\u0301"},
 	}
 	templates := []tmpl.Template{{Name: "service", Description: "A service scaffold"}}
-	return newModel(projects, config.Config{Roots: []string{"/workspace/work"}}, preset.DefaultPresets, templates, state.UIState{Favorites: map[string]bool{projects[0].Path: true}})
+	m := newModel(projects, config.Config{Roots: []string{"/workspace/work"}}, preset.DefaultPresets, templates, state.UIState{TreeMode: true, Favorites: map[string]bool{projects[0].Path: true}})
+	root := &core.Node{Location: core.Location{Root: "/workspace/work"}, Kind: core.NodeRoot, Name: "work", ProjectCount: 3}
+	backend := &core.Node{Location: core.Location{Root: "/workspace/work", Domain: "backend"}, Kind: core.NodeDomain, Name: "backend", Projects: projects[2:], ProjectCount: 2}
+	services := &core.Node{Location: projects[0].Location, Kind: core.NodeGroup, Name: "services", Projects: projects[:1], ProjectCount: 1}
+	frontend := &core.Node{Location: projects[1].Location, Kind: core.NodeDomain, Name: "frontend", Projects: projects[1:2], ProjectCount: 1}
+	backend.Children = []*core.Node{services}
+	root.Children = []*core.Node{backend, frontend}
+	m.workspaceTree = core.Workspace{Roots: []*core.Node{root}, Projects: projects}
+	m.workspaceDomains = map[string][]string{"/workspace/work": {"backend", "frontend"}}
+	return m.rebuildList(false)
 }
 
 func fixtureScreens() map[string]model {
@@ -92,8 +100,29 @@ func fixtureScreens() map[string]model {
 		m.editorScr.te = newTemplateEditor(m.templates[0], false)
 	})
 	add("deep-tree", func(m *model) {
-		m.list.SetItems([]list.Item{groupItem{name: "services", depth: 200, location: core.Location{Root: "/workspace/work", Domain: "backend", GroupPath: strings.Split(strings.Repeat("g/", 199)+"leaf", "/")}, totalCount: 3}})
+		root := &core.Node{Location: core.Location{Root: "/workspace/work"}, Kind: core.NodeRoot, Name: "work", ProjectCount: 1}
+		parent := &core.Node{Location: core.Location{Root: "/workspace/work", Domain: "backend"}, Kind: core.NodeDomain, Name: "backend", ProjectCount: 1}
+		root.Children = []*core.Node{parent}
+		for i := 0; i < 200; i++ {
+			child := &core.Node{Location: parent.Location.Child(fmt.Sprintf("level-%d", i)), Kind: core.NodeGroup, Name: fmt.Sprintf("level-%d", i), ProjectCount: 1}
+			parent.Children = []*core.Node{child}
+			parent = child
+		}
+		m.workspaceTree = core.Workspace{Roots: []*core.Node{root}}
+		m.workspaceSelection = parent.Key()
+		m.focus = ui.Workspace
+		m.refreshWorkspaceRows()
 	})
+	add("palette", func(m *model) { next, _ := m.openPalette(); *m = next.(model) })
+	add("search-active", func(m *model) {
+		m.searching = true
+		m.searchInput.SetValue("billing")
+		m.searchInput.Focus()
+		m.lastFilter = "billing"
+		*m = m.applySearch()
+	})
+	add("inspector-narrow", func(m *model) { m.termW, m.termH = 40, 15; m.focus = ui.Inspector })
+	add("workspace-narrow", func(m *model) { m.termW, m.termH = 40, 15; m.focus = ui.Workspace })
 	add("confirmation", func(m *model) {
 		m.state = stateDeleteDomain
 		m.pendingDomainName = "backend"

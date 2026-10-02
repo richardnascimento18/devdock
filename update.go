@@ -31,6 +31,13 @@ type moveProjectDoneMsg struct {
 func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 	defer func() {
 		if next, ok := result.(model); ok {
+			if next.state != m.state {
+				next.modalScroll = 0
+			}
+			if rowIdentity(next.list.SelectedItem()) != rowIdentity(m.list.SelectedItem()) {
+				next.inspectorScroll = 0
+			}
+			next.sizePresentation()
 			if next.editorRootReturn && (next.state == stateList || next.state == stateEditor) {
 				next.editorRootReturn = false
 				next.state = stateEditor
@@ -68,6 +75,9 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		m.termW = sz.Width
 		m.termH = sz.Height
 		m.sizePresentation()
+		if m.flowModal() {
+			m.modalScroll = min(m.modalScroll, m.modalScrollLimit())
+		}
 		if m.state == statePTYExecution {
 			return m.updatePTYExecution(msg)
 		}
@@ -75,6 +85,18 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 			return m.updateEditor(msg)
 		}
 		return m, nil
+	}
+	if key, ok := msg.(tea.KeyMsg); ok && m.flowModal() {
+		switch key.String() {
+		case "pgdown":
+			m.modalScroll = min(m.modalScroll+max(m.termH-7, 1), m.modalScrollLimit())
+			return m, nil
+		case "pgup":
+			m.modalScroll = max(m.modalScroll-max(m.termH-7, 1), 0)
+			return m, nil
+		default:
+			m.modalScroll = 0
+		}
 	}
 
 	switch msg := msg.(type) {
@@ -155,6 +177,8 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		return m.updatePlacement(msg)
 	case stateHelp:
 		return m.updateHelp(msg)
+	case statePalette:
+		return m.updatePalette(msg)
 	case stateCreateGroup:
 		return m.updateCreateGroup(msg)
 	case stateConfirmDeleteGroup:

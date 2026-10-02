@@ -38,6 +38,7 @@ const (
 	stateConfirmDeleteGroup
 	stateMovingProject
 	stateDeletingWorkspace
+	statePalette
 )
 
 const (

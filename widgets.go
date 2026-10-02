@@ -3,7 +3,6 @@ package main
 import (
 	"strings"
 
-	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/preset"
 
 	"github.com/charmbracelet/x/ansi"
@@ -38,27 +37,6 @@ func (r *rootSelectorWidget) Next() { r.cursor = (r.cursor + 1) % (len(r.roots) 
 func (r *rootSelectorWidget) Prev() {
 	total := len(r.roots) + 1
 	r.cursor = (r.cursor - 1 + total) % total
-}
-
-func (r rootSelectorWidget) View() string {
-	var b strings.Builder
-	b.WriteString(dimStyle.Render("root │ "))
-	if r.cursor == 0 {
-		b.WriteString(activeStyle.Render(" all "))
-	} else {
-		b.WriteString(dimStyle.Render("all"))
-	}
-	for i, root := range r.roots {
-		b.WriteString(dimStyle.Render("  ·  "))
-		label := config.RootName(root)
-		if r.cursor == i+1 {
-			b.WriteString(activeStyle.Render(" " + label + " "))
-		} else {
-			b.WriteString(dimStyle.Render(label))
-		}
-	}
-	b.WriteString(dimStyle.Render("  ({ / })"))
-	return b.String()
 }
 
 // ---------------------------------------------------------------------------
@@ -111,23 +89,6 @@ func (s *presetSelectorWidget) Prev() {
 	s.cursor = (s.cursor - 1 + len(s.presets)) % len(s.presets)
 }
 
-func (s presetSelectorWidget) View() string {
-	var b strings.Builder
-	b.WriteString(dimStyle.Render("preset │ "))
-	for i, p := range s.presets {
-		if i > 0 {
-			b.WriteString(dimStyle.Render("  ·  "))
-		}
-		if i == s.cursor {
-			b.WriteString(activeStyle.Render(" " + p.Name + " "))
-		} else {
-			b.WriteString(dimStyle.Render(p.Name))
-		}
-	}
-	b.WriteString(dimStyle.Render("  (p / P)"))
-	return b.String()
-}
-
 // ---------------------------------------------------------------------------
 // helpScreen
 // ---------------------------------------------------------------------------
@@ -141,63 +102,15 @@ var helpSections = []struct {
 	title   string
 	entries []helpEntry
 }{
-	{
-		title: "Navigation",
-		entries: []helpEntry{
-			{"↑ / k", "move up"},
-			{"↓ / j", "move down"},
-			{"enter", "open project / toggle group"},
-			{"space", "collapse / expand group"},
-			{"v", "toggle tree / flat view"},
-			{"/", "filter list"},
-			{"c  /  esc", "clear active filter"},
-			{"[  /  ]", "switch tab (Search / Recents / Favorites)"},
-			{"tab / shift+tab", "cycle pane focus"},
-			{"{ / }", "cycle root filter"},
-			{"p / P", "cycle default preset →/←"},
-		},
-	},
-	{
-		title: "Projects",
-		entries: []helpEntry{
-			{"n", "new project"},
-			{"N", "new domain"},
-			{"m", "move selected project"},
-			{"f", "toggle favorite on selected project"},
-			{"x", "delete selected project"},
-			{"X", "delete a domain"},
-			{"r", "rescan projects"},
-			{"G", "new group"},
-			{"ctrl+g", "delete group"},
-			{"e", "open preset/template editor"},
-		},
-	},
-	{
-		title: "Roots",
-		entries: []helpEntry{
-			{"a", "add root directory"},
-			{"A", "remove root directory"},
-		},
-	},
-	{
-		title: "GitHub",
-		entries: []helpEntry{
-			{"g", "connect / refresh GitHub"},
-		},
-	},
-	{
-		title: "General",
-		entries: []helpEntry{
-			{"?", "toggle this help screen"},
-			{"esc", "close help / cancel"},
-			{"ctrl+c", "quit"},
-		},
-	},
+	{"Navigation", []helpEntry{{"j/k · ↑/↓", "navigate focused pane"}, {"tab / shift+tab", "cycle Workspace / Projects / Inspector"}, {"←/→ · h/l", "collapse / expand workspace node"}, {"enter", "show workspace scope / open project"}, {"{ / }", "cycle root scope"}, {"[ / ]", "Search / Recents / Favorites / tmux"}, {"/", "live in-memory fuzzy search"}, {"esc", "cancel search / return to Projects"}, {"ctrl+p", "filterable command palette"}, {"v", "workspace tree / flat projects"}}},
+	{"Editors", []helpEntry{{"tab / h / l", "switch Presets / Templates / Settings"}, {"i / enter", "edit focused field or item"}, {"ctrl+s", "validate and save"}, {"esc", "stop typing / cancel / return"}}},
 }
 
-func RenderHelpOverlay(termW, termH int) string { return renderHelpOverlay(termW, termH, 0) }
+func RenderHelpOverlay(termW, termH int) string {
+	return renderHelpOverlay(termW, termH, 0, model{}.availableActions())
+}
 
-func renderHelpOverlay(termW, termH, offset int) string {
+func renderHelpOverlay(termW, termH, offset int, actions []actionBinding) string {
 	var lines []string
 	width := min(70, max(termW-8, 1))
 	for _, section := range helpSections {
@@ -208,6 +121,11 @@ func renderHelpOverlay(termW, termH, offset int) string {
 		}
 		lines = append(lines, "")
 	}
+	lines = append(lines, promptStyle.Render("Actions"))
+	for _, action := range actions {
+		lines = append(lines, strings.Split(ansi.Hardwrap(paletteActionDescription(action), width, true), "\n")...)
+	}
+	lines = append(lines, "", hintStyle.Render("q / ctrl+c quit main view · ? / esc close help"))
 	rows := max(termH-8, 1)
 	offset = min(max(offset, 0), max(len(lines)-rows, 0))
 	body := strings.Join(lines[offset:min(offset+rows, len(lines))], "\n")

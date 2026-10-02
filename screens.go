@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
+	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
 // ---------------------------------------------------------------------------
@@ -20,6 +21,7 @@ import (
 // ---------------------------------------------------------------------------
 
 type inputScreen struct {
+	modalScreen
 	title      string
 	targetPath string
 	input      textinput.Model
@@ -49,19 +51,17 @@ func (s inputScreen) Update(msg tea.Msg) (inputScreen, tea.Cmd) {
 	return s, cmd
 }
 
-func (s inputScreen) View(termW, termH int) string {
+func (s inputScreen) content(termW, termH int) modalContent {
+	s.input.Width = max(ui.ModalInnerWidth(termW)-2, 1)
 	var inner strings.Builder
-	if s.targetPath != "" {
-		inner.WriteString(dimStyle.Render("Target ["+core.PathID(s.targetPath)+"]:") + "\n" + ansi.Hardwrap(s.targetPath, min(56, max(termW-16, 20)), false) + "\n\n")
-	}
-	s.input.Width = min(52, max(termW-16, 20))
 	inner.WriteString(s.input.View() + "\n")
 	if s.err != "" {
-		inner.WriteString("\n" + errorStyle.Render("✗  "+s.err))
+		inner.WriteString(errorStyle.Render("! "+s.err) + "\n")
 	}
-	inner.WriteString("\n\n" + hintStyle.Render(s.hint))
-	content := lipgloss.JoinVertical(lipgloss.Left, RenderTitle(), wrapInBox(s.title, inner.String()))
-	return centerInTerminal(termW, termH, content)
+	if s.targetPath != "" {
+		inner.WriteString("\n" + warningStyle.Render("Filesystem target ["+core.PathID(s.targetPath)+"]:") + "\n" + s.targetPath)
+	}
+	return modalContent{title: s.title, body: inner.String(), hint: s.hint}
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +69,7 @@ func (s inputScreen) View(termW, termH int) string {
 // ---------------------------------------------------------------------------
 
 type yesNoScreen struct {
+	modalScreen
 	title  string
 	cursor int
 	err    string
@@ -77,7 +78,7 @@ type yesNoScreen struct {
 func newYesNoScreen(title string) yesNoScreen { return yesNoScreen{title: title} }
 func (y yesNoScreen) IsYes() bool             { return y.cursor == 0 }
 
-func (y yesNoScreen) View(termW, termH int) string {
+func (y yesNoScreen) content(termW, termH int) modalContent {
 	var inner strings.Builder
 	for i, opt := range []string{"  Yes", "  No"} {
 		if i == y.cursor {
@@ -89,9 +90,7 @@ func (y yesNoScreen) View(termW, termH int) string {
 	if y.err != "" {
 		inner.WriteString("\n" + errorStyle.Render("✗  "+y.err))
 	}
-	inner.WriteString("\n" + hintStyle.Render("↑/↓  •  enter confirm  •  esc cancel"))
-	content := lipgloss.JoinVertical(lipgloss.Left, RenderTitle(), wrapInBox(y.title, inner.String()))
-	return centerInTerminal(termW, termH, content)
+	return modalContent{title: y.title, body: inner.String(), hint: "↑/↓ choose · enter confirm · esc cancel"}
 }
 
 // ---------------------------------------------------------------------------
@@ -130,13 +129,14 @@ func (s spinnerScreen) View(termW, termH int) string {
 // ---------------------------------------------------------------------------
 
 type githubAuthScreen struct {
+	modalScreen
 	userCode        string
 	verificationURI string
 	err             string
 	done            bool
 }
 
-func (g githubAuthScreen) View(termW, termH int) string {
+func (g githubAuthScreen) content(termW, termH int) modalContent {
 	var inner strings.Builder
 	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render("1. Open this URL in your browser:") + "\n")
 	inner.WriteString("   " + lipgloss.NewStyle().Foreground(theme.Info).Underline(true).Render(g.verificationURI) + "\n\n")
@@ -152,9 +152,7 @@ func (g githubAuthScreen) View(termW, termH int) string {
 	if g.err != "" {
 		inner.WriteString("\n\n" + errorStyle.Render("✗  "+g.err))
 	}
-	inner.WriteString("\n\n" + hintStyle.Render("esc to cancel"))
-	content := lipgloss.JoinVertical(lipgloss.Left, RenderTitle(), wrapInBox("Connect GitHub Account", inner.String()))
-	return centerInTerminal(termW, termH, content)
+	return modalContent{title: "Connect GitHub Account", body: inner.String(), hint: "esc cancel"}
 }
 
 // ---------------------------------------------------------------------------
@@ -162,6 +160,7 @@ func (g githubAuthScreen) View(termW, termH int) string {
 // ---------------------------------------------------------------------------
 
 type genericPickerScreen struct {
+	modalScreen
 	title      string
 	options    []string
 	identities []string
@@ -175,9 +174,9 @@ func newGenericPicker(title string, options []string, hint string) genericPicker
 	return genericPickerScreen{title: title, options: options, disabled: map[string]bool{}, hint: hint}
 }
 
-func (g genericPickerScreen) View(termW, termH int) string {
+func (g genericPickerScreen) content(termW, termH int) modalContent {
 	var inner strings.Builder
-	rows := max(termH-16, 3)
+	rows := max(termH-10, 1)
 	start := max(0, g.cursor-rows/2)
 	if start+rows > len(g.options) {
 		start = max(0, len(g.options)-rows)
@@ -189,7 +188,7 @@ func (g genericPickerScreen) View(termW, termH int) string {
 		if i < len(g.identities) {
 			identity = g.identities[i] + " "
 		}
-		available := max(termW-14-ansi.StringWidth(identity), 8)
+		available := max(ui.ModalInnerWidth(termW)-2-ansi.StringWidth(identity), 1)
 		if ansi.StringWidth(o) > available {
 			o = ansi.TruncateLeft(o, ansi.StringWidth(o)-available+1, "…")
 		}
@@ -206,15 +205,16 @@ func (g genericPickerScreen) View(termW, termH int) string {
 		}
 		inner.WriteString(line + "\n")
 	}
+	if g.cursor >= 0 && g.cursor < len(g.options) {
+		inner.WriteString("\n" + dimStyle.Render("Selected location:") + "\n" + g.options[g.cursor] + "\n")
+	}
 	if len(g.options) > rows {
 		inner.WriteString(dimStyle.Render(fmt.Sprintf("%d/%d", g.cursor+1, len(g.options))) + "\n")
 	}
 	if g.err != "" {
 		inner.WriteString("\n" + errorStyle.Render("✗  "+g.err))
 	}
-	inner.WriteString("\n" + hintStyle.Render(g.hint))
-	content := lipgloss.JoinVertical(lipgloss.Left, RenderTitle(), wrapInBox(g.title, inner.String()))
-	return centerInTerminal(termW, termH, content)
+	return modalContent{title: g.title, body: inner.String(), hint: g.hint}
 }
 
 // ---------------------------------------------------------------------------
@@ -222,6 +222,7 @@ func (g genericPickerScreen) View(termW, termH int) string {
 // ---------------------------------------------------------------------------
 
 type presetPickerScreen struct {
+	modalScreen
 	presets     []preset.Preset
 	cursor      int
 	defaultName string
@@ -245,9 +246,12 @@ func (p presetPickerScreen) Selected() preset.Preset {
 	return preset.DefaultPresets[0]
 }
 
-func (p presetPickerScreen) View(termW, termH int) string {
+func (p presetPickerScreen) content(termW, termH int) modalContent {
 	var inner strings.Builder
-	for i, ps := range p.presets {
+	rows := max(termH-9, 1)
+	start := min(max(p.cursor-rows/2, 0), max(len(p.presets)-rows, 0))
+	for i := start; i < min(start+rows, len(p.presets)); i++ {
+		ps := p.presets[i]
 		label := ps.Name
 		if ps.Name == p.defaultName {
 			label += dimStyle.Render(" (default)")
@@ -267,11 +271,12 @@ func (p presetPickerScreen) View(termW, termH int) string {
 		} else {
 			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render("  "+label) + summary
 		}
-		inner.WriteString(line + "\n")
+		inner.WriteString(ansi.Truncate(line, ui.ModalInnerWidth(termW), "…") + "\n")
 	}
-	inner.WriteString("\n" + hintStyle.Render("↑/↓ navigate  •  enter confirm  •  esc cancel"))
-	content := lipgloss.JoinVertical(lipgloss.Left, RenderTitle(), wrapInBox("Choose tmux preset:", inner.String()))
-	return centerInTerminal(termW, termH, content)
+	if len(p.presets) > 0 {
+		inner.WriteString("\nSelected: " + p.Selected().Name)
+	}
+	return modalContent{title: "Choose tmux preset", body: inner.String(), hint: "↑/↓ choose · enter confirm · esc cancel"}
 }
 
 // ---------------------------------------------------------------------------
@@ -279,6 +284,7 @@ func (p presetPickerScreen) View(termW, termH int) string {
 // ---------------------------------------------------------------------------
 
 type templatePickerScreen struct {
+	modalScreen
 	templates []tmpl.Template
 	cursor    int
 }
@@ -298,14 +304,17 @@ func (t templatePickerScreen) Selected() *tmpl.Template {
 	return nil
 }
 
-func (t templatePickerScreen) View(termW, termH int) string {
+func (t templatePickerScreen) content(termW, termH int) modalContent {
 	var inner strings.Builder
+	rows := max(termH-10, 1)
+	start := min(max(t.cursor-1-rows/2, 0), max(len(t.templates)-rows, 0))
 	if t.cursor == 0 {
 		inner.WriteString(activeStyle.Render("▶  No template  ") + dimStyle.Render("  create an empty project") + "\n")
 	} else {
 		inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render("   No template") + dimStyle.Render("  create an empty project") + "\n")
 	}
-	for i, tmpl := range t.templates {
+	for i := start; i < min(start+rows, len(t.templates)); i++ {
+		tmpl := t.templates[i]
 		idx := i + 1
 		desc := dimStyle.Render("  " + tmpl.Description)
 		var line string
@@ -314,11 +323,12 @@ func (t templatePickerScreen) View(termW, termH int) string {
 		} else {
 			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render("   "+tmpl.Name) + desc
 		}
-		inner.WriteString(line + "\n")
+		inner.WriteString(ansi.Truncate(line, ui.ModalInnerWidth(termW), "…") + "\n")
 	}
-	inner.WriteString("\n" + hintStyle.Render("↑/↓ navigate  •  enter confirm  •  esc cancel"))
-	content := lipgloss.JoinVertical(lipgloss.Left, RenderTitle(), wrapInBox("Choose a template:", inner.String()))
-	return centerInTerminal(termW, termH, content)
+	if selected := t.Selected(); selected != nil {
+		inner.WriteString("\nSelected: " + selected.Name + "\n" + selected.Description)
+	}
+	return modalContent{title: "Choose a template", body: inner.String(), hint: "↑/↓ choose · enter confirm · esc cancel"}
 }
 
 // ---------------------------------------------------------------------------
@@ -349,6 +359,7 @@ func newDomainPickerScreen(projectName string, domains []string, existing map[st
 // ---------------------------------------------------------------------------
 
 type confirmDeleteDomainScreen struct {
+	modalScreen
 	domainName string
 	input      textinput.Model
 	err        string
@@ -372,7 +383,8 @@ func (s confirmDeleteDomainScreen) Update(msg tea.Msg) (confirmDeleteDomainScree
 	return s, cmd
 }
 
-func (s confirmDeleteDomainScreen) View(termW, termH int) string {
+func (s confirmDeleteDomainScreen) content(termW, termH int) modalContent {
+	s.input.Width = max(ui.ModalInnerWidth(termW)-2, 1)
 	var inner strings.Builder
 	inner.WriteString(errorStyle.Render(fmt.Sprintf(
 		"ALL projects inside \"%s\" will be permanently deleted.", s.domainName,
@@ -384,9 +396,7 @@ func (s confirmDeleteDomainScreen) View(termW, termH int) string {
 	if s.err != "" {
 		inner.WriteString("\n\n" + errorStyle.Render("✗  "+s.err))
 	}
-	inner.WriteString("\n\n" + hintStyle.Render("enter confirm  •  esc cancel"))
-	content := lipgloss.JoinVertical(lipgloss.Left, RenderTitle(), wrapInWarningBox("Danger Zone — Delete Domain", inner.String()))
-	return centerInTerminal(termW, termH, content)
+	return modalContent{title: "! Delete domain", body: inner.String(), hint: "enter confirm · esc cancel"}
 }
 
 // ---------------------------------------------------------------------------
@@ -394,6 +404,7 @@ func (s confirmDeleteDomainScreen) View(termW, termH int) string {
 // ---------------------------------------------------------------------------
 
 type confirmDeleteTmuxScreen struct {
+	modalScreen
 	sessionName string
 	input       textinput.Model
 	err         string
@@ -417,7 +428,8 @@ func (s confirmDeleteTmuxScreen) Update(msg tea.Msg) (confirmDeleteTmuxScreen, t
 	return s, cmd
 }
 
-func (s confirmDeleteTmuxScreen) View(termW, termH int) string {
+func (s confirmDeleteTmuxScreen) content(termW, termH int) modalContent {
+	s.input.Width = max(ui.ModalInnerWidth(termW)-2, 1)
 	var inner strings.Builder
 	inner.WriteString(warningStyle.Render(fmt.Sprintf(
 		"Kill tmux session \"%s\"? All windows and panes will be lost.", s.sessionName,
@@ -429,9 +441,7 @@ func (s confirmDeleteTmuxScreen) View(termW, termH int) string {
 	if s.err != "" {
 		inner.WriteString("\n\n" + errorStyle.Render("✗  "+s.err))
 	}
-	inner.WriteString("\n\n" + hintStyle.Render("enter confirm  •  esc cancel"))
-	content := lipgloss.JoinVertical(lipgloss.Left, RenderTitle(), wrapInWarningBox("Kill tmux Session", inner.String()))
-	return centerInTerminal(termW, termH, content)
+	return modalContent{title: "! Kill tmux session", body: inner.String(), hint: "enter confirm · esc cancel"}
 }
 
 func newLocationPicker(title string, locations []core.Location, labels []string, hint string) genericPickerScreen {
@@ -447,4 +457,36 @@ func newRootPicker(title string, roots []string, hint string) genericPickerScree
 		picker.identities = append(picker.identities, core.PathID(root))
 	}
 	return picker
+}
+
+func (s inputScreen) View(termW, termH int) string {
+	return s.content(termW, termH).View(termW, termH, s.scroll)
+}
+
+func (y yesNoScreen) View(termW, termH int) string {
+	return y.content(termW, termH).View(termW, termH, y.scroll)
+}
+
+func (g githubAuthScreen) View(termW, termH int) string {
+	return g.content(termW, termH).View(termW, termH, g.scroll)
+}
+
+func (g genericPickerScreen) View(termW, termH int) string {
+	return g.content(termW, termH).View(termW, termH, g.scroll)
+}
+
+func (p presetPickerScreen) View(termW, termH int) string {
+	return p.content(termW, termH).View(termW, termH, p.scroll)
+}
+
+func (t templatePickerScreen) View(termW, termH int) string {
+	return t.content(termW, termH).View(termW, termH, t.scroll)
+}
+
+func (s confirmDeleteDomainScreen) View(termW, termH int) string {
+	return s.content(termW, termH).View(termW, termH, s.scroll)
+}
+
+func (s confirmDeleteTmuxScreen) View(termW, termH int) string {
+	return s.content(termW, termH).View(termW, termH, s.scroll)
 }

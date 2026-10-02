@@ -74,7 +74,20 @@ isolated real-terminal smoke provide automated evidence, not that observation.
 
 ## Subsequent milestones
 
-3B: snapshot workspace tree, list, cached-data inspector, palette/search/help.
+3B implements `workspace_tree.go`, `dashboard.go`, `inspector.go`, `search.go`,
+`palette.go`, `dashboard_navigation.go` and a two-line project delegate. Container
+rows are cached from the loaded snapshot; project membership uses the chosen
+root/domain/group scope and is independent of workspace expansion. Collapse
+retains the selected project. Tab cycles all three panes; medium Inspector and
+narrow focus become dedicated views. `v` hides/shows the workspace composition.
+Live fuzzy search uses the existing small `fuzzy` dependency, preserves matching
+selection, supports coalesced slash/query input, and restores the prior query on
+cancel. Palette/help share action metadata; disabled actions state their reason.
+Inspectors only render loaded facts and scroll wrapped full paths; stale recents
+need a canonical loaded project before favorite/move/delete actions are enabled.
+Workflow screens share `modalContent` and responsive `ModalAt`: full paths wrap,
+PgUp/PgDown recover long details, hints stay visible, and resize clamps scrolling.
+Inputs and pickers capture focus; no modal paints a backdrop.
 3C: project-key selection, whole-batch move preflight and honest partial results.
 3D: editor presentation, validation, draft/unsaved handling; keep persistence.
 3E: one on-demand animation clock; foreground-only progress shimmer; environment

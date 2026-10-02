@@ -5,41 +5,33 @@ import (
 	"github.com/richardnascimento18/devdock/internal/core"
 )
 
+// Projects are a flat action list. Hierarchy and collapsed state belong to the
+// workspace pane, so collapsing navigation never hides a selected project.
 func (m model) buildListItems(projects []core.Project, verified bool) []list.Item {
-	showRoot := m.isAllMode() && len(m.cfg.ActiveRoots()) > 1
-	if !m.treeMode || len(m.workspaceTree.Roots) == 0 {
-		var items []list.Item
-		for _, p := range projects {
-			if m.isAllMode() || p.Root == m.activeRoot() {
-				items = append(items, flatItem{item{project: p, showRoot: showRoot, verified: verified}})
-			}
-		}
-		if !m.treeMode {
-			for _, row := range m.workspaceTree.Flatten(nil, m.activeRoot(), false) {
-				if row.Node != nil && row.Node.ProjectCount == 0 {
-					items = append(items, groupItem{nodeKey: row.Node.Key(), name: row.Node.Name, location: row.Node.Location})
-				}
-			}
-		}
-		return items
-	}
-	// GitHub linkage is a flat-index annotation; tree membership remains canonical.
-	linked := make(map[core.ProjectKey]core.Project, len(projects))
-	for _, p := range projects {
-		linked[p.Key()] = p
-	}
 	var items []list.Item
-	for _, row := range m.workspaceTree.Flatten(m.collapsedNodes, m.activeRoot(), false) {
-		if row.Project != nil {
-			p := *row.Project
-			if current, ok := linked[p.Key()]; ok {
-				p = current
-			}
-			items = append(items, item{project: p, showRoot: showRoot, verified: verified, indent: row.Depth})
-		} else {
-			n := row.Node
-			items = append(items, groupItem{nodeKey: n.Key(), name: n.Name, location: n.Location, depth: row.Depth, collapsed: m.collapsedNodes[n.Key()], totalCount: n.ProjectCount})
+	for _, p := range projects {
+		if m.inWorkspaceScope(p.Location) {
+			items = append(items, item{project: p, showRoot: m.isAllMode(), verified: verified})
 		}
 	}
 	return items
+}
+
+func (m model) inWorkspaceScope(location core.Location) bool {
+	if !m.isAllMode() && location.Root != m.activeRoot() {
+		return false
+	}
+	if m.workspaceScope == nil {
+		return true
+	}
+	scope := *m.workspaceScope
+	if location.Root != scope.Root || scope.Domain != "" && location.Domain != scope.Domain || len(location.GroupPath) < len(scope.GroupPath) {
+		return false
+	}
+	for i, name := range scope.GroupPath {
+		if location.GroupPath[i] != name {
+			return false
+		}
+	}
+	return true
 }
