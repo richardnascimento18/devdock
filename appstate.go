@@ -39,6 +39,10 @@ const (
 	stateMovingProject
 	stateDeletingWorkspace
 	statePalette
+	stateBulkPreflight
+	stateBulkConfirm
+	stateBulkMoving
+	stateBulkResult
 )
 
 const (

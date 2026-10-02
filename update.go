@@ -37,6 +37,9 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 			if rowIdentity(next.list.SelectedItem()) != rowIdentity(m.list.SelectedItem()) {
 				next.inspectorScroll = 0
 			}
+			if next.scopeIdentity() != m.scopeIdentity() || next.activeTab != m.activeTab {
+				next.selected = nil
+			}
 			next.sizePresentation()
 			if next.editorRootReturn && (next.state == stateList || next.state == stateEditor) {
 				next.editorRootReturn = false
@@ -120,6 +123,10 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		return m.handleGitLinked(msg)
 	case gh.CloneDoneMsg:
 		return m.handleGitCloneDone(msg)
+	case bulkPreflightMsg:
+		return m.handleBulkPreflight(msg)
+	case bulkDoneMsg:
+		return m.handleBulkDone(msg)
 	case moveProjectDoneMsg:
 		return m.handleMoveProjectDone(msg)
 	case spinnerTickMsg:
@@ -149,7 +156,13 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		return m.updateAskCreateGitHub(msg)
 	case stateAskRepoPrivacy:
 		return m.updateAskRepoPrivacy(msg)
-	case stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
+	case stateBulkPreflight:
+		if key, ok := msg.(tea.KeyMsg); ok && key.String() == "esc" {
+			m.state = stateList
+			m.bulk = bulkWorkflow{}
+		}
+		return m, nil
+	case stateBulkMoving, stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
 		return m, nil
 	case statePickTemplate:
 		return m.updatePickTemplate(msg)
@@ -175,6 +188,8 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		return m.updateMovePickDomain(msg)
 	case stateMovePickPlacement:
 		return m.updatePlacement(msg)
+	case stateBulkConfirm, stateBulkResult:
+		return m.updateBulk(msg)
 	case stateHelp:
 		return m.updateHelp(msg)
 	case statePalette:
@@ -342,6 +357,9 @@ func (m model) openMoveDestDomainPicker() model {
 		fmt.Sprintf("Move \"%s\" — destination domain:", m.moveTarget.Name),
 		opts, "↑/↓  •  enter  •  esc",
 	)
+	if len(m.bulk.projects) > 0 {
+		m.genericPicker.title = fmt.Sprintf("Move %d selected projects — destination domain", len(m.bulk.projects))
+	}
 	m.state = stateMovePickDomain
 	return m
 }
@@ -479,7 +497,7 @@ func (m model) updateDeleteTmuxSession(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) loading() bool {
-	return m.state == stateCreatingGitHub || m.state == stateCloningRepo || m.state == stateMovingProject || m.state == stateDeletingWorkspace
+	return m.state == stateBulkPreflight || m.state == stateBulkMoving || m.state == stateCreatingGitHub || m.state == stateCloningRepo || m.state == stateMovingProject || m.state == stateDeletingWorkspace
 }
 
 type gitLinkedMsg struct {

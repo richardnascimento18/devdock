@@ -21,6 +21,9 @@ import (
 )
 
 type model struct {
+	selected               map[string]bool
+	bulk                   bulkWorkflow
+	bulkID                 uint64
 	focus                  ui.Pane
 	workspaceRows          []workspaceRow
 	workspaceCursor        int
@@ -283,12 +286,13 @@ func (m model) refreshTabList() model {
 
 func (m *model) sizePresentation() {
 	l := m.dashboardLayout()
-	m.list.SetDelegate(projectDelegate{favorites: m.uiState.Favorites, focused: m.focus == ui.Projects})
+	m.list.SetDelegate(projectDelegate{favorites: m.uiState.Favorites, selected: m.selected, focused: m.focus == ui.Projects})
 	m.list.SetSize(max(l.Projects, 1), max(l.BodyHeight-1, 1))
 	m.searchInput.Width = max(min(m.termW-6, 72), 1)
 }
 
 func (m model) rebuildList(verified bool) model {
+	m.reconcileSelection()
 	m.refreshWorkspaceRows()
 	selected := rowIdentity(m.list.SelectedItem())
 	items := m.buildListItems(m.rawProjects, verified)

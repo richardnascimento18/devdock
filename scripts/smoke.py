@@ -43,6 +43,12 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
         os.write(master, b'demo'); drain(0.2)
         os.write(master, b'\r'); drain(0.2)
         os.write(master, b'\x1b'); drain(0.2)
+        os.write(master, b' '); drain(0.2)
+        assert b'1 selected' in captured, 'multi-selection did not render'
+        os.write(master, b'm'); drain(0.2)
+        assert b'destination domain' in captured, 'bulk destination workflow missing'
+        os.write(master, b'\x1b'); drain(0.2)
+        os.write(master, b'\x1b'); drain(0.2)
         os.write(master, b'\x10'); drain(0.2)
         assert b'Commands' in captured, 'command palette did not render'
         os.write(master, b'settings'); drain(0.2)
@@ -90,7 +96,7 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
         assert (config_dir / 'presets.json').exists(), 'defaults not generated'
         assert (config_dir / 'templates.json').exists(), 'templates not generated'
         assert decorative_background(captured) is None, 'explicit background/inverse video emitted'
-        print('PASS: isolated TUI startup, project rendering, workspace, inspector, live search, palette/Settings, help, resize, flat view, root switching, favorite, preset/template forms, OAuth, cancellation, shutdown, transparency')
+        print('PASS: isolated TUI startup, project rendering, workspace, inspector, live search, multi-selection/bulk cancellation, palette/Settings, help, resize, flat view, root switching, favorite, preset/template forms, OAuth, cancellation, shutdown, transparency')
         print('Captured terminal bytes:', len(captured))
     finally:
         if args.capture:

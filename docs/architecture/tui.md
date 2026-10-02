@@ -88,7 +88,15 @@ need a canonical loaded project before favorite/move/delete actions are enabled.
 Workflow screens share `modalContent` and responsive `ModalAt`: full paths wrap,
 PgUp/PgDown recover long details, hints stay visible, and resize clamps scrolling.
 Inputs and pickers capture focus; no modal paints a backdrop.
-3C: project-key selection, whole-batch move preflight and honest partial results.
+3C implements ephemeral canonical-path selection (`bulk.go`), retained across
+navigation/filtering and cleared on root/scope/collection changes. Hidden count
+is explicit; bulk actions require all targets visible. Palette captures selection
+identity. Delete/remove requires clearing selection; bulk delete is deferred.
+Bulk move wraps the approved PlanMove/ExecuteMove services: plan every target,
+flag intra-batch collisions, confirm full paths, then re-plan every target before
+any mutation. Each execution still revalidates. Results distinguish moved,
+cleanup warnings and failed, reconcile completed locations, preserve pending
+state saves, rescan explicitly, and clear executed selection. All modals page.
 3D: editor presentation, validation, draft/unsaved handling; keep persistence.
 3E: one on-demand animation clock; foreground-only progress shimmer; environment
 reduced motion; final Unicode/resize/PTY/golden/performance diagnostics.

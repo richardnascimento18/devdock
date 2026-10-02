@@ -36,4 +36,4 @@ Search  ·  Recents  ·  Favorites  ·  tmux-sessions  3 projects
 
 
 ! Refresh failed: root unavailable. Press r to retry.
-/ search · enter open · f favorite · tab focus · ctrl+p actions · ? help
+/ search · space select · enter open · f favorite · tab focus · ctrl+p actions · ? help

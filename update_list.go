@@ -382,6 +382,7 @@ func (m model) startRemoveRoot() (tea.Model, tea.Cmd) {
 }
 
 func (m model) startMoveProject() model {
+	m.bulk = bulkWorkflow{}
 	proj, ok := m.actionProject()
 	if !ok {
 		return m

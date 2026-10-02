@@ -74,6 +74,12 @@ func (m model) viewList(w, h int) string {
 		}
 	}
 	status := m.statusMsg
+	if len(m.selected) > 0 {
+		status = m.selectionStatus()
+		if m.statusMsg != "" {
+			status += " · " + m.statusMsg
+		}
+	}
 	if status == "" {
 		status = dimStyle.Render(m.currentLocationLabel())
 	}
@@ -84,6 +90,9 @@ func (m model) dashboardHint(width int) string {
 	if m.searching {
 		return "enter apply · esc cancel · ↑/↓ results"
 	}
+	if len(m.selected) > 0 {
+		return "space toggle · m move · f favorites · esc clear · ctrl+p actions"
+	}
 	if width < 60 {
 		return "tab " + m.focus.String() + " · ctrl+p actions · ? help"
 	}
@@ -93,7 +102,7 @@ func (m model) dashboardHint(width int) string {
 	if m.focus == ui.Inspector {
 		return "j/k scroll · enter open · f favorite · m move · esc projects · ctrl+p actions"
 	}
-	return "/ search · enter open · f favorite · tab focus · ctrl+p actions · ? help"
+	return "/ search · space select · enter open · f favorite · tab focus · ctrl+p actions · ? help"
 }
 
 func (m model) viewProjects(width, height int) string {

@@ -93,6 +93,9 @@ func (m model) updatePlacement(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = stateCreateGroup
 		return m, nil
 	case placeMove:
+		if len(m.bulk.projects) > 0 {
+			return m.beginBulkPreflight(loc)
+		}
 		plan, err := core.PlanMove(m.moveTarget, loc, filepath.Base(m.moveTarget.Path))
 		if err != nil {
 			m.genericPicker.err = fmt.Sprintf("%s: %v", plan.Status, err)
