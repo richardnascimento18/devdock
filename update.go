@@ -393,6 +393,7 @@ func (m model) updateEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
 	revision := m.editorScr.revision
 	m.editorScr, cmd = m.editorScr.Update(msg)
 	if m.editorScr.revision != revision {
+		m.cfg = m.editorScr.cfg.Clone()
 		m.presets = deepCopyPresets(m.editorScr.presets)
 		m.templates = deepCopyTemplates(m.editorScr.tmpls)
 		m.presetSel.SetPresets(m.presets)

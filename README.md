@@ -68,7 +68,7 @@ Configuration lives in `~/.config/devdock/`:
 | `templates.json` | Named scaffold steps, post-steps, and layout metadata |
 | `state.json` | Favorites, recents, active tab, view/collapse preferences |
 
-Missing preset/template files generate validated defaults. Invalid collections are reported and built-in defaults remain available without overwriting the invalid file. Editor saves validate the entire proposed collection, persist atomically, and then change active state. Duplicate names are rejected.
+Missing preset/template files generate validated defaults. Invalid collections are reported and built-in defaults remain available without overwriting the invalid file. Editor saves validate the entire proposed collection, persist atomically, and then change active state. Duplicate names are rejected. Renaming the configured default preset updates its configuration reference as part of the save; a write failure preserves the draft and compensates the configuration change.
 
 Example config without GitHub credentials:
 
