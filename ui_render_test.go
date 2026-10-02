@@ -123,6 +123,14 @@ func fixtureScreens() map[string]model {
 	})
 	add("inspector-narrow", func(m *model) { m.termW, m.termH = 40, 15; m.focus = ui.Inspector })
 	add("workspace-narrow", func(m *model) { m.termW, m.termH = 40, 15; m.focus = ui.Workspace })
+	add("multi-selection", func(m *model) { m.selected = map[string]bool{m.rawProjects[0].Path: true, m.rawProjects[1].Path: true} })
+	add("bulk-move-confirmation", func(m *model) {
+		m.state = stateBulkConfirm
+		m.bulk = bulkWorkflow{projects: []core.Project{m.rawProjects[0], m.rawProjects[2]}, destination: core.Location{Root: "/workspace/work", Domain: "destination"}}
+		for _, p := range m.bulk.projects {
+			m.bulk.rows = append(m.bulk.rows, bulkMoveRow{plan: core.MovePlan{Source: p, Destination: m.bulk.destination, Path: m.bulk.destination.Path() + "/" + p.Name}})
+		}
+	})
 	add("confirmation", func(m *model) {
 		m.state = stateDeleteDomain
 		m.pendingDomainName = "backend"

@@ -14,6 +14,7 @@ import (
 
 type projectDelegate struct {
 	favorites map[string]bool
+	selected  map[string]bool
 	focused   bool
 }
 
@@ -25,6 +26,9 @@ func (d projectDelegate) Render(w io.Writer, m list.Model, index int, it list.It
 	detail := ""
 	if p, ok := projectFromItem(it); ok {
 		title = p.Name
+		if d.selected[p.Path] {
+			title = "● " + title
+		}
 		if d.favorites[p.Path] {
 			title = "★ " + title
 		}

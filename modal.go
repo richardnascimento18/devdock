@@ -11,7 +11,7 @@ func (c modalContent) View(width, height, offset int) string {
 func (m model) flowModal() bool {
 	switch m.state {
 	case stateList, stateHelp, statePalette, stateEditor, statePTYExecution,
-		stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
+		stateBulkPreflight, stateBulkMoving, stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
 		return false
 	default:
 		return true
@@ -20,6 +20,8 @@ func (m model) flowModal() bool {
 func (m model) currentModal() modalContent {
 	w, h := m.termW, m.termH
 	switch m.state {
+	case stateBulkConfirm, stateBulkResult:
+		return m.bulkModal()
 	case stateDeleteDomain:
 		if m.pendingDomainName != "" {
 			return m.confirmDelDomain.content(w, h)

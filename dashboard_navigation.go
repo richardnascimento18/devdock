@@ -23,6 +23,11 @@ func (m model) updateDashboardNavigation(key tea.KeyMsg) (tea.Model, tea.Cmd, bo
 			m.isFiltered = false
 			return m.applySearch(), nil, true
 		}
+		if len(m.selected) > 0 {
+			m.selected = nil
+			m.statusMsg = dimStyle.Render("Selection cleared")
+			return m, nil, true
+		}
 	case "tab", "shift+tab":
 		delta := 1
 		if key.String() == "shift+tab" {
@@ -66,5 +71,19 @@ func (m model) updateDashboardNavigation(key tea.KeyMsg) (tea.Model, tea.Cmd, bo
 		}
 	}
 	m.inspectorScroll = 0
+	if key.String() == " " && m.focus == ui.Projects {
+		return m.toggleSelection(), nil, true
+	}
+	if len(m.selected) > 0 {
+		switch key.String() {
+		case "m":
+			return m.startBulkMove(), nil, true
+		case "f":
+			return m.bulkFavorites(), nil, true
+		case "x", "X", "ctrl+g", "A":
+			m.statusMsg = warningStyle.Render("! Clear selection with esc before deleting or removing.")
+			return m, nil, true
+		}
+	}
 	return m, nil, false
 }

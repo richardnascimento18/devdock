@@ -17,7 +17,7 @@ func (m model) viewScreen() string {
 		return m.currentModal().View(w, h, m.modalScroll)
 	}
 	switch m.state {
-	case stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
+	case stateBulkPreflight, stateBulkMoving, stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
 		return m.spinnerScr.View(w, h)
 	case statePTYExecution:
 		return m.ptyScr.View()

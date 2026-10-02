@@ -48,10 +48,16 @@ headless ANSI/PTY evidence does not claim a manual Caelestia review.
 
 ## Promotion
 
-Target prerelease: `v1.1.0-beta.7`. Protected feature → staging → production
-PRs, hosted CI, actual downloaded release checks and production → staging
-reconciliation must all complete before beginning 3C. Live evidence is preserved
-for the final independent-review package.
+Released [v1.1.0-beta.7](https://github.com/richardnascimento18/devdock/releases/tag/v1.1.0-beta.7)
+through feature [#22](https://github.com/richardnascimento18/devdock/pull/22),
+production [#23](https://github.com/richardnascimento18/devdock/pull/23), and
+reconciliation [#24](https://github.com/richardnascimento18/devdock/pull/24).
+Production: `67de3ebd1eab8fe9ec51ae84091c0043f4c85500`; reconciled staging:
+`74b2978f89a04b3108f6b90f4522af448ba795e4`. All hosted runs passed, including
+final staging push `37046290057`. Actual downloaded assets passed tag/prerelease,
+commit, checksum, architecture, amd64 version and expanded PTY smoke checks.
+Trees match and production is an ancestor. Feature remote was auto-deleted;
+only permanent remote branches remain. Live evidence is in the review package.
 
 ## Remaining Pass 3 work
 
