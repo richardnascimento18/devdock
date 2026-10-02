@@ -216,7 +216,13 @@ func TestRenderGoldens(t *testing.T) {
 				if ext == "txt" {
 					value = ansi.Strip(rendered)
 				}
-				value = strings.TrimRight(value, "\n") + "\n"
+				// Padding is meaningful inside the render, but trailing blank cells
+				// need not be stored. Keep glyph positions and ANSI sequences intact.
+				lines := strings.Split(value, "\n")
+				for i := range lines {
+					lines[i] = strings.TrimRight(lines[i], " \t\r")
+				}
+				value = strings.TrimRight(strings.Join(lines, "\n"), "\n") + "\n"
 				path := filepath.Join("testdata", "ui", name+"."+ext)
 				if os.Getenv("DEVDOCK_UPDATE_GOLDEN") == "1" {
 					if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {

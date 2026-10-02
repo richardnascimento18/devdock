@@ -1,40 +1,25 @@
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                             DevDock                                                                                    
-                             ! Danger Zone — Delete Domain                                                              
-                             ╭────────────────────────────────────────────────────────────╮                             
-                             │ ALL projects inside "backend" will be permanently deleted. │                             
-                             │                                                            │                             
-                             │ Type "backend" to confirm:                                 │                             
-                             │                                                            │                             
-                             │ > backend                                                  │                             
-                             │                                                            │                             
-                             │ enter confirm  •  esc cancel                               │                             
-                             ╰────────────────────────────────────────────────────────────╯                             
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                             DevDock
+                             ! Danger Zone — Delete Domain
+                             ╭────────────────────────────────────────────────────────────╮
+                             │ ALL projects inside "backend" will be permanently deleted. │
+                             │                                                            │
+                             │ Type "backend" to confirm:                                 │
+                             │                                                            │
+                             │ > backend                                                  │
+                             │                                                            │
+                             │ enter confirm  •  esc cancel                               │
+                             ╰────────────────────────────────────────────────────────────╯

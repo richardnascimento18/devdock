@@ -1,40 +1,28 @@
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                        DevDock                                                                                         
-                          Config Editor                                                                                 
-                                                                                                                        
-                        Presets  │  Templates  │   Settings   (tab / h / l to switch)                                   
-                                                                                                                        
-                        ╭──────────────────────────────────────────────────────────────────────╮                        
-                        │  ▶ Default preset  (first preset)                                    │                        
-                        │    Add root                                                          │                        
-                        │    Remove root                                                       │                        
-                        │                                                                      │                        
-                        │  Configured roots:                                                   │                        
-                        │    /workspace/work                                                   │                        
-                        ╰──────────────────────────────────────────────────────────────────────╯                        
-                                                                                                                        
-                                                                                                                        
-                        j/k navigate  •  enter select/edit  •  tab switch  •  esc back                                  
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
+
+
+
+
+
+
+
+
+
+
+
+
+                        DevDock
+                          Config Editor
+
+                        Presets  │  Templates  │   Settings   (tab / h / l to switch)
+
+                        ╭──────────────────────────────────────────────────────────────────────╮
+                        │  ▶ Default preset  (first preset)                                    │
+                        │    Add root                                                          │
+                        │    Remove root                                                       │
+                        │                                                                      │
+                        │  Configured roots:                                                   │
+                        │    /workspace/work                                                   │
+                        ╰──────────────────────────────────────────────────────────────────────╯
+
+
+                        j/k navigate  •  enter select/edit  •  tab switch  •  esc back

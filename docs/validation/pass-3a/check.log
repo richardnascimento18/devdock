@@ -1,11 +1,11 @@
 all modules verified
 ........
 ----------------------------------------------------------------------
-Ran 8 tests in 0.031s
+Ran 8 tests in 0.032s
 
 OK
 1.1.0-beta.6
-ok  	github.com/richardnascimento18/devdock	0.162s
+ok  	github.com/richardnascimento18/devdock	0.165s
 ok  	github.com/richardnascimento18/devdock/internal/config	(cached)
 ok  	github.com/richardnascimento18/devdock/internal/core	(cached)
 ok  	github.com/richardnascimento18/devdock/internal/detect	(cached)
@@ -17,7 +17,7 @@ ok  	github.com/richardnascimento18/devdock/internal/state	(cached)
 ok  	github.com/richardnascimento18/devdock/internal/template	(cached)
 ok  	github.com/richardnascimento18/devdock/internal/tmux	(cached)
 ok  	github.com/richardnascimento18/devdock/internal/ui	(cached)
-ok  	github.com/richardnascimento18/devdock	1.908s
+ok  	github.com/richardnascimento18/devdock	1.909s
 ok  	github.com/richardnascimento18/devdock/internal/config	(cached)
 ok  	github.com/richardnascimento18/devdock/internal/core	(cached)
 ok  	github.com/richardnascimento18/devdock/internal/detect	(cached)

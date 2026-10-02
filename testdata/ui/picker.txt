@@ -1,40 +1,24 @@
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                DevDock                                                                                 
-                                Move project                                                                            
-                                ╭─────────────────────────────────────────────────────╮                                 
-                                │ ▶ d79e289aed4c2590 /workspace/work/backend/services │                                 
-                                │   1b642bdc72a87275 /workspace/work/frontend         │                                 
-                                │                                                     │                                 
-                                │ enter choose · esc cancel                           │                                 
-                                ╰─────────────────────────────────────────────────────╯                                 
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                DevDock
+                                Move project
+                                ╭─────────────────────────────────────────────────────╮
+                                │ ▶ d79e289aed4c2590 /workspace/work/backend/services │
+                                │   1b642bdc72a87275 /workspace/work/frontend         │
+                                │                                                     │
+                                │ enter choose · esc cancel                           │
+                                ╰─────────────────────────────────────────────────────╯

@@ -1,37 +1,37 @@
 DevDock  all roots · Search · preset walker
   Workspace root │  all   ·  work  ({ / })
 > Projects  3 items
-> billing-api (backend) services ›   🐹 Go                                                                              
-  billing-api (frontend)  Ts TS                                                                                         
-  auth-日本語-é (backend)                                                                                               
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
+> billing-api (backend) services ›   🐹 Go
+  billing-api (frontend)  Ts TS
+  auth-日本語-é (backend)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ! Refresh failed: root unavailable. Press r to retry.
 / search · enter open · tab focus · ? help · q quit
