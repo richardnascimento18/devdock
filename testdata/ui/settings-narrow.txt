@@ -1,0 +1,14 @@
+DevDock  Configuration
+  Presets ·   Templates · > Settings
+
+> Default preset · first preset
+  Add root
+  Remove root
+
+Configured roots:
+/workspace/work
+
+
+
+
+j/k choose · enter edit · tab switch · …

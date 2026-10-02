@@ -13,13 +13,12 @@
 
 
 
+
                       ╭──────────────────────────────────────────────────────────────────────────╮
-                      │ > Edit Template                                                          │
+                      │ > Remove definition                                                      │
                       │ service                                                                  │
-                      │ A service scaffold                                                       │
                       │                                                                          │
-                      │ Steps                                                                    │
-                      │ > + Add step                                                             │
-                      │   + Add post-step                                                        │
-                      │ j/k step · enter edit · m metadata · d remove · ctrl+s save · esc back   │
+                      │ Remove this definition from DevDock configuration.                       │
+                      │                                                                          │
+                      │ enter remove · esc cancel                                                │
                       ╰──────────────────────────────────────────────────────────────────────────╯

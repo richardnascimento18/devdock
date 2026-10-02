@@ -1,0 +1,15 @@
+ ╭────────────────────────────────────╮
+ │ > Step                             │
+ │   printf "日本語 é"                │
+ │                                    │
+ │                                    │
+ │ > Output path (optional)           │
+ │   result.txt                       │
+ │                                    │
+ │                                    │
+ │   Post-step: false                 │
+ │ enter toggles                      │
+ │                                    │
+ │ enter · esc cancel                 │
+ │ pgup/pgdn details                  │
+ ╰────────────────────────────────────╯

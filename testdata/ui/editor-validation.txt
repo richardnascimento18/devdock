@@ -1,0 +1,27 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+                      ╭──────────────────────────────────────────────────────────────────────────╮
+                      │ > Default preset · Unsaved                                               │
+                      │ ! Choose an existing preset or leave blank.                              │
+                      │                                                                          │
+                      │ * Unsaved draft                                                          │
+                      │                                                                          │
+                      │ > Default preset                                                         │
+                      │   unknown                                                                │
+                      │                                                                          │
+                      │                                                                          │
+                      │ Available: walker, nvim, dev-split                                       │
+                      │ Blank uses the first preset.                                             │
+                      │ i / enter edit · ctrl+s save · esc back                                  │
+                      ╰──────────────────────────────────────────────────────────────────────────╯

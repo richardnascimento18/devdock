@@ -1,0 +1,23 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                      ╭──────────────────────────────────────────────────────────────────────────╮
+                      │ > Discard unsaved changes?                                               │
+                      │ The draft has changes.                                                   │
+                      │                                                                          │
+                      │ Discard the draft and return to the collection?                          │
+                      │ y discard · esc continue editing                                         │
+                      ╰──────────────────────────────────────────────────────────────────────────╯

@@ -50,7 +50,13 @@ final terminal inspection; no headless test claims wallpaper observation.
 
 ## Promotion
 
-Target `v1.1.0-beta.8`. Feature → staging → production PRs require hosted CI;
-actual release assets must be downloaded and verified, then production ancestry
-reconciled into staging before 3D. Live PR/run/release evidence accompanies the
-final review package. Pass 4 debt stays in its separate backlog.
+Released [v1.1.0-beta.8](https://github.com/richardnascimento18/devdock/releases/tag/v1.1.0-beta.8)
+through feature [#25](https://github.com/richardnascimento18/devdock/pull/25),
+production [#26](https://github.com/richardnascimento18/devdock/pull/26), and
+reconciliation [#27](https://github.com/richardnascimento18/devdock/pull/27).
+Production `393ee9dc4d9d798b758dd818b17c209ceda15071`; staging
+`4ea22eadf5fb0cbbddce25b6e371c8f2eeaf0a0c`. All hosted CI passed, including
+final staging push `37070659803`. Actual published assets passed tag/commit,
+prerelease, checksum, architecture, amd64 metadata and expanded smoke checks.
+Production is an ancestor of staging and trees match; remote cleanup verified.
+Complete live evidence accompanies the final review package. Pass 4 stays deferred.

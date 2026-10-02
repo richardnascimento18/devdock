@@ -1,10 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
 	"path/filepath"
 	"strings"
@@ -30,6 +28,7 @@ type stepDraft struct {
 }
 
 type templateEditor struct {
+	original     tmpl.Template
 	originalName string
 	isNew        bool
 	layout       string
@@ -44,13 +43,14 @@ type templateEditor struct {
 	layer  templateEditorLayer
 
 	// step edit fields
-	editIdx        int
-	editTypeCursor int // 0=command, 1=builtin
-	editRunInput   textinput.Model
-	editActCursor  int // 0=touch,1=mkdir,2=rm
-	editPathInput  textinput.Model
-	editIsPost     bool
-	editFocus      int // which field is focused
+	editIdx         int
+	editTypeCursor  int // 0=command, 1=builtin
+	editRunInput    textinput.Model
+	editActCursor   int // 0=touch,1=mkdir,2=rm
+	editOutputInput textinput.Model
+	editPathInput   textinput.Model
+	editIsPost      bool
+	editFocus       int // which field is focused
 
 	// meta edit
 	metaFocus int // 0=name, 1=desc, 2=interactive, 3=createsFolder
@@ -78,6 +78,7 @@ func newTemplateEditor(t tmpl.Template, isNew bool) templateEditor {
 	}
 
 	return templateEditor{
+		original:             tmpl.Clone([]tmpl.Template{t})[0],
 		originalName:         t.Name,
 		layout:               t.Layout,
 		isNew:                isNew,
@@ -195,6 +196,7 @@ func (te *templateEditor) openStepEdit(sd stepDraft) {
 	if sd.stepType == "builtin" {
 		te.editTypeCursor = 1
 	}
+	te.editOutputInput = newSmallInput(sd.output, "relative output path or blank", 60)
 	te.editRunInput = newSmallInput(sd.run, "command string e.g. go mod init {{project_name}}", 60)
 	te.editActCursor = 0
 	for i, a := range builtinActions {
@@ -214,7 +216,7 @@ func (te templateEditor) updateStepEdit(msg tea.Msg) (templateEditor, tea.Cmd) {
 	// isTextFocus returns true when the cursor is on a field that has a text
 	// input — those are the only fields that benefit from typing mode.
 	isTextFocus := func() bool {
-		return (te.editTypeCursor == 0 && te.editFocus == 1) ||
+		return (te.editTypeCursor == 0 && (te.editFocus == 1 || te.editFocus == 2)) ||
 			(te.editTypeCursor == 1 && te.editFocus == 2)
 	}
 
@@ -232,6 +234,7 @@ func (te templateEditor) updateStepEdit(msg tea.Msg) (templateEditor, tea.Cmd) {
 		case "esc":
 			te.typing = false
 			te.editRunInput.Blur()
+			te.editOutputInput.Blur()
 			te.editPathInput.Blur()
 			return te, nil
 		case "ctrl+s":
@@ -311,6 +314,8 @@ func (te templateEditor) forwardStepInput(msg tea.Msg) (templateEditor, tea.Cmd)
 	case 0:
 		if te.editFocus == 1 {
 			te.editRunInput, cmd = te.editRunInput.Update(msg)
+		} else if te.editFocus == 2 {
+			te.editOutputInput, cmd = te.editOutputInput.Update(msg)
 		}
 	case 1:
 		if te.editFocus == 2 {
@@ -322,13 +327,14 @@ func (te templateEditor) forwardStepInput(msg tea.Msg) (templateEditor, tea.Cmd)
 
 func (te templateEditor) editFieldCount() int {
 	if te.editTypeCursor == 0 {
-		return 3 // type, run, isPost
+		return 4 // type, run, output, isPost
 	}
 	return 4 // type, action, path, isPost
 }
 
 func (te *templateEditor) syncStepEditFocus() {
 	te.editRunInput.Blur()
+	te.editOutputInput.Blur()
 	te.editPathInput.Blur()
 	if !te.typing {
 		return
@@ -336,13 +342,16 @@ func (te *templateEditor) syncStepEditFocus() {
 	if te.editTypeCursor == 0 && te.editFocus == 1 {
 		te.editRunInput.Focus()
 	}
+	if te.editTypeCursor == 0 && te.editFocus == 2 {
+		te.editOutputInput.Focus()
+	}
 	if te.editTypeCursor == 1 && te.editFocus == 2 {
 		te.editPathInput.Focus()
 	}
 }
 
 func (te templateEditor) commitStepEdit() (templateEditor, tea.Cmd) {
-	sd := &te.steps[te.editIdx]
+	sd := te.steps[te.editIdx]
 	if te.editTypeCursor == 0 {
 		run := strings.TrimSpace(te.editRunInput.Value())
 		if run == "" {
@@ -351,6 +360,7 @@ func (te templateEditor) commitStepEdit() (templateEditor, tea.Cmd) {
 		}
 		sd.stepType = "command"
 		sd.run = run
+		sd.output = strings.TrimSpace(te.editOutputInput.Value())
 		sd.shell = false
 		sd.action = ""
 		sd.path = ""
@@ -368,8 +378,16 @@ func (te templateEditor) commitStepEdit() (templateEditor, tea.Cmd) {
 		sd.action = builtinActions[te.editActCursor]
 		sd.path = path
 		sd.run = ""
+		sd.output = ""
+		sd.shell = false
 	}
 	sd.isPost = te.editIsPost
+	candidate := tmpl.Template{Name: "draft", Steps: []tmpl.TemplateStep{{Type: sd.stepType, Run: sd.run, Action: sd.action, Path: sd.path, Output: sd.output, Shell: sd.shell}}}
+	if errs := tmpl.ValidateFile(tmpl.TemplateFile{Templates: []tmpl.Template{candidate}}); len(errs) > 0 {
+		te.statusMsg = errorStyle.Render("! " + errs[0])
+		return te, nil
+	}
+	te.steps[te.editIdx] = sd
 	te.statusMsg = ""
 	te.layer = telStepList
 	return te, nil
@@ -491,232 +509,3 @@ func (te templateEditor) updateConfirmDel(msg tea.Msg) (templateEditor, tea.Cmd)
 // ---------------------------------------------------------------------------
 // templateEditor.View
 // ---------------------------------------------------------------------------
-
-func (te templateEditor) View(w, h int) string {
-	switch te.layer {
-	case telStepEdit:
-		return te.viewStepEdit(w, h)
-	case telMetaEdit:
-		return te.viewMetaEdit(w, h)
-	case telConfirmDel:
-		return te.viewConfirmDel(w, h)
-	default:
-		return te.viewStepList(w, h)
-	}
-}
-
-func (te templateEditor) viewStepList(w, h int) string {
-	title := "Edit Template"
-	if te.isNew {
-		title = "New Template"
-	}
-
-	var inner strings.Builder
-	name := strings.TrimSpace(te.nameInput.Value())
-	if name == "" {
-		name = "(unnamed)"
-	}
-	inner.WriteString(promptStyle.Render("Template: ") +
-		lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(name) +
-		dimStyle.Render("  (m to edit meta)") + "\n\n")
-
-	inner.WriteString(promptStyle.Render("Steps:") + "\n")
-	for i, sd := range te.steps {
-		label := stepLabel(sd)
-		postTag := ""
-		if sd.isPost {
-			postTag = dimStyle.Render(" [post]")
-		}
-		if i == te.cursor {
-			inner.WriteString(activeStyle.Render("▶ "+label) + postTag + "\n")
-		} else {
-			inner.WriteString("  " + lipgloss.NewStyle().Foreground(theme.Secondary).Render(label) + postTag + "\n")
-		}
-	}
-
-	addIdx := len(te.steps)
-	addPostIdx := len(te.steps) + 1
-	addLabel := lipgloss.NewStyle().Foreground(theme.Info).Bold(true).Render("✦  add step")
-	addPostLabel := lipgloss.NewStyle().Foreground(theme.Info).Bold(true).Render("✦  add post-step")
-
-	if te.cursor == addIdx {
-		inner.WriteString(activeStyle.Render("▶ ") + addLabel + "\n")
-	} else {
-		inner.WriteString("  " + addLabel + "\n")
-	}
-	if te.cursor == addPostIdx {
-		inner.WriteString(activeStyle.Render("▶ ") + addPostLabel + "\n")
-	} else {
-		inner.WriteString("  " + addPostLabel + "\n")
-	}
-
-	if te.statusMsg != "" {
-		inner.WriteString("\n" + te.statusMsg)
-	}
-	inner.WriteString("\n\n" + hintStyle.Render("j/k navigate  •  enter edit  •  d delete  •  m meta  •  ctrl+s save  •  esc cancel"))
-
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		RenderTitle(),
-		promptStyle.Render("  "+title),
-		"",
-		wrapInBox(title, inner.String()),
-	)
-	return centerInTerminal(w, h, content)
-}
-
-func stepLabel(sd stepDraft) string {
-	if sd.stepType == "builtin" {
-		return fmt.Sprintf("[builtin] %s %s", sd.action, sd.path)
-	}
-	run := sd.run
-	if len(run) > 55 {
-		run = run[:52] + "..."
-	}
-	return fmt.Sprintf("[cmd] %s", run)
-}
-
-func (te templateEditor) viewStepEdit(w, h int) string {
-	focusIndicator := func(idx int, label string) string {
-		if te.editFocus == idx {
-			return promptStyle.Render("▶ " + label)
-		}
-		return dimStyle.Render("  " + label)
-	}
-
-	// Step type selector
-	typeLabels := []string{"command", "builtin"}
-	var typeParts []string
-	for i, tl := range typeLabels {
-		if i == te.editTypeCursor {
-			typeParts = append(typeParts, activeStyle.Render(" "+tl+" "))
-		} else {
-			typeParts = append(typeParts, dimStyle.Render(tl))
-		}
-	}
-	typeLine := focusIndicator(0, "Type: ") + strings.Join(typeParts, dimStyle.Render("  ·  ")) +
-		dimStyle.Render("  (h/l or ←/→ to switch)")
-
-	postLabel := "add to post-steps: "
-	if te.editIsPost {
-		postLabel += lipgloss.NewStyle().Foreground(theme.Success).Bold(true).Render("yes")
-	} else {
-		postLabel += dimStyle.Render("no")
-	}
-
-	var inner strings.Builder
-	inner.WriteString(typeLine + "\n\n")
-
-	lastFieldIdx := 0
-	if te.editTypeCursor == 0 {
-		inner.WriteString(focusIndicator(1, "Command:") + "\n")
-		inner.WriteString(te.editRunInput.View() + "\n\n")
-		inner.WriteString(dimStyle.Render("  Tip: use {{project_name}}, {{project_path}}, {{domain}}, {{root}}") + "\n\n")
-		lastFieldIdx = 2 // post-step is field index 2 (editFieldCount=3, last=2)
-	} else {
-		// action selector — field index 1
-		var actParts []string
-		for i, a := range builtinActions {
-			if i == te.editActCursor {
-				actParts = append(actParts, activeStyle.Render(" "+a+" "))
-			} else {
-				actParts = append(actParts, dimStyle.Render(a))
-			}
-		}
-		actLine := focusIndicator(1, "Action: ") + strings.Join(actParts, dimStyle.Render("  ·  ")) +
-			dimStyle.Render("  (h/l to cycle)")
-		inner.WriteString(actLine + "\n\n")
-		// path input — field index 2
-		inner.WriteString(focusIndicator(2, "Path (relative):") + "\n")
-		inner.WriteString(te.editPathInput.View() + "\n\n")
-		lastFieldIdx = 3 // post-step is field index 3 (editFieldCount=4, last=3)
-	}
-
-	postFocusIdx := lastFieldIdx
-	postLineStr := focusIndicator(postFocusIdx, postLabel)
-	if te.editFocus == postFocusIdx {
-		postLineStr += dimStyle.Render("  (enter/space to toggle)")
-	}
-	inner.WriteString(postLineStr + "\n")
-
-	if te.statusMsg != "" {
-		inner.WriteString("\n" + te.statusMsg)
-	}
-	if te.typing {
-		inner.WriteString("\n\n" + hintStyle.Render("typing mode  •  esc to stop typing  •  ctrl+s save all"))
-	} else {
-		inner.WriteString("\n\n" + hintStyle.Render("j/k navigate  •  i to type  •  h/l cycle type/action  •  enter confirm  •  esc back  •  ctrl+s save all"))
-	}
-
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		RenderTitle(),
-		promptStyle.Render("  Edit Step"),
-		"",
-		wrapInBox("Edit Step", inner.String()),
-	)
-	return centerInTerminal(w, h, content)
-}
-
-func (te templateEditor) viewMetaEdit(w, h int) string {
-	focusIndicator := func(idx int, label string) string {
-		if te.metaFocus == idx {
-			return promptStyle.Render("▶ " + label)
-		}
-		return dimStyle.Render("  " + label)
-	}
-	boolStr := func(b bool) string {
-		if b {
-			return lipgloss.NewStyle().Foreground(theme.Success).Bold(true).Render("yes")
-		}
-		return dimStyle.Render("no")
-	}
-
-	var inner strings.Builder
-	inner.WriteString(focusIndicator(0, "Name:") + "\n")
-	inner.WriteString(te.nameInput.View() + "\n\n")
-	inner.WriteString(focusIndicator(1, "Description:") + "\n")
-	inner.WriteString(te.descInput.View() + "\n\n")
-
-	interactiveLine := focusIndicator(2, "Interactive (uses PTY): ") + boolStr(te.interactive)
-	if te.metaFocus == 2 {
-		interactiveLine += dimStyle.Render("  (enter/space to toggle)")
-	}
-	inner.WriteString(interactiveLine + "\n\n")
-
-	folderLine := focusIndicator(3, "Creates project folder: ") + boolStr(te.createsProjectFolder)
-	if te.metaFocus == 3 {
-		folderLine += dimStyle.Render("  (enter/space to toggle)")
-	}
-	inner.WriteString(folderLine + "\n")
-
-	if te.typing {
-		inner.WriteString("\n\n" + hintStyle.Render("typing mode  •  esc to stop typing  •  ctrl+s save all"))
-	} else {
-		inner.WriteString("\n\n" + hintStyle.Render("j/k navigate  •  i to type  •  enter/space toggle bools  •  esc back  •  ctrl+s save all"))
-	}
-
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		RenderTitle(),
-		promptStyle.Render("  Template Meta"),
-		"",
-		wrapInBox("Template Meta", inner.String()),
-	)
-	return centerInTerminal(w, h, content)
-}
-
-func (te templateEditor) viewConfirmDel(w, h int) string {
-	label := ""
-	if te.cursor < len(te.steps) {
-		label = stepLabel(te.steps[te.cursor])
-	}
-	inner := warningStyle.Render(fmt.Sprintf("Delete step \"%s\"?", label)) + "\n\n" +
-		hintStyle.Render("y/enter — yes  •  n/esc — no")
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		RenderTitle(),
-		wrapInWarningBox("Confirm Delete", inner),
-	)
-	return centerInTerminal(w, h, content)
-}
-
-// ===========================================================================
-// Persistence helpers
-// ===========================================================================

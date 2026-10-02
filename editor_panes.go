@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	"strconv"
 	"strings"
@@ -224,58 +223,6 @@ func (sp *splitPaneEditor) syncEditFocus() {
 		sp.sizeInput.Focus()
 	}
 }
-
-func (sp splitPaneEditor) View() string {
-	if sp.editing {
-		var inner strings.Builder
-		focusIndicator := func(idx int, label string) string {
-			if sp.editFocus == idx {
-				return promptStyle.Render("▶ " + label)
-			}
-			return dimStyle.Render("  " + label)
-		}
-		inner.WriteString(focusIndicator(0, "Command:") + "\n")
-		inner.WriteString(sp.cmdInput.View() + "\n\n")
-		inner.WriteString(focusIndicator(1, "Size % (0 = auto):") + "\n")
-		inner.WriteString(sp.sizeInput.View() + "\n\n")
-		if sp.typing {
-			inner.WriteString(hintStyle.Render("typing mode  •  esc to stop typing  •  enter confirm"))
-		} else {
-			inner.WriteString(hintStyle.Render("j/k navigate  •  i to type  •  enter save pane  •  esc back"))
-		}
-		if sp.statusMsg != "" {
-			inner.WriteString("\n" + sp.statusMsg)
-		}
-		return wrapInBox("Edit Pane", inner.String())
-	}
-
-	var inner strings.Builder
-	dirLabel := lipgloss.NewStyle().Foreground(theme.Info).Bold(true).Render(sp.direction)
-	inner.WriteString(promptStyle.Render("Direction: ") + dirLabel + dimStyle.Render("  (r to toggle)") + "\n\n")
-	inner.WriteString(promptStyle.Render("Panes:") + "\n")
-	for i, p := range sp.panes {
-		cmdStr := p.command
-		if cmdStr == "" {
-			cmdStr = "(shell)"
-		}
-		sizeStr := ""
-		if p.size > 0 {
-			sizeStr = dimStyle.Render(fmt.Sprintf(" [%d%%]", p.size))
-		}
-		label := fmt.Sprintf("pane %d: %s", i+1, cmdStr) + sizeStr
-		if i == sp.cursor {
-			inner.WriteString(activeStyle.Render("▶ "+fmt.Sprintf("pane %d: %s", i+1, cmdStr)) + sizeStr + "\n")
-		} else {
-			inner.WriteString(dimStyle.Render("  ") + lipgloss.NewStyle().Foreground(theme.Secondary).Render(label) + "\n")
-		}
-	}
-	inner.WriteString("\n" + hintStyle.Render("j/k navigate  •  enter edit  •  a add  •  d delete  •  r toggle dir  •  esc back"))
-	return wrapInBox("Pane Layout", inner.String())
-}
-
-// ===========================================================================
-// TEMPLATE EDITOR
-// ===========================================================================
 
 func parsePaneSize(value string) (int, error) {
 	value = strings.TrimSpace(value)
