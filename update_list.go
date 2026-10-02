@@ -7,57 +7,33 @@ import (
 	"github.com/richardnascimento18/devdock/internal/core"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
-	"github.com/richardnascimento18/devdock/internal/ui"
 
-	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.searching {
+		return m.updateSearch(msg)
+	}
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if !m.list.SettingFilter() {
-			switch msg.String() {
-			case "tab", "shift+tab":
-				delta := 1
-				if msg.String() == "shift+tab" {
-					delta = -1
-				}
-				m.focus = m.focus.Cycle(delta, false)
-				return m, nil
-			case "q":
-				return m, tea.Quit
-			}
-			if m.focus == ui.Workspace {
-				switch msg.String() {
-				case "j", "down", "l", "right":
-					m.rootSel.Next()
-				case "k", "up", "h", "left":
-					m.rootSel.Prev()
-				case "enter", "esc":
-					m.focus = ui.Projects
-					return m, nil
-				default:
-					break
-				}
-				if msg.String() == "j" || msg.String() == "down" || msg.String() == "l" || msg.String() == "right" || msg.String() == "k" || msg.String() == "up" || msg.String() == "h" || msg.String() == "left" {
-					return m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0), nil
-				}
-			}
+		if next, cmd, handled := m.updateDashboardNavigation(msg); handled {
+			return next, cmd
 		}
+
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
 
 		case "?":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				m.state = stateHelp
 				m.helpScroll = 0
 				return m, nil
 			}
 
 		case "[":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				m.activeTab = (m.activeTab + len(tabNames) - 1) % len(tabNames)
 				m.uiState.ActiveTab = m.activeTab
 				m.saveState()
@@ -65,11 +41,12 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m = m.refreshTmuxSessions()
 				}
 				m = m.refreshTabList()
+				m = m.applySearch()
 				return m, nil
 			}
 
 		case "]":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				m.activeTab = (m.activeTab + 1) % len(tabNames)
 				m.uiState.ActiveTab = m.activeTab
 				m.saveState()
@@ -77,21 +54,17 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m = m.refreshTmuxSessions()
 				}
 				m = m.refreshTabList()
+				m = m.applySearch()
 				return m, nil
 			}
 
 		case "f":
-			if !m.list.SettingFilter() {
-				sel := m.list.SelectedItem()
-				var projPath string
-				switch s := sel.(type) {
-				case item:
-					projPath = s.project.Path
-				case flatItem:
-					projPath = s.item.project.Path
-				case favoriteItem:
-					projPath = s.project.Path
+			if !m.searching {
+				projPath := ""
+				if project, ok := m.actionProject(); ok {
+					projPath = project.Path
 				}
+
 				if projPath != "" {
 					m.uiState.ToggleFavorite(projPath)
 					if !m.saveState() {
@@ -112,15 +85,21 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "}":
 			m.rootSel.Next()
+			m.workspaceScope = nil
+			m.lastFilter = ""
+			m.isFiltered = false
 			m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 			return m, nil
 		case "{":
 			m.rootSel.Prev()
+			m.workspaceScope = nil
+			m.lastFilter = ""
+			m.isFiltered = false
 			m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 			return m, nil
 
 		case "p", "P":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				proposedSel := m.presetSel
 				if msg.String() == "p" {
 					proposedSel.Next()
@@ -139,7 +118,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "v":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				m.treeMode = !m.treeMode
 				m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 				mode := "flat"
@@ -152,7 +131,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case " ":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				sel := m.list.SelectedItem()
 				if gi, ok := sel.(groupItem); ok {
 					m.collapsedNodes[gi.nodeKey] = !m.collapsedNodes[gi.nodeKey]
@@ -163,24 +142,24 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "g":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				return m.startGitHubAuth()
 			}
 		case "G":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				return m.startCreateGroup()
 			}
 		case "ctrl+g":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				return m.startDeleteGroup()
 			}
 		case "e":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				return m.startEditor()
 			}
 
 		case "r":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				m = m.rescan()
 				var cmd tea.Cmd
 				if m.cfg.IsGitHubConnected() {
@@ -191,80 +170,60 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "c":
-			if !m.list.SettingFilter() && m.isFiltered && m.activeTab == TabSearch {
+			if !m.searching && m.isFiltered && m.activeTab == TabSearch {
 				m.isFiltered = false
+				m.lastFilter = ""
 				m = m.refreshTabList()
 				m.statusMsg = ""
 				return m, nil
 			}
 
 		case "m":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				return m.startMoveProject(), nil
 			}
 
 		case "n":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				return m.startNewProject("")
 			}
 		case "N":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				return m.startNewDomainOnly()
 			}
 		case "x":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				if m.activeTab == TabTmux {
 					return m.startDeleteTmuxSession()
 				}
 				return m.startDeleteProject()
 			}
 		case "X":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				return m.startDeleteDomain()
 			}
 		case "a":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				return m.startAddRoot()
 			}
 		case "A":
-			if !m.list.SettingFilter() {
+			if !m.searching {
 				return m.startRemoveRoot()
 			}
 
 		case "/":
-			if !m.list.SettingFilter() && m.activeTab == TabSearch {
-				searchModel := m
-				searchModel.treeMode = false
-				searchItems := searchModel.buildListItems(m.rawProjects, m.cfg.IsGitHubConnected())
-				searchItems = m.appendGitHubItems(searchItems, m.rawProjects)
-				m.list.SetItems(searchItems)
-				m.list.SetFilteringEnabled(true)
-			}
+			return m.beginSearch()
 
 		case "esc":
-			if !m.list.SettingFilter() && m.isFiltered && m.activeTab == TabSearch {
+			if !m.searching && m.isFiltered && m.activeTab == TabSearch {
 				m.isFiltered = false
+				m.lastFilter = ""
 				m = m.refreshTabList()
 				m.statusMsg = ""
 				return m, nil
 			}
 
 		case "enter":
-			if m.list.SettingFilter() {
-				query := m.list.FilterValue()
-				m.lastFilter = query
-				filtered := m.list.VisibleItems()
-				var withCreate []list.Item
-				withCreate = append(withCreate, filtered...)
-				if m.activeTab == TabSearch {
-					withCreate = append(withCreate, createProjectItem{name: query})
-				}
-				m.list.ResetFilter()
-				m.list.SetItems(withCreate)
-				m.isFiltered = true
-				m.statusMsg = dimStyle.Render(fmt.Sprintf("filter: \"%s\"  •  c or esc to clear", query))
-				return m, nil
-			}
 			sel := m.list.SelectedItem()
 			if sel == nil {
 				return m, nil
@@ -382,15 +341,8 @@ func (m model) startDeleteProject() (tea.Model, tea.Cmd) {
 		m.statusMsg = dimStyle.Render("Repository not cloned locally - nothing to delete")
 		return m, nil
 	}
-	var proj core.Project
-	switch s := sel.(type) {
-	case item:
-		proj = s.project
-	case flatItem:
-		proj = s.item.project
-	case favoriteItem:
-		proj = s.project
-	default:
+	proj, ok := m.actionProject()
+	if !ok {
 		return m, nil
 	}
 	m.deleteTarget = proj
@@ -430,16 +382,8 @@ func (m model) startRemoveRoot() (tea.Model, tea.Cmd) {
 }
 
 func (m model) startMoveProject() model {
-	sel := m.list.SelectedItem()
-	var proj core.Project
-	switch s := sel.(type) {
-	case item:
-		proj = s.project
-	case flatItem:
-		proj = s.item.project
-	case favoriteItem:
-		proj = s.project
-	default:
+	proj, ok := m.actionProject()
+	if !ok {
 		return m
 	}
 	m.domainIntent = domainForMove

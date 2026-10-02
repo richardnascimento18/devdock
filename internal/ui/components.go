@@ -51,11 +51,60 @@ func TooSmall(width, height int) string {
 // Modal wraps text and preserves its full content. Screen owners handle vertical
 // scrolling; titles and footer remain separately visible. It never paints cells.
 func Modal(title, body, hint string, width, height int) string {
-	w := min(76, max(width-2, 1))
-	inner := max(w-4, 1)
-	body = ansi.Hardwrap(body, inner, true)
+	return ModalAt(title, body, hint, width, height, 0)
+}
+
+func ModalInnerWidth(width int) int { return max(min(76, max(width-2, 1))-4, 1) }
+
+// ModalAt reserves title/footer space and pages the entire wrapped body. The
+// caller owns offset and captures PageUp/PageDown before routing form keys.
+func modalLayout(body, hint string, width, height int) ([]string, string, int, int) {
+	inner := ModalInnerWidth(width)
+	bodyLines := strings.Split(ansi.Hardwrap(body, inner, true), "\n")
+	originalHint := hint
+	hint = ansi.Wrap(hint, inner, "")
+	hintLines := strings.Split(hint, "\n")
+	if len(hintLines) > 2 {
+		if strings.Contains(originalHint, "enter") {
+			hint = "enter · esc cancel"
+		} else {
+			hint = "esc cancel"
+		}
+		hintLines = strings.Split(ansi.Wrap(hint, inner, ""), "\n")
+	}
+	rows := max(height-3-len(hintLines), 1)
+	if len(bodyLines) > rows {
+		if inner < 35 {
+			if strings.Contains(originalHint, "enter") {
+				hint = "enter · esc cancel"
+			} else {
+				hint = "esc cancel"
+			}
+			hint += "\npgup/pgdn details"
+		} else {
+			hint = originalHint + " · pgup/pgdn details"
+		}
+		hintLines = strings.Split(ansi.Wrap(hint, inner, ""), "\n")
+		if len(hintLines) > 2 {
+			hintLines = hintLines[:2]
+		}
+		rows = max(height-3-len(hintLines), 1)
+	}
+	return bodyLines, strings.Join(hintLines, "\n"), rows, inner
+}
+
+func ModalScrollLimit(body, hint string, width, height int) int {
+	lines, _, rows, _ := modalLayout(body, hint, width, height)
+	return max(len(lines)-rows, 0)
+}
+
+func ModalAt(title, body, hint string, width, height, offset int) string {
+	lines, hint, rows, inner := modalLayout(body, hint, width, height)
+	offset = min(max(offset, 0), max(len(lines)-rows, 0))
+	lines = lines[offset:min(offset+rows, len(lines))]
+	title = ansi.Truncate(title, max(inner-2, 1), "…")
 	panel := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).
-		BorderForeground(Default.BorderFocused).Padding(0, 1).Width(inner).
-		Render(PaneTitle(title, true, inner) + "\n" + body + "\n" + Foreground(Default.Muted).Render(ansi.Hardwrap(hint, inner, true)))
+		BorderForeground(Default.BorderFocused).Padding(0, 1).Width(inner + 2).
+		Render(PaneTitle(title, true, inner) + "\n" + strings.Join(lines, "\n") + "\n" + Foreground(Default.Muted).Render(hint))
 	return Fit(lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, panel), width, height)
 }

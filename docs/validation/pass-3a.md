@@ -53,6 +53,14 @@ the existing `termenv` dependency becomes direct for color-profile regression te
 
 Release target: [v1.1.0-beta.6](https://github.com/richardnascimento18/devdock/releases/tag/v1.1.0-beta.6).
 Feature PR: [#19](https://github.com/richardnascimento18/devdock/pull/19).
+Promotion [#20](https://github.com/richardnascimento18/devdock/pull/20) produced
+`ba525a76cb8f6418b9f0f3fa95f814e797f32e5a`. Actual published beta.6 assets passed
+checksum/architecture checks; the downloaded amd64 passed version/commit and
+expanded-at-the-time PTY smoke. Release run `37022997486` succeeded.
+Reconciliation [#21](https://github.com/richardnascimento18/devdock/pull/21) produced
+staging `1e00eb6696b1db93ccff25cdb20a158bc5a7074d`. Its push run `37024501159`
+passed. Trees are equal and production is an ancestor; only permanent remote
+branches remain. Complete live JSON/log evidence is included in the review package.
 Protected feature → staging → production PRs, hosted runs, release verification
 and production → staging reconciliation are recorded in the review evidence.
 These steps must finish before 3B starts.
