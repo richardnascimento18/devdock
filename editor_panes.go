@@ -250,7 +250,7 @@ func (sp splitPaneEditor) View() string {
 	}
 
 	var inner strings.Builder
-	dirLabel := lipgloss.NewStyle().Foreground(colorCyan).Bold(true).Render(sp.direction)
+	dirLabel := lipgloss.NewStyle().Foreground(theme.Info).Bold(true).Render(sp.direction)
 	inner.WriteString(promptStyle.Render("Direction: ") + dirLabel + dimStyle.Render("  (r to toggle)") + "\n\n")
 	inner.WriteString(promptStyle.Render("Panes:") + "\n")
 	for i, p := range sp.panes {
@@ -266,7 +266,7 @@ func (sp splitPaneEditor) View() string {
 		if i == sp.cursor {
 			inner.WriteString(activeStyle.Render("▶ "+fmt.Sprintf("pane %d: %s", i+1, cmdStr)) + sizeStr + "\n")
 		} else {
-			inner.WriteString(dimStyle.Render("  ") + lipgloss.NewStyle().Foreground(colorGray).Render(label) + "\n")
+			inner.WriteString(dimStyle.Render("  ") + lipgloss.NewStyle().Foreground(theme.Secondary).Render(label) + "\n")
 		}
 	}
 	inner.WriteString("\n" + hintStyle.Render("j/k navigate  •  enter edit  •  a add  •  d delete  •  r toggle dir  •  esc back"))

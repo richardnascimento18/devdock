@@ -1,0 +1,37 @@
+DevDock  all roots · Search · preset walker
+  Workspace root │  all   ·  work  ({ / })
+> Projects  3 items
+> billing-api (backend) services ›   🐹 Go
+  billing-api (frontend)  Ts TS
+  auth-日本語-é (backend)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+5cede220befcfae8  /workspace/work/backend/services/billing-api
+/ search · enter open · tab focus · ? help · q quit

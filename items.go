@@ -20,7 +20,7 @@ type item struct {
 
 func (i item) Title() string {
 	prefix := visualIndent(i.indent)
-	name := lipgloss.NewStyle().Bold(true).Foreground(colorWhite).Render(i.project.Name)
+	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(i.project.Name)
 	domain := domainStyle.Render(" (" + i.project.Domain + ")")
 	line := prefix + name + domain + RenderGroupBreadcrumb(i.project.GroupPath)
 	if i.showRoot {
@@ -50,7 +50,7 @@ func (f flatItem) FilterValue() string { return f.item.FilterValue() }
 type githubItem struct{ repo gh.Repo }
 
 func (g githubItem) Title() string {
-	name := lipgloss.NewStyle().Bold(true).Foreground(colorGray).Render(g.repo.Name)
+	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Secondary).Render(g.repo.Name)
 	return name + " " + ghStyle.Render("(GITHUB)") + " " + notClonedStyle.Render("(not cloned)")
 }
 func (g githubItem) Description() string { return "" }
@@ -59,7 +59,7 @@ func (g githubItem) FilterValue() string { return g.repo.Name }
 type createProjectItem struct{ name string }
 
 func (c createProjectItem) Title() string {
-	return lipgloss.NewStyle().Foreground(colorCyan).Bold(true).
+	return lipgloss.NewStyle().Foreground(theme.Info).Bold(true).
 		Render(fmt.Sprintf("✦  create new project \"%s\"", c.name))
 }
 func (c createProjectItem) Description() string { return "" }
@@ -68,7 +68,7 @@ func (c createProjectItem) FilterValue() string { return c.name }
 type recentItem struct{ entry state.RecentEntry }
 
 func (r recentItem) Title() string {
-	name := lipgloss.NewStyle().Bold(true).Foreground(colorWhite).Render(r.entry.Name)
+	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(r.entry.Name)
 	domain := domainStyle.Render(" (" + r.entry.Domain + ")")
 	ts := dimStyle.Render("  " + r.entry.OpenedAt.Format("Jan 02  15:04"))
 	return name + domain + RenderGroupBreadcrumb(r.entry.GroupPath) + " " + rootTagStyle.Render(r.entry.Root) + ts
@@ -85,8 +85,8 @@ type favoriteItem struct {
 }
 
 func (f favoriteItem) Title() string {
-	star := lipgloss.NewStyle().Foreground(colorYellow).Bold(true).Render("★ ")
-	name := lipgloss.NewStyle().Bold(true).Foreground(colorWhite).Render(f.project.Name)
+	star := lipgloss.NewStyle().Foreground(theme.Favorite).Bold(true).Render("★ ")
+	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(f.project.Name)
 	domain := domainStyle.Render(" (" + f.project.Domain + ")")
 	line := star + name + domain + RenderGroupBreadcrumb(f.project.GroupPath)
 	if f.showRoot {
@@ -140,8 +140,8 @@ func visualIndent(depth int) string {
 type tmuxSessionItem struct{ name string }
 
 func (t tmuxSessionItem) Title() string {
-	bullet := lipgloss.NewStyle().Foreground(colorGreen).Bold(true).Render("● ")
-	name := lipgloss.NewStyle().Bold(true).Foreground(colorWhite).Render(t.name)
+	bullet := lipgloss.NewStyle().Foreground(theme.Success).Bold(true).Render("● ")
+	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(t.name)
 	return bullet + name
 }
 func (t tmuxSessionItem) Description() string { return "" }

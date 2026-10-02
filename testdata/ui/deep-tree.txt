@@ -1,0 +1,37 @@
+DevDock  all roots · Search · preset walker
+  Workspace root │  all   ·  work  ({ / })
+> Projects  1 items
+>         … ▼ services [3] backend › … › g › g › leaf /workspace/work
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+838009ecddffee91  /workspace/work/backend/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g/g…
+/ search · enter open · tab focus · ? help · q quit

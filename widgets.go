@@ -6,7 +6,8 @@ import (
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/preset"
 
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
 // ---------------------------------------------------------------------------
@@ -56,7 +57,7 @@ func (r rootSelectorWidget) View() string {
 			b.WriteString(dimStyle.Render(label))
 		}
 	}
-	b.WriteString(dimStyle.Render("  (tab / shift+tab)"))
+	b.WriteString(dimStyle.Render("  ({ / })"))
 	return b.String()
 }
 
@@ -151,8 +152,8 @@ var helpSections = []struct {
 			{"/", "filter list"},
 			{"c  /  esc", "clear active filter"},
 			{"[  /  ]", "switch tab (Search / Recents / Favorites)"},
-			{"tab", "cycle root filter →"},
-			{"shift+tab", "cycle root filter ←"},
+			{"tab / shift+tab", "cycle pane focus"},
+			{"{ / }", "cycle root filter"},
 			{"p / P", "cycle default preset →/←"},
 		},
 	},
@@ -194,37 +195,21 @@ var helpSections = []struct {
 	},
 }
 
-var helpOverlayStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(colorPurple).
-	Background(lipgloss.Color("232")).
-	Padding(1, 4).
-	Width(76)
+func RenderHelpOverlay(termW, termH int) string { return renderHelpOverlay(termW, termH, 0) }
 
-func RenderHelpOverlay(termW, termH int) string {
-	var body strings.Builder
-	body.WriteString(promptStyle.Render("Keyboard Reference") + "\n")
-	body.WriteString(dimStyle.Render("────────────────────────────────────────────────────────────") + "\n\n")
-	keyW := 16
+func renderHelpOverlay(termW, termH, offset int) string {
+	var lines []string
+	width := min(70, max(termW-8, 1))
 	for _, section := range helpSections {
-		body.WriteString(lipgloss.NewStyle().
-			Bold(true).
-			Foreground(colorPurpleLight).
-			Render(section.title) + "\n")
-		for _, e := range section.entries {
-			keyStr := lipgloss.NewStyle().Foreground(colorYellow).Bold(true).Width(keyW).Render(e.key)
-			descStr := lipgloss.NewStyle().Foreground(colorGray).Render(e.desc)
-			body.WriteString("  " + keyStr + "  " + descStr + "\n")
+		lines = append(lines, promptStyle.Render(section.title))
+		for _, entry := range section.entries {
+			line := entry.key + "  " + entry.desc
+			lines = append(lines, strings.Split(ansi.Hardwrap(line, width, true), "\n")...)
 		}
-		body.WriteString("\n")
+		lines = append(lines, "")
 	}
-	body.WriteString(hintStyle.Render("press ? or esc to close"))
-	panel := helpOverlayStyle.Render(body.String())
-	logoBlock := lipgloss.JoinVertical(lipgloss.Center,
-		titleStyle.Render(asciiTitle),
-		subtitleStyle.Render("your terminal workspace manager"),
-		"",
-	)
-	full := lipgloss.JoinVertical(lipgloss.Center, logoBlock, panel)
-	return lipgloss.Place(termW, termH, lipgloss.Center, lipgloss.Center, full)
+	rows := max(termH-8, 1)
+	offset = min(max(offset, 0), max(len(lines)-rows, 0))
+	body := strings.Join(lines[offset:min(offset+rows, len(lines))], "\n")
+	return ui.Modal("Keyboard Reference", body, "j/k scroll · ? / esc close", termW, termH)
 }

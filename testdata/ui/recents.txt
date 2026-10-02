@@ -1,0 +1,37 @@
+DevDock  all roots · Recents · preset walker
+  Workspace root │  all   ·  work  ({ / })
+> Projects  1 items
+> billing-api (backend) services ›  /workspace/work  Jan 02  15:04
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+5cede220befcfae8  /workspace/work/backend/services/billing-api
+/ search · enter open · tab focus · ? help · q quit

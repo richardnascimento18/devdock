@@ -1,0 +1,37 @@
+DevDock  all roots · Favorites · preset walker
+  Workspace root │  all   ·  work  ({ / })
+> Projects  1 items
+> ★ billing-api (backend) services ›   🐹 Go
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+5cede220befcfae8  /workspace/work/backend/services/billing-api
+/ search · enter open · tab focus · ? help · q quit

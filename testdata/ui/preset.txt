@@ -1,0 +1,28 @@
+
+
+
+
+
+
+
+
+
+
+
+            DevDock
+              Edit Preset
+
+            Edit Preset
+            ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
+            │ Preset name:                                                                                 │
+            │ > walker                                                                                     │
+            │                                                                                              │
+            │ Windows:                                                                                     │
+            │ ▶ nvim  $ nvim                                                                               │
+            │   terminal                                                                                   │
+            │   ai-chat  $ opencode                                                                        │
+            │   ✦  add window                                                                              │
+            │                                                                                              │
+            │                                                                                              │
+            │ j/k navigate  •  i to edit name  •  enter open  •  d/x delete  •  ctrl+s save  •  esc cancel │
+            ╰──────────────────────────────────────────────────────────────────────────────────────────────╯

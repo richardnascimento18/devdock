@@ -1,0 +1,37 @@
+DevDock  all roots · Search · preset walker
+  Workspace root │  all   ·  work  ({ / })
+> Projects  0 items
+No projects here yet.
+Press n to create a project or g to connect GitHub.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/ search · enter open · tab focus · ? help · q quit
