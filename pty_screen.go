@@ -196,14 +196,14 @@ func (p *ptyScreen) flushPending() {
 // buildViewportContent renders all committed lines plus the live block into a string.
 func (p *ptyScreen) buildViewportContent(extraPending string) string {
 	w := vpW(p.width)
-	tsStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	sepStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
-	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
-	cmdStyle := lipgloss.NewStyle().Foreground(colorCyan).Bold(true)
-	sysStyle := lipgloss.NewStyle().Foreground(colorGray)
-	okStyle := lipgloss.NewStyle().Foreground(colorGreen).Bold(true)
-	errStyle := lipgloss.NewStyle().Foreground(colorRed)
-	liveStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
+	tsStyle := lipgloss.NewStyle().Foreground(theme.Faint)
+	sepStyle := lipgloss.NewStyle().Foreground(theme.Faint)
+	normalStyle := lipgloss.NewStyle().Foreground(theme.Primary)
+	cmdStyle := lipgloss.NewStyle().Foreground(theme.Info).Bold(true)
+	sysStyle := lipgloss.NewStyle().Foreground(theme.Secondary)
+	okStyle := lipgloss.NewStyle().Foreground(theme.Success).Bold(true)
+	errStyle := lipgloss.NewStyle().Foreground(theme.Error)
+	liveStyle := lipgloss.NewStyle().Foreground(theme.Primary)
 	const tsWidth = 19
 	const sepWidth = 4
 	msgW := w - tsWidth - sepWidth - 2
@@ -627,8 +627,7 @@ func (p *ptyScreen) startNextStep() (cmd tea.Cmd) {
 func (p ptyScreen) View() string {
 	titleBarStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(colorWhite).
-		Background(colorPurple).
+		Foreground(theme.Primary).
 		Padding(0, 2)
 
 	title := "Template Setup"
@@ -637,7 +636,7 @@ func (p ptyScreen) View() string {
 	}
 	titleBar := titleBarStyle.Render(title)
 
-	progressStyle := lipgloss.NewStyle().Foreground(colorGray).Padding(0, 1)
+	progressStyle := lipgloss.NewStyle().Foreground(theme.Secondary).Padding(0, 1)
 	var progress string
 	if p.completed {
 		progress = progressStyle.Render("✓ Complete")
@@ -655,7 +654,7 @@ func (p ptyScreen) View() string {
 	innerH := vpH(p.height)
 	terminalStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(colorPurple).
+		BorderForeground(theme.Accent).
 		Padding(0, 1).
 		Width(innerW).
 		Height(innerH)
@@ -663,10 +662,10 @@ func (p ptyScreen) View() string {
 
 	var footer string
 	if p.completed {
-		footer = lipgloss.NewStyle().Foreground(colorGreen).Bold(true).Padding(1, 0).
+		footer = lipgloss.NewStyle().Foreground(theme.Success).Bold(true).Padding(1, 0).
 			Render("Opening workspace...")
 	} else {
-		footer = lipgloss.NewStyle().Foreground(colorGray).Italic(true).
+		footer = lipgloss.NewStyle().Foreground(theme.Secondary).Italic(true).
 			Render("Interactive terminal • Type to send input • Ctrl+C to interrupt")
 	}
 

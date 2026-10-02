@@ -53,13 +53,13 @@ type presetEditor struct {
 }
 
 func newPresetEditor(p preset.Preset, isNew bool) presetEditor {
-	nameInp := textinput.New()
+	nameInp := transparentInput()
 	nameInp.SetValue(p.Name)
 	nameInp.CharLimit = 60
 	nameInp.Width = 40
 	nameInp.Cursor.Style = cursorStyle
 	nameInp.PromptStyle = promptStyle
-	nameInp.TextStyle = lipgloss.NewStyle().Foreground(colorWhite)
+	nameInp.TextStyle = lipgloss.NewStyle().Foreground(theme.Primary)
 
 	var windows []windowDraft
 	for _, w := range p.Windows {
@@ -389,7 +389,7 @@ func (pe presetEditor) viewWindowList(w, h int) string {
 		} else if wd.command != "" {
 			suffix = dimStyle.Render("  $ " + wd.command)
 		}
-		name := lipgloss.NewStyle().Bold(true).Foreground(colorWhite).Render(wd.name)
+		name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(wd.name)
 		var line string
 		if i == pe.cursor {
 			line = activeStyle.Render("▶ "+wd.name) + suffix
@@ -399,7 +399,7 @@ func (pe presetEditor) viewWindowList(w, h int) string {
 		inner.WriteString(line + "\n")
 	}
 	// "add window" entry
-	addLabel := lipgloss.NewStyle().Foreground(colorCyan).Bold(true).Render("✦  add window")
+	addLabel := lipgloss.NewStyle().Foreground(theme.Info).Bold(true).Render("✦  add window")
 	if pe.cursor == len(pe.windows) {
 		inner.WriteString(activeStyle.Render("▶ ") + addLabel + "\n")
 	} else {

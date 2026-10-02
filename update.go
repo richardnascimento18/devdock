@@ -67,8 +67,7 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 	if sz, ok := msg.(tea.WindowSizeMsg); ok {
 		m.termW = sz.Width
 		m.termH = sz.Height
-		m.list.SetWidth(max(1, min(sz.Width-10, 100)))
-		m.list.SetHeight(m.listHeight())
+		m.sizePresentation()
 		if m.state == statePTYExecution {
 			return m.updatePTYExecution(msg)
 		}

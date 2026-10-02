@@ -384,7 +384,7 @@ func (e editorScreen) viewList() string {
 			listLines = append(listLines, line)
 		}
 		// "create new" entry
-		createLabel := lipgloss.NewStyle().Foreground(colorCyan).Bold(true).Render("✦  new preset")
+		createLabel := lipgloss.NewStyle().Foreground(theme.Info).Bold(true).Render("✦  new preset")
 		idx := len(e.presets)
 		if e.cursor == idx {
 			listLines = append(listLines, activeStyle.Render("▶ ")+createLabel)
@@ -397,7 +397,7 @@ func (e editorScreen) viewList() string {
 			line := renderEditorListItem(i == e.cursor, t.Name, desc)
 			listLines = append(listLines, line)
 		}
-		createLabel := lipgloss.NewStyle().Foreground(colorCyan).Bold(true).Render("✦  new template")
+		createLabel := lipgloss.NewStyle().Foreground(theme.Info).Bold(true).Render("✦  new template")
 		idx := len(e.tmpls)
 		if e.cursor == idx {
 			listLines = append(listLines, activeStyle.Render("▶ ")+createLabel)
@@ -431,7 +431,7 @@ func (e editorScreen) viewList() string {
 }
 
 func renderEditorListItem(selected bool, name, extra string) string {
-	nameStr := lipgloss.NewStyle().Bold(true).Foreground(colorWhite).Render(name)
+	nameStr := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(name)
 	if selected {
 		return activeStyle.Render("▶ "+name) + extra
 	}
@@ -440,7 +440,7 @@ func renderEditorListItem(selected bool, name, extra string) string {
 
 var editorListBoxStyle = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder()).
-	BorderForeground(colorPurple).
+	BorderForeground(theme.Accent).
 	Padding(0, 2).
 	Width(70)
 
@@ -465,13 +465,13 @@ const (
 // ===========================================================================
 
 func newSmallInput(value, placeholder string, width int) textinput.Model {
-	ti := textinput.New()
+	ti := transparentInput()
 	ti.Placeholder = placeholder
 	ti.SetValue(value)
 	ti.CharLimit = 300
 	ti.Width = width
 	ti.Cursor.Style = cursorStyle
 	ti.PromptStyle = promptStyle
-	ti.TextStyle = lipgloss.NewStyle().Foreground(colorWhite)
+	ti.TextStyle = lipgloss.NewStyle().Foreground(theme.Primary)
 	return ti
 }
