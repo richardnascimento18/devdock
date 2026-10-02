@@ -4,9 +4,9 @@
 [38;2;173;173;189m  Workspace[0m               [1;38;2;197;165;255m> Projects[0m                                            [38;2;173;173;189m  Inspector[0m
 > [1;4;38;2;197;165;255;4mA[0m[1;4;38;2;197;165;255;4ml[0m[1;4;38;2;197;165;255;4ml[0m[38;2;197;165;255;4m [0m[1;4;38;2;197;165;255;4mw[0m[1;4;38;2;197;165;255;4mo[0m[1;4;38;2;197;165;255;4mr[0m[1;4;38;2;197;165;255;4mk[0m[1;4;38;2;197;165;255;4ms[0m[1;4;38;2;197;165;255;4mp[0m[1;4;38;2;197;165;255;4ma[0m[1;4;38;2;197;165;255;4mc[0m[1;4;38;2;197;165;255;4me[0m[1;4;38;2;197;165;255;4ms[0m          > [1;38;2;197;165;255m★ billing-api[0m                                       [1;38;2;197;165;255mProject[0m
   ▾ work[38;2;173;173;189m  d286[0m            [38;2;173;173;189m  work › backend › services · 5cede2[0m                  billing-api
-  │ ▾ /backend[38;2;173;173;189m  2[0m
-  │ │ · services[38;2;173;173;189m  1[0m                                                             [1;38;2;197;165;255mLocation[0m
-  │ · /frontend[38;2;173;173;189m  1[0m                                                              /workspace/work
+  ├─▾ /backend[38;2;173;173;189m  2[0m
+  │ └─· services[38;2;173;173;189m  1[0m                                                             [1;38;2;197;165;255mLocation[0m
+  └─· /frontend[38;2;173;173;189m  1[0m                                                              /workspace/work
                                                                                 backend › services
                                                                                 /workspace/work/backend/services/billi
                                                                                 ng-api
@@ -19,8 +19,8 @@
 
                                                                                 [1;38;2;197;165;255mTmux[0m
                                                                                 Preset: walker
-                                                                                Session state is available in the tmux
-                                                                                 tab.
+                                                                                Not checked; the tmux tab refreshes se
+                                                                                ssions.
 
                                                                                 [1;38;2;197;165;255mFavorite[0m
                                                                                 ★ Favorite

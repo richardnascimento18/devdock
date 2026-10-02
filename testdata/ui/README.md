@@ -6,6 +6,14 @@ is required. Review with `cat testdata/ui/main-wide.ansi` in a transparent termi
 Use `less -R testdata/ui/help.ansi` for larger fixtures. A text editor can inspect
 the matching plain text.
 
+The 40 pairs include wide/medium/narrow dashboard, 200-level tree, duplicate
+names, search/collections, inspector, palette/help, bulk confirmation, editors,
+loading/error/OAuth, template terminal, static progress and tiny-terminal states.
+Motion frames and terminal profiles are explicit, independent of runner env.
+Run `python3 scripts/smoke.py PATH_TO_BINARY --oauth-configured
+--configuration-editor --reduced-motion --capture /tmp/devdock.ansi` for an
+isolated real-terminal capture; omit `--reduced-motion` for animated progress.
+
 Regenerate deliberately after inspecting a presentation change:
 
 ```sh

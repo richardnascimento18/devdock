@@ -4,9 +4,9 @@ Search  ·  Recents  ·  Favorites  ·  tmux-sessions  0 projects
   Workspace               > Projects                                              Inspector
 > All workspaces          No projects here yet.                                 Select a project to inspect.
   ▾ work  d286            Press n to create or g to connect GitHub.             ctrl+p opens available actions.
-  │ ▾ /backend  2
-  │ │ · services  1
-  │ · /frontend  1
+  ├─▾ /backend  2
+  │ └─· services  1
+  └─· /frontend  1
 
 
 

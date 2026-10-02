@@ -6,7 +6,6 @@ import (
 	"github.com/richardnascimento18/devdock/internal/core"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -97,35 +96,18 @@ func (y yesNoScreen) content(termW, termH int) modalContent {
 // spinnerScreen
 // ---------------------------------------------------------------------------
 
-type spinnerScreen struct {
-	message string
-	frames  []string
-	frame   int
-}
+type spinnerScreen struct{ message string }
 
-func newSpinnerScreen(message string) spinnerScreen {
-	return spinnerScreen{
-		message: message,
-		frames:  []string{"⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"},
+func newSpinnerScreen(message string) spinnerScreen { return spinnerScreen{message: message} }
+func (s spinnerScreen) View(w, h, frame int, reduced, cancel bool) string {
+	hint := "Operation in progress"
+	if cancel {
+		hint = "esc cancel"
 	}
+	return ui.Modal("Working", ui.Activity(s.message, frame, reduced), hint, w, h)
 }
 
-type spinnerTickMsg struct{ id uint64 }
-
-func spinnerTick(id uint64) tea.Cmd {
-	return tea.Tick(120*time.Millisecond, func(_ time.Time) tea.Msg { return spinnerTickMsg{id: id} })
-}
-
-func (s spinnerScreen) View(termW, termH int) string {
-	spinner := lipgloss.NewStyle().Foreground(theme.Accent).Bold(true).Render(s.frames[s.frame])
-	msg := lipgloss.NewStyle().Foreground(theme.Secondary).Render(s.message)
-	inner := spinner + "  " + msg + "\n\n" + hintStyle.Render("please wait...")
-	content := lipgloss.JoinVertical(lipgloss.Center, RenderTitle(), boxStyle.Render(inner))
-	return centerInTerminal(termW, termH, content)
-}
-
-// ---------------------------------------------------------------------------
-// githubAuthScreen
+// // githubAuthScreen
 // ---------------------------------------------------------------------------
 
 type githubAuthScreen struct {

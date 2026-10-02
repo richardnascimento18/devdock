@@ -43,6 +43,7 @@ const (
 	stateBulkConfirm
 	stateBulkMoving
 	stateBulkResult
+	stateStatusDetails
 )
 
 const (

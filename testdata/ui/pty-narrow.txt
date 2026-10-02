@@ -1,0 +1,15 @@
+DevDock  Template Setup
+⣾ Step 1/1
+╭──────────────────────────────────────╮
+│$ printf 日本語 é 👩‍💻                  │
+│Preparing workspace…                  │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+│                                      │
+╰──────────────────────────────────────╯
+Type to send input · ctrl+c interrupt

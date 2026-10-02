@@ -106,7 +106,30 @@ field discard is labeled. Collection removal uses existing validated atomic save
 with a default-preset guard. Settings reuses the approved root workflows. Template
 command quoting/output/path checks run before accepting a step and again on save.
 No credentials enter presentation. Optional external handoff is not included.
-3E: one on-demand animation clock; foreground-only progress shimmer; environment
-reduced motion; final Unicode/resize/PTY/golden/performance diagnostics.
-Animation never drives operations; stale ticks are ignored and idle UI stops
-scheduling. Avoid new persisted UI preferences unless clearly necessary.
+3E implements `animation.go` and `internal/ui/animation.go`: a single 120 ms
+on-demand clock, generation-checked ticks, and a restrained grapheme-safe moving
+foreground highlight. Activity includes scan, clone/create/move/delete, OAuth,
+repository loading, cached tmux refresh, and template terminal steps. Hidden or
+completed work stops presentation ticks. Async operation IDs and service commands
+remain independent. Startup scanning is an async intent through the same snapshot
+adapter; the initial screen now explains loading rather than waiting to appear.
+`DEVDOCK_REDUCED_MOTION=1` (also true/on), nonempty `NO_COLOR`, or `TERM=dumb`
+selects static progress without affecting operations. No UI preference is persisted.
+Tmux inspection uses the latest loaded session snapshot and labels it cached;
+rendering never calls tmux. `!` opens pageable full status/error details. Tree guides
+show sibling continuation, cap visual indentation at four levels, and keep full
+logical depth and location. Template PTY chrome fits the minimum viable size with
+the interrupt control visible. Narrow modal hints retain save/confirm/cancel before
+less essential instructions; long definition confirmations share detail paging.
+
+## Validation and review
+
+Forty paired ANSI/plain fixtures cover responsive panes, deep hierarchy, duplicate
+names, collections, search, palette/help, editors/confirmations, loading/errors,
+OAuth, compact PTY, reduced motion and tiny terminals. All screens are checked at
+120×40, 100×30, 80×24, 60×20, 40×15, 24×8, 1×1, 0×0 and 300×80; repeated resize
+does not scan. Foreground SGR payloads, including colon syntax and optional color
+space, are parsed without confusing RGB values with decorative background codes.
+Actual PTY smoke runs both animated and static presentation in hosted validation.
+Benchmarks diagnose 1,000/5,000 projects, 200-level trees, 5,000 selected projects,
+rapid fuzzy input and resize bursts without brittle timing thresholds.

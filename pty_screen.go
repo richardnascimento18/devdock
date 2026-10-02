@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
 // ---------------------------------------------------------------------------
@@ -120,13 +121,15 @@ type ptyScreen struct {
 	// the current live line is promoted to the committed log.
 	vscreen virtualScreen
 
-	session     *pty.Session
-	workDir     string
-	width       int
-	height      int
-	completed   bool
-	interrupted bool
-	exitErr     error
+	session       *pty.Session
+	workDir       string
+	width         int
+	height        int
+	completed     bool
+	motionFrame   int
+	reducedMotion bool
+	interrupted   bool
+	exitErr       error
 
 	tmpl           *tmpl.Template
 	projectPath    string
@@ -157,21 +160,8 @@ func newPTYScreen(w, h int, t *tmpl.Template, projectPath string, vars tmpl.Vars
 	return ps
 }
 
-func vpW(total int) int {
-	w := total - 6
-	if w < 20 {
-		w = 20
-	}
-	return w
-}
-
-func vpH(total int) int {
-	h := total - 9
-	if h < 5 {
-		h = 5
-	}
-	return h
-}
+func vpW(total int) int { return max(total-2, 1) }
+func vpH(total int) int { return max(total-5, 1) }
 
 func (p *ptyScreen) addLine(text string, kind lineKind) {
 	text = strings.TrimRightFunc(text, unicode.IsSpace)
@@ -625,51 +615,27 @@ func (p *ptyScreen) startNextStep() (cmd tea.Cmd) {
 // ---------------------------------------------------------------------------
 
 func (p ptyScreen) View() string {
-	titleBarStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(theme.Primary).
-		Padding(0, 2)
-
 	title := "Template Setup"
 	if p.tmpl != nil {
-		title = fmt.Sprintf("Template Setup: %s", p.tmpl.Name)
+		title += ": " + p.tmpl.Name
 	}
-	titleBar := titleBarStyle.Render(title)
-
-	progressStyle := lipgloss.NewStyle().Foreground(theme.Secondary).Padding(0, 1)
-	var progress string
-	if p.completed {
-		progress = progressStyle.Render("✓ Complete")
-	} else if len(p.allSteps) > 0 {
-		total := len(p.allSteps)
-		if p.tmpl != nil && !p.isPostSteps {
-			total = len(p.tmpl.Steps)
+	progress := "✓ Complete"
+	footer := "Opening workspace…"
+	if !p.completed {
+		label := "Running…"
+		if len(p.allSteps) > 0 {
+			total := len(p.allSteps)
+			if p.tmpl != nil && !p.isPostSteps {
+				total = len(p.tmpl.Steps)
+			}
+			label = fmt.Sprintf("Step %d/%d", min(max(p.currentStepIdx, 1), total), total)
 		}
-		progress = progressStyle.Render(fmt.Sprintf("Step %d/%d", p.currentStepIdx, total))
-	} else {
-		progress = progressStyle.Render("Running...")
+		progress = ui.Activity(label, p.motionFrame, p.reducedMotion)
+		footer = "Type to send input · ctrl+c interrupt"
+		if p.width < 40 {
+			footer = "Type input · ctrl+c stop"
+		}
 	}
-
-	innerW := vpW(p.width)
-	innerH := vpH(p.height)
-	terminalStyle := lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(theme.Accent).
-		Padding(0, 1).
-		Width(innerW).
-		Height(innerH)
-	terminal := terminalStyle.Render(p.viewport.View())
-
-	var footer string
-	if p.completed {
-		footer = lipgloss.NewStyle().Foreground(theme.Success).Bold(true).Padding(1, 0).
-			Render("Opening workspace...")
-	} else {
-		footer = lipgloss.NewStyle().Foreground(theme.Secondary).Italic(true).
-			Render("Interactive terminal • Type to send input • Ctrl+C to interrupt")
-	}
-
-	return lipgloss.JoinVertical(lipgloss.Left,
-		titleBar, progress, "", terminal, "", footer,
-	)
+	terminal := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(theme.BorderFocused).Width(vpW(p.width)).Height(vpH(p.height)).Render(p.viewport.View())
+	return strings.Join([]string{ui.Header(title, p.width), ui.Fit(progress, p.width, 1), terminal, ui.Fit(dimStyle.Render(footer), p.width, 1)}, "\n")
 }

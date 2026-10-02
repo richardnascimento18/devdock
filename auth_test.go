@@ -71,6 +71,8 @@ func TestAuthRetryIgnoresPreviousAttemptWhileNewScreenActive(t *testing.T) {
 	m.cancelAuth()
 	next, _ := m.startGitHubAuth()
 	m = next.(model)
+	// The current attempt already has its presentation clock scheduled.
+	m.motion.pending = true
 	next, cmd = m.Update(gh.AuthDoneMsg{ID: old.ID, Token: "stale", Username: "stale"})
 	m = next.(model)
 	if m.state != stateGitHubAuth || m.cfg.GitHubToken != "" || cmd != nil {

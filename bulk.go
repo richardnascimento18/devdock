@@ -209,9 +209,8 @@ func (m model) beginBulkPreflight(loc core.Location) (tea.Model, tea.Cmd) {
 	id := m.bulk.id
 	projects := append([]core.Project(nil), m.bulk.projects...)
 	m.state = stateBulkPreflight
-	m.spinnerID++
 	m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Checking %d move destinations…", len(projects)))
-	return m, tea.Batch(func() tea.Msg { return bulkPreflightMsg{id, preflightBulk(projects, loc, core.PlanMove)} }, spinnerTick(m.spinnerID))
+	return m, func() tea.Msg { return bulkPreflightMsg{id, preflightBulk(projects, loc, core.PlanMove)} }
 }
 func (m model) handleBulkPreflight(msg bulkPreflightMsg) (tea.Model, tea.Cmd) {
 	if m.state != stateBulkPreflight || msg.id != m.bulk.id {
@@ -237,14 +236,13 @@ func (m model) updateBulk(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if key.String() == "enter" && m.state == stateBulkConfirm && bulkValid(m.bulk.rows) {
 		m.state = stateBulkMoving
-		m.spinnerID++
 		m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Moving %d selected projects…", len(m.bulk.rows)))
 		id := m.bulk.id
 		rows := append([]bulkMoveRow(nil), m.bulk.rows...)
-		return m, tea.Batch(func() tea.Msg {
+		return m, func() tea.Msg {
 			result, executed := executeBulk(rows, core.PlanMove, core.ExecuteMove)
 			return bulkDoneMsg{id, result, executed}
-		}, spinnerTick(m.spinnerID))
+		}
 	}
 	return m, nil
 }

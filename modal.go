@@ -20,6 +20,8 @@ func (m model) flowModal() bool {
 func (m model) currentModal() modalContent {
 	w, h := m.termW, m.termH
 	switch m.state {
+	case stateStatusDetails:
+		return modalContent{"Status details", m.statusDetails, "esc back"}
 	case stateBulkConfirm, stateBulkResult:
 		return m.bulkModal()
 	case stateDeleteDomain:
@@ -35,6 +37,12 @@ func (m model) currentModal() modalContent {
 	case stateAskCreateGitHub, stateAskRepoPrivacy:
 		return m.yesNoScr.content(w, h)
 	case stateGitHubAuth:
+		if m.githubAuthScr.err != "" {
+			return modalContent{"GitHub connection failed", "! " + m.githubAuthScr.err, "esc back"}
+		}
+		if m.githubAuthScr.verificationURI == "" || m.githubAuthScr.done {
+			return modalContent{"Connect GitHub", m.activityView(), "esc cancel"}
+		}
 		return m.githubAuthScr.content(w, h)
 	case stateDeleteTmuxSession:
 		return m.confirmDelTmux.content(w, h)

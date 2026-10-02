@@ -101,10 +101,9 @@ func (m model) updatePlacement(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.genericPicker.err = fmt.Sprintf("%s: %v", plan.Status, err)
 			return m, nil
 		}
-		m.spinnerID++
 		m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Moving %q...", m.moveTarget.Name))
 		m.state = stateMovingProject
-		return m, tea.Batch(func() tea.Msg { p, err := core.ExecuteMove(plan); return moveProjectDoneMsg{newProject: p, err: err} }, spinnerTick(m.spinnerID))
+		return m, func() tea.Msg { p, err := core.ExecuteMove(plan); return moveProjectDoneMsg{newProject: p, err: err} }
 	}
 	return m, nil
 }

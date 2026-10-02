@@ -52,6 +52,21 @@ Native arm64 and live OAuth remain Pass 4. Shared motion/final polish follow in 
 
 ## Promotion
 
-Target `v1.1.0-beta.9`. Required protected PRs, real hosted CI, actual published
-release verification and production → staging reconciliation must finish before
-3E. Live evidence is included with the final independent-review package.
+Released [v1.1.0-beta.9](https://github.com/richardnascimento18/devdock/releases/tag/v1.1.0-beta.9)
+through feature [#28](https://github.com/richardnascimento18/devdock/pull/28),
+production [#29](https://github.com/richardnascimento18/devdock/pull/29), and
+reconciliation [#30](https://github.com/richardnascimento18/devdock/pull/30).
+Production `1975e7a1e641e244c54763cde9e0bfba218ca1a6`; all PR, initial staging
+push and release checks passed. Published assets were downloaded fresh and passed
+tag/commit, prerelease, architecture, SHA256SUMS, amd64 version and PTY checks.
+
+GitHub did not create a staging push run for reconciliation merge
+`919e8f7b56ea709ad4d61e228c188b17e3bb5036`. The cause is unknown; an absent run
+is not reported as passed. To require real staging push validation before 3E,
+source-neutral branch `chore/pass3d-ci-recovery` added an empty commit through
+protected [#31](https://github.com/richardnascimento18/devdock/pull/31).
+Its PR CI `37073754222` and final staging push `37073871343` both passed.
+Final staging `6ab158d084e52e0f37b7d2e57c3e76990219c7aa` contains production
+with identical trees; only permanent remote branches remain. No source, version,
+workflow, protection or release asset changed during recovery. Live evidence and
+the missing-run investigation accompany the final independent-review package.

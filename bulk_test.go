@@ -226,8 +226,7 @@ func TestBulkPreflightConfirmationExecutionFlow(t *testing.T) {
 	m.bulk = bulkWorkflow{projects: projects}
 	next, cmd := m.beginBulkPreflight(dest)
 	m = next.(model)
-	batch := cmd().(tea.BatchMsg)
-	msg := batch[0]().(bulkPreflightMsg)
+	msg := cmd().(bulkPreflightMsg)
 	for _, p := range projects {
 		if _, err := os.Stat(p.Path); err != nil {
 			t.Fatal("preflight mutated source")
@@ -243,7 +242,7 @@ func TestBulkPreflightConfirmationExecutionFlow(t *testing.T) {
 	if m.state != stateBulkMoving {
 		t.Fatal("confirmation did not execute")
 	}
-	done := cmd().(tea.BatchMsg)[0]().(bulkDoneMsg)
+	done := cmd().(bulkDoneMsg)
 	next, _ = m.Update(done)
 	m = next.(model)
 	if m.state != stateBulkResult || !m.bulk.executed {

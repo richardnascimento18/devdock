@@ -12,27 +12,50 @@ import (
 type workspaceRow struct {
 	node  *core.Node
 	depth int
+	guide string
 }
 
 // Walk only loaded container nodes. Project count does not affect this cache.
 func (m *model) refreshWorkspaceRows() {
 	rows := []workspaceRow{{}}
 	scopeFound := m.workspaceScope == nil
-	var visit func(*core.Node, int)
-	visit = func(n *core.Node, depth int) {
+	var visit func(*core.Node, int, []bool, bool)
+	visit = func(n *core.Node, depth int, parents []bool, last bool) {
 		if m.workspaceScope != nil && n.Key() == m.workspaceScope.Key() {
 			scopeFound = true
 		}
-		rows = append(rows, workspaceRow{n, depth})
+		guide := ""
+		if depth > 0 {
+			for _, following := range parents {
+				if following {
+					guide += "│ "
+				} else {
+					guide += "  "
+				}
+			}
+			if depth > 4 {
+				guide += "… "
+			}
+			if last {
+				guide += "└─"
+			} else {
+				guide += "├─"
+			}
+		}
+		rows = append(rows, workspaceRow{node: n, depth: depth, guide: guide})
 		if m.collapsedNodes[n.Key()] {
 			return
 		}
-		for _, child := range n.Children {
-			visit(child, depth+1)
+		nextParents := append([]bool(nil), parents...)
+		if depth > 0 && len(nextParents) < 3 {
+			nextParents = append(nextParents, !last)
+		}
+		for i, child := range n.Children {
+			visit(child, depth+1, nextParents, i == len(n.Children)-1)
 		}
 	}
 	for _, root := range m.workspaceTree.Roots {
-		visit(root, 0)
+		visit(root, 0, nil, true)
 	}
 	// A hidden descendant may still be the active scope. Validate against the
 	// loaded tree, independent of expansion, before clearing a removed location.
@@ -98,10 +121,7 @@ func (m model) viewWorkspace(width, height int) string {
 		label := "All workspaces"
 		if row.node != nil {
 			n := row.node
-			guide := strings.Repeat("│ ", min(row.depth, 4))
-			if row.depth > 4 {
-				guide += "… "
-			}
+			guide := row.guide
 			glyph := "▾"
 			if len(n.Children) == 0 {
 				glyph = "·"

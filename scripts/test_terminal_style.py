@@ -10,6 +10,6 @@ class TransparencyTest(unittest.TestCase):
                 self.assertIsNotNone(decorative_background(sequence))
 
     def test_default_and_foreground(self):
-        for sequence in (b"\x1b[0m", b"\x1b[49m", b"\x1b[38;2;48;100;40m", b"\x1b[38;5;104m"):
+        for sequence in (b"\x1b[0m", b"\x1b[49m", b"\x1b[38;2;48;100;40m", b"\x1b[38;5;104m", b"\x1b[38:2:0:48:100:40m", b"\x1b[38:2::48:100:40m", b"\x1b[38:5:104;49m"):
             with self.subTest(sequence=sequence):
                 self.assertIsNone(decorative_background(sequence))

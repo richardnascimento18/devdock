@@ -5,6 +5,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/richardnascimento18/devdock/internal/core"
+	"github.com/richardnascimento18/devdock/internal/tmux"
 	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
 	"time"
@@ -94,7 +95,14 @@ func (m model) inspectorLines(width int) []string {
 	}
 	// The backend does not cache local branch/dirty state or project-session
 	// attachment. Avoid inventing these facts in a presentation redesign.
-	add("Tmux", "Preset: "+m.presetSel.SelectedName()+"\nSession state is available in the tmux tab.")
+	session := "Not checked; the tmux tab refreshes sessions."
+	if m.cachedTmux != nil {
+		session = "No session in the cached snapshot."
+		if m.cachedTmux[tmux.SessionName(p)] {
+			session = "● Session available (cached)"
+		}
+	}
+	add("Tmux", "Preset: "+m.presetSel.SelectedName()+"\n"+session)
 	favorite := "☆ Not a favorite"
 	if m.uiState.Favorites[p.Path] {
 		favorite = "★ Favorite"
@@ -107,7 +115,11 @@ func (m model) inspectorLines(width int) []string {
 		}
 	}
 	if _, mutable := m.actionProject(); mutable {
-		add("Actions", "enter open · f favorite\nm move · x delete with confirmation")
+		if len(m.selected) > 0 {
+			add("Actions", "m move selected · f favorites\nesc clears selection before deletion")
+		} else {
+			add("Actions", "enter open · f favorite\nm move · x delete with confirmation")
+		}
 	} else {
 		add("Actions", "enter open\nSelect a current project to move/delete/favorite.")
 	}
