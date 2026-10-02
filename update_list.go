@@ -7,13 +7,10 @@ import (
 	"github.com/richardnascimento18/devdock/internal/core"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
-	"github.com/richardnascimento18/devdock/internal/state"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
-
-const maxFavorites = state.MaxFavorites
 
 func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -65,22 +62,19 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 					projPath = s.project.Path
 				}
 				if projPath != "" {
-					wasAdded := m.uiState.ToggleFavorite(projPath)
-					if !wasAdded {
-						m.statusMsg = errorStyle.Render(fmt.Sprintf("★  favorites limit reached (%d max)", maxFavorites))
-					} else {
-						if !m.saveState() {
-							return m, nil
-						}
-						if m.uiState.Favorites[projPath] {
-							m.statusMsg = successStyle.Render("★  added to favorites")
-						} else {
-							m.statusMsg = dimStyle.Render("☆  removed from favorites")
-						}
-						if m.activeTab == TabFavorites {
-							m = m.refreshTabList()
-						}
+					m.uiState.ToggleFavorite(projPath)
+					if !m.saveState() {
+						return m, nil
 					}
+					if m.uiState.Favorites[projPath] {
+						m.statusMsg = successStyle.Render("★  added to favorites")
+					} else {
+						m.statusMsg = dimStyle.Render("☆  removed from favorites")
+					}
+					if m.activeTab == TabFavorites {
+						m = m.refreshTabList()
+					}
+
 				}
 				return m, nil
 			}
@@ -130,13 +124,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !m.list.SettingFilter() {
 				sel := m.list.SelectedItem()
 				if gi, ok := sel.(groupItem); ok {
-					m.collapsedGroups[gi.groupKey] = !m.collapsedGroups[gi.groupKey]
-					m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
-					m.saveState()
-					return m, nil
-				}
-				if si, ok := sel.(subgroupItem); ok {
-					m.collapsedSubgroups[si.subgroupKey] = !m.collapsedSubgroups[si.subgroupKey]
+					m.collapsedNodes[gi.nodeKey] = !m.collapsedNodes[gi.nodeKey]
 					m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 					m.saveState()
 					return m, nil
@@ -214,7 +202,11 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "/":
 			if !m.list.SettingFilter() && m.activeTab == TabSearch {
-				m.list.SetItems(m.allItems)
+				searchModel := m
+				searchModel.treeMode = false
+				searchItems := searchModel.buildListItems(m.rawProjects, m.cfg.IsGitHubConnected())
+				searchItems = m.appendGitHubItems(searchItems, m.rawProjects)
+				m.list.SetItems(searchItems)
 				m.list.SetFilteringEnabled(true)
 			}
 
@@ -247,13 +239,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			if gi, ok := sel.(groupItem); ok {
-				m.collapsedGroups[gi.groupKey] = !m.collapsedGroups[gi.groupKey]
-				m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
-				m.saveState()
-				return m, nil
-			}
-			if si, ok := sel.(subgroupItem); ok {
-				m.collapsedSubgroups[si.subgroupKey] = !m.collapsedSubgroups[si.subgroupKey]
+				m.collapsedNodes[gi.nodeKey] = !m.collapsedNodes[gi.nodeKey]
 				m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 				m.saveState()
 				return m, nil
@@ -289,7 +275,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 			if re, ok := sel.(recentItem); ok {
-				proj := core.Project{Name: re.entry.Name, Path: re.entry.Path, Domain: re.entry.Domain, Root: re.entry.Root}
+				proj := core.Project{Location: re.entry.Location, Name: re.entry.Name, Path: re.entry.Path}
 				ps := preset.ByName(m.presets, m.presetSel.SelectedName())
 				m.uiState.AddRecent(proj)
 				m.saveState()
@@ -318,6 +304,7 @@ func (m model) startNewProject(name string) (tea.Model, tea.Cmd) {
 	m.domainIntent = domainForProject
 	m.pendingGHRepo = gh.Repo{}
 	m.pendingDomain = ""
+	m.pendingLocation = core.Location{}
 	m.pendingProjectName = ""
 	m.pendingTemplate = nil
 	m.pendingCreateGH = false
@@ -453,6 +440,7 @@ func (m model) startMoveProject() model {
 func (m model) startCloneFlow(repo gh.Repo) model {
 	m.domainIntent = domainForClone
 	m.pendingGHRepo = repo
+	m.pendingLocation = core.Location{}
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 1 {
 		m.pendingRoot = roots[0]

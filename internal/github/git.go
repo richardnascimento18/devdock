@@ -100,18 +100,17 @@ func IsGitInitialized(projectPath string) bool {
 }
 
 func LinkProjectsToRepos(projects []core.Project, repos []Repo) []core.Project {
-	byName := make(map[string]Repo, len(repos))
+	byFullName := make(map[string]Repo, len(repos))
 	for _, r := range repos {
-		byName[strings.ToLower(r.Name)] = r
+		byFullName[strings.ToLower(r.FullName)] = r
 	}
 	linked := make([]core.Project, len(projects))
 	for i, p := range projects {
 		p.GitHubRepo = ""
-		ghRepo, nameMatch := byName[strings.ToLower(p.Name)]
-		if nameMatch && IsGitInitialized(p.Path) {
+		if IsGitInitialized(p.Path) {
 			detected := DetectRemote(p.Path)
-			if strings.EqualFold(detected, ghRepo.FullName) {
-				p.GitHubRepo = ghRepo.FullName
+			if repo, ok := byFullName[strings.ToLower(detected)]; ok {
+				p.GitHubRepo = repo.FullName
 			}
 		}
 		linked[i] = p

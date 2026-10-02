@@ -35,14 +35,14 @@ func TestStatePersistenceAndMalformedFile(t *testing.T) {
 }
 func TestMoveDeleteAndReconcileState(t *testing.T) {
 	s, _ := Load(t.TempDir())
-	old := core.Project{Path: "/root/a", Name: "a", Root: "/root", Domain: "old"}
+	old := core.Project{Location: core.Location{Root: "/root", Domain: "old"}, Path: "/root/a", Name: "a"}
 	s.ToggleFavorite(old.Path)
 	s.AddRecent(old)
 	s.AddRecent(old)
 	if len(s.Recents) != 1 {
 		t.Fatal("duplicate recent")
 	}
-	next := core.Project{Path: "/other/a", Name: "a", Root: "/other", Domain: "new"}
+	next := core.Project{Location: core.Location{Root: "/other", Domain: "new"}, Path: "/other/a", Name: "a"}
 	s.MoveProject(old.Path, next)
 	if s.Favorites[old.Path] || !s.Favorites[next.Path] || s.Recents[0].Domain != "new" {
 		t.Fatal("stale move state")

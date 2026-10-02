@@ -1,5 +1,7 @@
 package main
 
+import "github.com/richardnascimento18/devdock/internal/core"
+
 // appState identifies which screen/flow is currently active.
 type appState int
 
@@ -73,7 +75,9 @@ const (
 )
 
 type groupWorkflow struct {
-	phase      groupPhase
-	domain     string
-	deletePath string
+	phase           groupPhase
+	domain          string
+	parent          core.Location
+	deleteLocations []core.Location
+	deletePath      string
 }

@@ -30,7 +30,7 @@ func (m model) handleDeleteDone(msg deleteDoneMsg) (tea.Model, tea.Cmd) {
 		m.statusMsg = errorStyle.Render("delete incomplete: " + msg.err.Error())
 	} else {
 		m.uiState.RemovePath(msg.path)
-		if m.saveState() {
+		if m.saveFilesystemState() {
 			m.statusMsg = successStyle.Render("Deleted " + msg.path)
 		}
 	}

@@ -2,7 +2,7 @@
 
 DevDock is a keyboard-driven terminal workspace manager for Linux. It discovers projects, launches tmux workspaces with saved layouts, scaffolds projects from templates, and optionally connects to GitHub through its device authorization flow.
 
-The current hierarchy is `root / domain / project`, with groups and subgroups inside domains. This stabilization pass preserves that model and the existing interface.
+The workspace hierarchy is `Root → Domain → Project or Group`. Groups can contain projects and further groups at any depth. DevDock imposes no hierarchy depth limit; filesystem and operating-system resource limits still apply. The current interface supports this model without a visual overhaul.
 
 ## Requirements and installation
 
@@ -42,11 +42,11 @@ First run asks for an existing workspace root and saves configuration. A malform
 | `v` | Toggle tree/flat project view |
 | Tab / Shift+Tab | Switch roots, including all roots |
 | `[` / `]` | Switch projects, recents, favorites, and tmux tabs |
-| `f` | Toggle a favorite (maximum five) |
+| `f` | Toggle a favorite (unlimited) |
 | `n` / `N` | Create a project/domain |
-| `m` | Move a project between current roots/domains/groups |
+| `m` | Move a project between roots/domains/groups at any depth |
 | `x` / `X` | Delete a project/domain |
-| `G` / Ctrl+G | Create/delete a group |
+| `G` / Ctrl+G | Create/delete a group at any depth |
 | `a` / `A` | Add/remove a root |
 | `e` | Open the preset/template editor |
 | `g` | Connect GitHub, or refresh connected repositories |
@@ -79,7 +79,15 @@ default_preset = "nvim"
 
 The configuration file contains a GitHub access token after authorization. It is saved with mode `0600`; do not commit it or attach it to issue reports.
 
-A project `.devdock` TOML file can override detection with `type` (`project`, `group`, or `subgroup`) and optional `name` fields. A `.ddgroup` marker identifies a group/subgroup directory. Root `.ddignore` files contain domain-name glob patterns, one per line; blank lines and comments beginning with `#` are ignored. Invalid patterns are reported.
+A `.devdock` TOML marker can explicitly identify a `project` or `group`; project markers may set a display `name`. Legacy `type = "subgroup"` markers are read as ordinary groups. `.ddgroup` takes precedence and retains empty groups. Unmarked directories become groups when their descendants contain projects or explicit groups. A project is a discovery boundary: its source tree is never scanned as workspace hierarchy. Language markers and Git repositories identify projects. Hidden directories and common source/dependency/output directories (`src`, `node_modules`, `vendor`, `build`, `dist`, `target`, `__pycache__`, `venv`) are excluded as implicit workspace entries; explicit project/group markers override those descendant name exclusions. Hidden root entries remain excluded as domains. Directory symlinks below roots are not traversed, preventing cycles, escapes and alias discovery; configured roots may themselves be symlinks.
+
+Root `.ddignore` files contain root-relative glob patterns, one per line. Existing domain-name patterns retain their meaning; nested patterns such as `apps/backend/archived` exclude that directory and its descendants. Patterns use Go `filepath.Match` semantics (`*` does not span separators; there is no special `**`). Blank lines and `#` comments are ignored; invalid patterns produce a scan warning.
+
+State schema 2 replaces the old group/subgroup collapse maps with full-location node keys. Existing favorites, recents, tab and view preferences migrate on load and persist on the next successful atomic save. Malformed, ambiguous or future-schema state is reported and protected from overwrite. Projects use their absolute path as their state key; marker display names are separate. DevDock moves remap favorites and recents while preserving recent timestamps and order. External filesystem moves cannot reliably be recognized. Recent history retains at most 50 entries. If a state write fails after a filesystem operation, the new references stay in memory for a later save attempt, and the failure is reported.
+
+Tree indentation is capped at four visual levels. Full logical ancestry remains in the snapshot, and compact breadcrumbs plus the selected location distinguish deep entries. Search operates on the loaded flat project index even when groups are collapsed. Location pickers scroll through domains and every nested group; group creation accepts a slash-separated path of validated components. No navigation/filter/collapse action rescans the filesystem.
+
+Tmux project sessions use `devdock-<directory-basename>-<16-hex-path-hash>`, avoiding same-name collisions across groups and roots. Display-name changes keep the session identity; path changes create a new identity. Existing legacy sessions remain accessible in the tmux-sessions tab; DevDock does not automatically attach to ambiguous old names or kill them.
 
 Template step commands support quoted arguments such as `command --title "Hello world"`. They are parsed into arguments and executed directly, without shell expansion. Variables are `{{project_name}}`, `{{project_path}}`, `{{domain}}`, and `{{root}}`. Shell operators, `$()`, environment expansion, and glob expansion are not implicitly evaluated. Use the step's `output` field to capture stdout into a project-relative file instead of `>` redirection. Builtin `touch`, `mkdir`, and `rm`, and output paths, must remain strict descendants of the project and cannot traverse symlinks or `..`; `rm .` is rejected. Explicit shell-mode steps are unsupported. Custom commands remain trusted executable code; this confinement is for builtin filesystem actions, not an OS sandbox for arbitrary commands.
 

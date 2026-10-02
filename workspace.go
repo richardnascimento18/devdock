@@ -1,9 +1,6 @@
 package main
 
 import (
-	"errors"
-	"fmt"
-	"path/filepath"
 	"reflect"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -14,7 +11,7 @@ import (
 
 type workspaceSnapshot struct {
 	projects []core.Project
-	groups   map[string][]core.GroupInfo
+	tree     core.Workspace
 	domains  map[string][]string
 	err      error
 }
@@ -25,30 +22,15 @@ type scanResultMsg struct {
 
 func scanWorkspace(roots []string, repos []gh.Repo) workspaceSnapshot {
 	detector := detect.New()
-	s := workspaceSnapshot{groups: map[string][]core.GroupInfo{}, domains: map[string][]string{}}
-	var failures []error
-	s.projects, s.err = core.ScanRoots(roots, detector.CollectProjects)
-	failures = append(failures, s.err)
-	for _, root := range roots {
-		domains, err := core.ScanDomainsInRoot(root)
-		if err != nil {
-			failures = append(failures, fmt.Errorf("scan domains in %q: %w", root, err))
-			continue
-		}
-		s.domains[root] = domains
-		for _, domain := range domains {
-			path := filepath.Join(root, domain)
-			groups, err := core.ScanGroupsInDomain(path, detector.ClassifyDir)
-			s.groups[path] = groups
-			if err != nil {
-				failures = append(failures, fmt.Errorf("scan groups in %q: %w", path, err))
-			}
-		}
+	s := workspaceSnapshot{domains: map[string][]string{}}
+	s.tree, s.err = core.ScanWorkspace(roots, detector.Inspect)
+	s.projects = s.tree.Projects
+	for _, root := range s.tree.Roots {
+		s.domains[root.Root] = s.tree.Domains(root.Root)
 	}
 	if len(repos) > 0 {
 		s.projects = gh.LinkProjectsToRepos(s.projects, repos)
 	}
-	s.err = errors.Join(failures...)
 	return s
 }
 func (m model) rescan() model { m.scanRequested = true; return m }
@@ -65,7 +47,7 @@ func (m model) handleScanResult(msg scanResultMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.rawProjects = msg.snapshot.projects
-	m.workspaceGroups = msg.snapshot.groups
+	m.workspaceTree = msg.snapshot.tree
 	m.workspaceDomains = msg.snapshot.domains
 	availableRoots := make([]string, 0, len(msg.snapshot.domains))
 	for root := range msg.snapshot.domains {

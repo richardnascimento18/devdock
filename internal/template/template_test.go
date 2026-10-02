@@ -1,6 +1,7 @@
 package template
 
 import (
+	"github.com/richardnascimento18/devdock/internal/core"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -84,7 +85,7 @@ func TestRunStopsOnFailureAndCollision(t *testing.T) {
 	root := t.TempDir()
 	domain := filepath.Join(root, "apps")
 	template := Template{Name: "fail", Steps: []TemplateStep{{Type: "command", Run: "false"}, {Type: "builtin", Action: "touch", Path: "after"}}, PostSteps: []TemplateStep{{Type: "builtin", Action: "touch", Path: "post"}}}
-	if _, err := Run(template, domain, "demo"); err == nil {
+	if _, err := Run(template, core.Location{Root: root, Domain: "apps"}, "demo"); err == nil {
 		t.Fatal("failure lost")
 	}
 	for _, name := range []string{"after", "post"} {
@@ -92,10 +93,10 @@ func TestRunStopsOnFailureAndCollision(t *testing.T) {
 			t.Fatalf("ran %s", name)
 		}
 	}
-	if _, err := Run(Template{Name: "empty"}, domain, "demo"); err == nil {
+	if _, err := Run(Template{Name: "empty"}, core.Location{Root: root, Domain: "apps"}, "demo"); err == nil {
 		t.Fatal("collision accepted")
 	}
-	if _, err := Run(Template{Name: "escape"}, domain, "../escape"); err == nil {
+	if _, err := Run(Template{Name: "escape"}, core.Location{Root: root, Domain: "apps"}, "../escape"); err == nil {
 		t.Fatal("path escape")
 	}
 }
@@ -137,5 +138,20 @@ func TestInternalParentTraversalIsRejected(t *testing.T) {
 		if err := ExecuteBuiltin("rm", path, t.TempDir()); err == nil {
 			t.Fatalf("accepted parent traversal %q", path)
 		}
+	}
+}
+
+func TestRunAtDeepLocation(t *testing.T) {
+	root := t.TempDir()
+	location := core.Location{Root: root, Domain: "apps"}
+	for i := 0; i < 35; i++ {
+		location = location.Child("g")
+	}
+	path, err := Run(Template{Name: "nested", Steps: []TemplateStep{{Type: "builtin", Action: "touch", Path: "created"}}}, location, "api")
+	if err != nil || path != filepath.Join(location.Path(), "api") {
+		t.Fatalf("template path %s: %v", path, err)
+	}
+	if _, err := os.Stat(filepath.Join(path, "created")); err != nil {
+		t.Fatal(err)
 	}
 }

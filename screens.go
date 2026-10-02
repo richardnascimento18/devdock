@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"time"
 
@@ -47,7 +48,7 @@ func newInputScreen(title, placeholder, hint string) inputScreen {
 	ti := textinput.New()
 	ti.Placeholder = placeholder
 	ti.Focus()
-	ti.CharLimit = 200
+	ti.CharLimit = 0
 	ti.Width = 52
 	ti.Cursor.Style = cursorStyle
 	ti.PromptStyle = promptStyle
@@ -184,10 +185,22 @@ func newGenericPicker(title string, options []string, hint string) genericPicker
 
 func (g genericPickerScreen) View(termW, termH int) string {
 	var inner strings.Builder
-	for i, o := range g.options {
+	rows := max(termH-16, 3)
+	start := max(0, g.cursor-rows/2)
+	if start+rows > len(g.options) {
+		start = max(0, len(g.options)-rows)
+	}
+	end := min(start+rows, len(g.options))
+	for i := start; i < end; i++ {
+		o := g.options[i]
+		available := max(termW-14, 12)
+		if ansi.StringWidth(o) > available {
+			o = ansi.TruncateLeft(o, ansi.StringWidth(o)-available+1, "…")
+		}
+
 		var line string
 		switch {
-		case g.disabled[o]:
+		case g.disabled[g.options[i]]:
 			line = dimStyle.Render("  "+o) + dimStyle.Render(" (already exists)")
 		case i == g.cursor:
 			line = activeStyle.Render("▶ " + o)
@@ -195,6 +208,9 @@ func (g genericPickerScreen) View(termW, termH int) string {
 			line = lipgloss.NewStyle().Foreground(colorGray).Render("  " + o)
 		}
 		inner.WriteString(line + "\n")
+	}
+	if len(g.options) > rows {
+		inner.WriteString(dimStyle.Render(fmt.Sprintf("%d/%d", g.cursor+1, len(g.options))) + "\n")
 	}
 	if g.err != "" {
 		inner.WriteString("\n" + errorStyle.Render("✗  "+g.err))
@@ -345,7 +361,7 @@ func newConfirmDeleteDomainScreen(domainName string) confirmDeleteDomainScreen {
 	ti := textinput.New()
 	ti.Placeholder = domainName
 	ti.Focus()
-	ti.CharLimit = 80
+	ti.CharLimit = 0
 	ti.Width = 52
 	ti.Cursor.Style = cursorStyle
 	ti.PromptStyle = promptStyle

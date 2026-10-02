@@ -29,7 +29,7 @@ markers establish project boundaries; never traverse a project's source tree.
 groups. Legacy `.devdock` type `subgroup` is accepted only as a group marker at
 the input boundary. Unmarked containers are retained as groups when their
 single traversal discovers workspace children. Hidden/tool/output directories
-are skipped as hierarchy entries. Root `.ddignore` patterns remain
+are skipped as implicit hierarchy entries (explicit descendant markers override this). Root `.ddignore` patterns remain
 root-relative, extending matching to nested paths without changing domain
 matching. Malformed markers, inaccessible directories and invalid ignore files
 produce contextual partial-scan warnings. Directory symlinks below roots are

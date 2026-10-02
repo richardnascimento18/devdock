@@ -1,10 +1,12 @@
 package tmux
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -66,7 +68,7 @@ func (c Client) LaunchWorkspace(p core.Project, ps preset.Preset) error {
 	if err := preset.ValidatePreset(ps); err != "" {
 		return fmt.Errorf("invalid preset: %s", err)
 	}
-	session := sanitizeTmuxName(p.Domain + "-" + p.Name)
+	session := SessionName(p)
 	_, err := c.output("has-session", "-t", "="+session)
 	if err == nil {
 		return c.AttachSession(session)
@@ -180,3 +182,24 @@ func (c Client) AttachSession(name string) error {
 	return c.run(action, "-t", "="+name)
 }
 func KillSession(name string) error { return NewClient().run("kill-session", "-t", "="+name) }
+
+// SessionName is location based; marker display names cannot alias sessions.
+func SessionName(p core.Project) string {
+	var readable strings.Builder
+	for _, r := range filepath.Base(p.Path) {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' {
+			readable.WriteRune(r)
+		} else {
+			readable.WriteByte('_')
+		}
+		if readable.Len() >= 32 {
+			break
+		}
+	}
+	name := readable.String()
+	if name == "" {
+		name = "project"
+	}
+	sum := sha256.Sum256([]byte(filepath.Clean(p.Path)))
+	return fmt.Sprintf("devdock-%s-%x", name, sum[:8])
+}
