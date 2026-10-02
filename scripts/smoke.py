@@ -70,7 +70,12 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
         assert b'Presets' in captured and b'Templates' in captured, 'editor did not render'
         os.write(master, b'\r'); drain(0.2)
         assert b'Preset name' in captured, 'preset form did not render'
+        os.write(master, b'i'); drain(0.2)
+        os.write(master, b'X'); drain(0.2)
         os.write(master, b'\x1b'); drain(0.2)
+        os.write(master, b'\x1b'); drain(0.2)
+        assert b'Discard unsaved changes' in captured, 'unsaved preset confirmation missing'
+        os.write(master, b'y'); drain(0.2)
         os.write(master, b'\t\r'); drain(0.2)
         assert b'Edit Template' in captured, 'template form did not render'
         os.write(master, b'\x1b'); drain(0.2)

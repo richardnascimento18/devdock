@@ -147,6 +147,11 @@ func TestConfigurationEditorTypingAndCancellation(t *testing.T) {
 			t.Fatal("escape should leave typing first")
 		}
 	}
+	if !m.editorScr.discarding {
+		t.Fatal("unsaved draft must ask before discarding")
+	}
+	next, _ = m.Update(keyRune("y"))
+	m = next.(model)
 	if m.state != stateEditor || m.editorScr.layer != editorLayerList || m.cfg.DefaultPreset != "" {
 		t.Fatal("draft cancellation mutated live configuration")
 	}

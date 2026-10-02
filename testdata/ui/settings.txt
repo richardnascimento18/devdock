@@ -1,3 +1,9 @@
+DevDock  Configuration
+  Presets ·   Templates · > Settings
+
+> Default preset · first preset   Configured roots:
+  Add root                        /workspace/work
+  Remove root
 
 
 
@@ -10,19 +16,24 @@
 
 
 
-                        DevDock
-                          Config Editor
-
-                        Presets  │  Templates  │   Settings   (tab / h / l to switch)
-
-                        ╭──────────────────────────────────────────────────────────────────────╮
-                        │  ▶ Default preset  (first preset)                                    │
-                        │    Add root                                                          │
-                        │    Remove root                                                       │
-                        │                                                                      │
-                        │  Configured roots:                                                   │
-                        │    /workspace/work                                                   │
-                        ╰──────────────────────────────────────────────────────────────────────╯
 
 
-                        j/k navigate  •  enter select/edit  •  tab switch  •  esc back
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+j/k choose · enter edit · tab switch · pgup/pgdn roots · esc back

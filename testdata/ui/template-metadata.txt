@@ -1,0 +1,27 @@
+
+
+
+
+
+
+
+
+
+
+
+
+                      ╭──────────────────────────────────────────────────────────────────────────╮
+                      │ > Template metadata                                                      │
+                      │   Name                                                                   │
+                      │   service                                                                │
+                      │                                                                          │
+                      │                                                                          │
+                      │ > Description                                                            │
+                      │   A service scaffold                                                     │
+                      │                                                                          │
+                      │                                                                          │
+                      │   Interactive: false                                                     │
+                      │                                                                          │
+                      │   Creates project folder: false                                          │
+                      │ tab field · i type · enter toggle · ctrl+s save · esc back               │
+                      ╰──────────────────────────────────────────────────────────────────────────╯

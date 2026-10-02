@@ -1,0 +1,26 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                      ╭──────────────────────────────────────────────────────────────────────────╮
+                      │ > Pane layout · Unsaved                                                  │
+                      │ * Unsaved draft                                                          │
+                      │                                                                          │
+                      │ Direction: horizontal                                                    │
+                      │                                                                          │
+                      │ > 1 · nvim · 0%                                                          │
+                      │   2 · shell · 0%                                                         │
+                      │   3 · shell · 0%                                                         │
+                      │ j/k choose · r direction · a add · d remove · enter accept · esc back ·  │
+                      │ ctrl+s save all                                                          │
+                      ╰──────────────────────────────────────────────────────────────────────────╯
