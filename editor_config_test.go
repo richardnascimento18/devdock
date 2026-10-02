@@ -164,7 +164,7 @@ func TestConfigurationEditorTypingAndCancellation(t *testing.T) {
 }
 
 func TestConfigurationEditorRootWorkflows(t *testing.T) {
-	for _, scenario := range []string{"add", "remove", "cancel-add", "cancel-remove", "invalid-add", "no-op-add", "failed-add", "failed-remove"} {
+	for _, scenario := range []string{"add", "remove", "cancel-add", "cancel-remove", "invalid-add", "duplicate-add", "failed-add", "failed-remove"} {
 		t.Run(scenario, func(t *testing.T) {
 			root, other := t.TempDir(), t.TempDir()
 			p, err := core.CreateProject(core.Location{Root: root, Domain: "apps"}, "demo")
@@ -197,7 +197,7 @@ func TestConfigurationEditorRootWorkflows(t *testing.T) {
 			if scenario == "invalid-add" {
 				m.inputScr.input.SetValue(filepath.Join(other, "missing"))
 			}
-			if scenario == "no-op-add" {
+			if scenario == "duplicate-add" {
 				m.inputScr.input.SetValue(root)
 			}
 			if strings.HasPrefix(scenario, "failed-") {
@@ -236,7 +236,7 @@ func TestConfigurationEditorRootWorkflows(t *testing.T) {
 				if err != nil || len(saved.Favorites) != 0 || len(saved.Recents) != 0 {
 					t.Fatal("root state cleanup not persisted")
 				}
-			case "invalid-add", "failed-add", "failed-remove":
+			case "invalid-add", "duplicate-add", "failed-add", "failed-remove":
 				if m.state == stateEditor || !m.editorRootReturn || !reflect.DeepEqual(m.cfg, loaded) || len(loaded.Roots) != 1 || !m.uiState.Favorites[p.Path] {
 					t.Fatal("failed root save committed or exited")
 				}

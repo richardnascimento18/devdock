@@ -120,7 +120,10 @@ func (m model) updateAddRoot(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			proposed := m.cfg.Clone()
-			proposed.AddRoot(path)
+			if err := proposed.AddRoot(path); err != nil {
+				m.inputScr.err = err.Error()
+				return m, nil
+			}
 			committed, changed, err := config.Commit(m.cfg, proposed)
 			if err != nil {
 				m.inputScr.err = fmt.Sprintf("error saving config: %v", err)
