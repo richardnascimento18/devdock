@@ -1,0 +1,29 @@
+{
+  "conclusion": "success",
+  "databaseId": 36935113664,
+  "headSha": "7923c4248841fea5c837a7143fb7564e36e64520",
+  "status": "completed",
+  "url": "https://github.com/richardnascimento18/devdock/actions/runs/36935113664",
+  "jobs": [
+    {
+      "name": "checks / Go 1.27.x",
+      "conclusion": "success",
+      "url": "https://github.com/richardnascimento18/devdock/actions/runs/36935113664/job/110613434105"
+    },
+    {
+      "name": "checks / Go 1.26.x",
+      "conclusion": "success",
+      "url": "https://github.com/richardnascimento18/devdock/actions/runs/36935113664/job/110613434359"
+    },
+    {
+      "name": "build",
+      "conclusion": "success",
+      "url": "https://github.com/richardnascimento18/devdock/actions/runs/36935113664/job/110614145626"
+    },
+    {
+      "name": "publish",
+      "conclusion": "skipped",
+      "url": "https://github.com/richardnascimento18/devdock/actions/runs/36935113664/job/110614266903"
+    }
+  ]
+}

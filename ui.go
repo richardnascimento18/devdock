@@ -70,10 +70,6 @@ var (
 				Bold(true).
 				Foreground(colorPurpleLight)
 
-	subgroupHeaderStyle = lipgloss.NewStyle().
-				Foreground(colorPurpleDim).
-				Italic(true)
-
 	countBadgeStyle = lipgloss.NewStyle().
 			Foreground(colorDimGray)
 
@@ -137,14 +133,16 @@ func RenderLanguageTags(langs []string) string {
 	return strings.Join(parts, " ")
 }
 
-// RenderGroupBreadcrumb returns a dim "group › subgroup ›" prefix.
-func RenderGroupBreadcrumb(group, subgroup string) string {
-	if group == "" {
+// RenderGroupBreadcrumb renders complete ancestry using a compact suffix.
+func RenderGroupBreadcrumb(path []string) string {
+	if len(path) == 0 {
 		return ""
 	}
-	s := dimStyle.Render(group)
-	if subgroup != "" {
-		s += dimStyle.Render(" › " + subgroup)
+	return dimStyle.Render(" " + compactBreadcrumb(path) + " › ")
+}
+func compactBreadcrumb(path []string) string {
+	if len(path) > 3 {
+		return "… › " + strings.Join(path[len(path)-3:], " › ")
 	}
-	return s + dimStyle.Render(" › ")
+	return strings.Join(path, " › ")
 }

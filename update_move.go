@@ -63,33 +63,3 @@ func (m model) updateMovePickDomain(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	return m, nil
 }
-
-func (m model) updateMovePickPlacement(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if k, ok := msg.(tea.KeyMsg); ok {
-		switch k.String() {
-		case "esc":
-			m.state = stateList
-			return m, nil
-		case "up", "k":
-			if m.genericPicker.cursor > 0 {
-				m.genericPicker.cursor--
-			}
-			return m, nil
-		case "down", "j":
-			if m.genericPicker.cursor < len(m.genericPicker.options)-1 {
-				m.genericPicker.cursor++
-			}
-			return m, nil
-		case "enter":
-			opt := m.movePlacementOpts[m.genericPicker.cursor]
-			m.spinnerID++
-			m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Moving \"%s\"...", m.moveTarget.Name))
-			m.state = stateMovingProject
-			return m, tea.Batch(
-				CmdMoveProjectToPath(m.moveTarget, opt.destPath, m.pendingRoot, opt.domain),
-				spinnerTick(m.spinnerID),
-			)
-		}
-	}
-	return m, nil
-}

@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -28,36 +27,89 @@ func renameExclusive(src, dst string) error {
 	return unix.Renameat2(unix.AT_FDCWD, src, unix.AT_FDCWD, dst, unix.RENAME_NOREPLACE)
 }
 
-func MoveProject(p Project, destPath, destRoot, destDomain string) (Project, error) {
-	if !ValidName(destDomain) || !IsDescendant(filepath.Join(destRoot, destDomain), destPath) || destPath == filepath.Join(destRoot, destDomain) {
-		return Project{}, fmt.Errorf("destination must be inside the selected domain")
+type MoveStatus string
+
+const (
+	MoveValid              MoveStatus = "valid"
+	MoveInvalidDestination MoveStatus = "invalid_destination"
+	MoveDestinationExists  MoveStatus = "destination_exists"
+	MoveSourceMissing      MoveStatus = "source_missing"
+)
+
+type MovePlan struct {
+	Source        Project
+	Destination   Location
+	DirectoryName string
+	Path          string
+	Status        MoveStatus
+}
+
+func PlanMove(p Project, destination Location, directoryName string) (MovePlan, error) {
+	plan := MovePlan{Source: p, Destination: destination, DirectoryName: directoryName, Status: MoveInvalidDestination}
+	path, err := destination.ProjectPath(directoryName)
+	if err != nil {
+		return plan, err
 	}
-	if err := ValidateDescendant(p.Root, p.Path); err != nil {
-		return Project{}, err
+	plan.Path = path
+	sourcePath, err := p.Location.ProjectPath(filepath.Base(p.Path))
+	if err != nil {
+		return plan, err
 	}
-	if err := CheckDestination(destRoot, destPath); err != nil {
-		return Project{}, err
+	if sourcePath != p.Path {
+		return plan, fmt.Errorf("source path disagrees with location")
 	}
-	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-		return Project{}, err
+	info, err := os.Lstat(p.Path)
+	if os.IsNotExist(err) {
+		plan.Status = MoveSourceMissing
+		return plan, err
 	}
-	if err := moveDir(p.Path, destPath, renameExclusive, os.RemoveAll); err != nil {
-		return Project{}, err
+	if err != nil {
+		return plan, err
 	}
-	p.Path, p.Root, p.Domain = destPath, destRoot, destDomain
-	p.Group, p.Subgroup = "", ""
-	rel, err := filepath.Rel(filepath.Join(destRoot, destDomain), filepath.Dir(destPath))
+	if !info.IsDir() {
+		return plan, fmt.Errorf("source must be a directory")
+	}
+	if IsDescendant(p.Path, path) {
+		return plan, fmt.Errorf("destination must be outside source")
+	}
+	if err := CheckDestination(destination.Root, path); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			plan.Status = MoveDestinationExists
+		}
+		return plan, err
+	}
+	plan.Status = MoveValid
+	return plan, nil
+}
+func ExecuteMove(plan MovePlan) (Project, error) {
+	// Plans are advisory: revalidate to catch a changed source or destination.
+	checked, err := PlanMove(plan.Source, plan.Destination, plan.DirectoryName)
 	if err != nil {
 		return Project{}, err
 	}
-	if rel != "." {
-		parts := strings.Split(rel, string(filepath.Separator))
-		p.Group = parts[0]
-		if len(parts) > 1 {
-			p.Subgroup = parts[len(parts)-1]
+	if err := os.MkdirAll(filepath.Dir(checked.Path), 0o755); err != nil {
+		return Project{}, err
+	}
+	p := checked.Source
+	if p.Name == filepath.Base(p.Path) {
+		p.Name = checked.DirectoryName
+	}
+	p.Path, p.Location = checked.Path, checked.Destination
+	if err := moveDir(checked.Source.Path, checked.Path, renameExclusive, os.RemoveAll); err != nil {
+		var partial *PartialMoveError
+		if errors.As(err, &partial) {
+			return p, err
 		}
+		return Project{}, err
 	}
 	return p, nil
+}
+func MoveProject(p Project, destination Location, directoryName string) (Project, error) {
+	plan, err := PlanMove(p, destination, directoryName)
+	if err != nil {
+		return Project{}, err
+	}
+	return ExecuteMove(plan)
 }
 
 func moveDir(src, dst string, rename func(string, string) error, remove func(string) error) error {

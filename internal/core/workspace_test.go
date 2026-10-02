@@ -4,21 +4,22 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"syscall"
 	"testing"
 )
 
 func TestCreateAndDeleteSafeguards(t *testing.T) {
 	root := t.TempDir()
-	p, err := CreateProject(root, "apps", "demo")
+	p, err := CreateProject(Location{Root: root, Domain: "apps"}, "demo")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := CreateProject(root, "apps", "demo"); !errors.Is(err, os.ErrExist) {
+	if _, err := CreateProject(Location{Root: root, Domain: "apps"}, "demo"); !errors.Is(err, os.ErrExist) {
 		t.Fatalf("collision: %v", err)
 	}
 	for _, name := range []string{"", ".", "..", "../other", "a/b", "a\\b", "a\x00b"} {
-		if _, err := CreateProject(root, "apps", name); err == nil {
+		if _, err := CreateProject(Location{Root: root, Domain: "apps"}, name); err == nil {
 			t.Errorf("accepted %q", name)
 		}
 		if err := DeleteDomain(root, name); err == nil {
@@ -32,7 +33,7 @@ func TestCreateAndDeleteSafeguards(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(root, "link")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := CreateProject(root, "link", "demo"); err == nil {
+	if _, err := CreateProject(Location{Root: root, Domain: "link"}, "demo"); err == nil {
 		t.Fatal("followed symlink")
 	}
 	if err := DeletePath(root, filepath.Join(root, "link", "child")); err == nil {
@@ -150,46 +151,47 @@ func TestScanPartialFailure(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, "apps"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	collect := func(root, domain, path string) ([]Project, error) {
-		return []Project{{Name: "demo", Root: root, Domain: domain}}, nil
+	if err := os.Mkdir(filepath.Join(root, "apps", "demo"), 0o755); err != nil {
+		t.Fatal(err)
 	}
-	projects, err := ScanRoots([]string{filepath.Join(root, "missing"), root}, collect)
-	if err == nil || len(projects) != 1 {
-		t.Fatalf("partial scan: %v %v", projects, err)
+	inspect := func(string, []os.DirEntry) (Discovery, error) { return Discovery{Kind: KindProject}, nil }
+	workspace, err := ScanWorkspace([]string{filepath.Join(root, "missing"), root}, inspect)
+	if err == nil || len(workspace.Projects) != 1 {
+		t.Fatalf("partial scan: %v %v", workspace, err)
 	}
 	if err := os.WriteFile(filepath.Join(root, ".ddignore"), []byte("apps\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	projects, err = ScanRoot(root, collect)
-	if err != nil || len(projects) != 0 {
-		t.Fatalf("ignore: %v %v", projects, err)
+	workspace, err = ScanWorkspace([]string{root}, inspect)
+	if err != nil || len(workspace.Projects) != 0 {
+		t.Fatalf("ignore: %v %v", workspace.Projects, err)
 	}
 	if err := os.WriteFile(filepath.Join(root, ".ddignore"), []byte("[\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ScanRoot(root, collect); err == nil {
+	if _, err := ScanWorkspace([]string{root}, inspect); err == nil {
 		t.Fatal("invalid glob suppressed")
 	}
 }
 
 func TestMoveProjectUpdatesCurrentHierarchyMetadata(t *testing.T) {
 	source, destination := t.TempDir(), t.TempDir()
-	p, err := CreateProject(source, "apps", "demo")
+	p, err := CreateProject(Location{Root: source, Domain: "apps"}, "demo")
 	if err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(destination, "tools", "group", "sub", "demo")
-	moved, err := MoveProject(p, path, destination, "tools")
+	moved, err := MoveProject(p, Location{Root: destination, Domain: "tools", GroupPath: []string{"group", "sub"}}, "demo")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if moved.Root != destination || moved.Domain != "tools" || moved.Group != "group" || moved.Subgroup != "sub" || moved.Path != path {
+	if moved.Root != destination || moved.Domain != "tools" || !reflect.DeepEqual(moved.GroupPath, []string{"group", "sub"}) || moved.Path != path {
 		t.Fatalf("metadata: %+v", moved)
 	}
-	if _, err := MoveProject(moved, filepath.Join(destination, "different", "demo"), destination, "tools"); err == nil {
+	if _, err := MoveProject(moved, Location{Root: destination, Domain: "tools", GroupPath: []string{"..", "different"}}, "demo"); err == nil {
 		t.Fatal("move escaped selected domain")
 	}
-	if err := DeleteProject(Project{Root: destination, Domain: "tools", Path: filepath.Join(destination, "tools")}); err == nil {
+	if err := DeleteProject(Project{Location: Location{Root: destination, Domain: "tools"}, Path: filepath.Join(destination, "tools")}); err == nil {
 		t.Fatal("project deletion allowed entire domain")
 	}
 }
@@ -200,21 +202,19 @@ func TestIgnorePatternsDoNotInterpretRootAsGlob(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, domain := range []string{"ignored", "visible"} {
-		if _, err := CreateProject(root, domain, "demo"); err != nil {
+		if _, err := CreateProject(Location{Root: root, Domain: domain}, "demo"); err != nil {
 			t.Fatal(err)
 		}
 	}
 	if err := os.WriteFile(filepath.Join(root, ".ddignore"), []byte("ignored/\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	domains, err := ScanDomainsInRoot(root)
+	workspace, err := ScanWorkspace([]string{root}, func(string, []os.DirEntry) (Discovery, error) { return Discovery{Kind: KindProject}, nil })
+	domains := workspace.Domains(root)
 	if err != nil || len(domains) != 1 || domains[0] != "visible" {
 		t.Fatalf("domains %v: %v", domains, err)
 	}
-	projects, err := ScanRoot(root, func(root, domain, path string) ([]Project, error) {
-		return []Project{{Name: "demo", Root: root, Domain: domain, Path: filepath.Join(path, "demo")}}, nil
-	})
-	if err != nil || len(projects) != 1 || projects[0].Domain != "visible" {
-		t.Fatalf("projects %v: %v", projects, err)
+	if len(workspace.Projects) != 1 || workspace.Projects[0].Domain != "visible" {
+		t.Fatalf("projects %v", workspace.Projects)
 	}
 }

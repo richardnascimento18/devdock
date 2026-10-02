@@ -42,15 +42,15 @@ func CmdCreateRepo(token, name string, private bool) tea.Cmd {
 		return RepoCreatedMsg{Repo: repo, Err: err}
 	}
 }
-func CmdCloneRepo(cloneURL, root, domain, repoName string) tea.Cmd {
+func CmdCloneRepo(cloneURL string, location core.Location, repoName string) tea.Cmd {
 	return func() tea.Msg {
-		dest, _, err := core.PrepareProject(root, domain, repoName, true)
+		dest, _, err := core.PrepareProject(location, repoName, true)
 		if err != nil {
 			return CloneDoneMsg{Err: err}
 		}
 		if err := CloneRepo(cloneURL, dest); err != nil {
 			return CloneDoneMsg{Err: err}
 		}
-		return CloneDoneMsg{Project: core.Project{Name: repoName, Path: dest, Root: root, Domain: domain, GitHubRepo: DetectRemote(dest)}}
+		return CloneDoneMsg{Project: core.Project{Location: location, Name: repoName, Path: dest, GitHubRepo: DetectRemote(dest)}}
 	}
 }

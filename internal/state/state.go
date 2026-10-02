@@ -12,67 +12,79 @@ import (
 )
 
 type RecentEntry struct {
-	Path     string    `json:"path"`
-	Name     string    `json:"name"`
-	Domain   string    `json:"domain"`
-	Root     string    `json:"root"`
+	Path string `json:"path"`
+	Name string `json:"name"`
+	core.Location
 	OpenedAt time.Time `json:"opened_at"`
 }
 
 type UIState struct {
-	CollapsedGroups    map[string]bool `json:"collapsed_groups"`
-	CollapsedSubgroups map[string]bool `json:"collapsed_subgroups"`
-	Favorites          map[string]bool `json:"favorites"`
-	Recents            []RecentEntry   `json:"recents"`
-	ActiveTab          int             `json:"active_tab"`
-	TreeMode           bool            `json:"tree_mode"`
+	Version        int                   `json:"version"`
+	CollapsedNodes map[core.NodeKey]bool `json:"collapsed_nodes"`
+	loadErr        error
+	Favorites      map[string]bool `json:"favorites"`
+	Recents        []RecentEntry   `json:"recents"`
+	ActiveTab      int             `json:"active_tab"`
+	TreeMode       bool            `json:"tree_mode"`
 }
 
-const (
-	maxRecents   = 50
-	MaxFavorites = 5
-)
+const maxRecents = 50
+const SchemaVersion = 2
 
 func statePath(configDir string) string {
 	return filepath.Join(configDir, "state.json")
 }
 
 func Load(configDir string) (UIState, error) {
-	s := UIState{
-		CollapsedGroups:    make(map[string]bool),
-		CollapsedSubgroups: make(map[string]bool),
-		Favorites:          make(map[string]bool),
-		TreeMode:           true,
-	}
+	defaults := UIState{Version: SchemaVersion, CollapsedNodes: make(map[core.NodeKey]bool), Favorites: make(map[string]bool), TreeMode: true}
+	fail := func(err error) (UIState, error) { defaults.loadErr = err; return defaults, err }
 	data, err := os.ReadFile(statePath(configDir))
 	if os.IsNotExist(err) {
-		return s, nil
+		return defaults, nil
 	}
 	if err != nil {
-		return s, err
+		return fail(err)
 	}
-	defaults := s.Clone()
 	var loaded UIState
 	if err := json.Unmarshal(data, &loaded); err != nil {
-		return s, fmt.Errorf("invalid state.json: %w", err)
+		return fail(fmt.Errorf("invalid state.json: %w", err))
 	}
-	s = loaded
-	if s.ActiveTab < 0 || s.ActiveTab > 3 {
-		return defaults, fmt.Errorf("state.json: invalid active tab")
+	if loaded.Version != 0 && loaded.Version != SchemaVersion {
+		return fail(fmt.Errorf("unsupported state schema %d", loaded.Version))
 	}
-	if s.CollapsedGroups == nil {
-		s.CollapsedGroups = make(map[string]bool)
+	if loaded.ActiveTab < 0 || loaded.ActiveTab > 3 {
+		return fail(fmt.Errorf("state.json: invalid active tab"))
 	}
-	if s.CollapsedSubgroups == nil {
-		s.CollapsedSubgroups = make(map[string]bool)
+	if loaded.CollapsedNodes == nil {
+		loaded.CollapsedNodes = make(map[core.NodeKey]bool)
 	}
-	if s.Favorites == nil {
-		s.Favorites = make(map[string]bool)
+	if loaded.Favorites == nil {
+		loaded.Favorites = make(map[string]bool)
 	}
-	return s, nil
+	if loaded.Version == 0 {
+		if err := migrateLegacy(data, &loaded); err != nil {
+			return fail(err)
+		}
+	}
+	for key := range loaded.CollapsedNodes {
+		if _, err := core.ParseNodeKey(key); err != nil {
+			return fail(err)
+		}
+	}
+	loaded.Version = SchemaVersion
+	return loaded, nil
 }
 
 func Save(configDir string, s UIState) error {
+	if s.loadErr != nil {
+		return fmt.Errorf("state was not loaded safely; original file retained: %w", s.loadErr)
+	}
+	s.Version = SchemaVersion
+	for key := range s.CollapsedNodes {
+		if _, err := core.ParseNodeKey(key); err != nil {
+			return err
+		}
+	}
 	if s.ActiveTab < 0 || s.ActiveTab > 3 {
 		return fmt.Errorf("state.json: invalid active tab")
 	}
@@ -99,8 +111,7 @@ func (s *UIState) AddRecent(p core.Project) {
 	entry := RecentEntry{
 		Path:     p.Path,
 		Name:     p.Name,
-		Domain:   p.Domain,
-		Root:     p.Root,
+		Location: core.Location{Root: p.Root, Domain: p.Domain, GroupPath: append([]string(nil), p.GroupPath...)},
 		OpenedAt: time.Now(),
 	}
 	s.Recents = append([]RecentEntry{entry}, filtered...)
@@ -109,29 +120,30 @@ func (s *UIState) AddRecent(p core.Project) {
 	}
 }
 
-// ToggleFavorite adds or removes path from favorites.
-// Returns false (and does nothing) if adding would exceed MaxFavorites.
+// ToggleFavorite has no product limit.
 func (s *UIState) ToggleFavorite(path string) bool {
+	if s.Favorites == nil {
+		s.Favorites = make(map[string]bool)
+	}
 	if s.Favorites[path] {
 		delete(s.Favorites, path)
-		return true
+	} else {
+		s.Favorites[path] = true
 	}
-	if len(s.Favorites) >= MaxFavorites {
-		return false
-	}
-	s.Favorites[path] = true
 	return true
 }
 
 func (s UIState) Clone() UIState {
-	s.CollapsedGroups = cloneMap(s.CollapsedGroups)
-	s.CollapsedSubgroups = cloneMap(s.CollapsedSubgroups)
+	s.CollapsedNodes = cloneMap(s.CollapsedNodes)
 	s.Favorites = cloneMap(s.Favorites)
 	s.Recents = append([]RecentEntry(nil), s.Recents...)
+	for i := range s.Recents {
+		s.Recents[i].GroupPath = append([]string(nil), s.Recents[i].GroupPath...)
+	}
 	return s
 }
-func cloneMap(src map[string]bool) map[string]bool {
-	dst := make(map[string]bool, len(src))
+func cloneMap[K comparable](src map[K]bool) map[K]bool {
+	dst := make(map[K]bool, len(src))
 	for key, value := range src {
 		dst[key] = value
 	}
@@ -141,6 +153,12 @@ func cloneMap(src map[string]bool) map[string]bool {
 // RemovePath prunes the removed directory and its descendants without touching
 // favorites belonging to other or temporarily unavailable roots.
 func (s *UIState) RemovePath(path string) {
+	for key := range s.CollapsedNodes {
+		location, err := core.ParseNodeKey(key)
+		if err == nil && core.IsDescendant(path, location.Path()) {
+			delete(s.CollapsedNodes, key)
+		}
+	}
 	for key := range s.Favorites {
 		if core.IsDescendant(path, key) {
 			delete(s.Favorites, key)
@@ -163,10 +181,10 @@ func (s *UIState) MoveProject(oldPath string, p core.Project) {
 		if s.Recents[i].Path == oldPath {
 			s.Recents[i].Path = p.Path
 			s.Recents[i].Name = p.Name
-			s.Recents[i].Domain = p.Domain
-			s.Recents[i].Root = p.Root
+			s.Recents[i].Location = p.Location
 		}
 	}
+	s.deduplicateRecents()
 }
 
 // ReconcileMissing only removes known missing paths. Permission and I/O errors

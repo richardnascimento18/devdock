@@ -190,6 +190,7 @@ func (m model) updateRemoveRoot(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.cfg = proposed
 			m.uiState = proposedState
+			m.collapsedNodes = proposedState.CollapsedNodes
 			m.committedState = proposedState.Clone()
 			m.persistenceErr = nil
 			m.rootSel.SetRoots(m.cfg.ActiveRoots())
