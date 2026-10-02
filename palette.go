@@ -73,6 +73,7 @@ func (m model) availableActions() []actionBinding {
 		{"Refresh workspace", "r", "", false},
 		{"Connect / refresh GitHub", "g", "", false},
 		{"Keyboard help", "?", "", false},
+		{"Show status details", "!", "", false},
 		{"Quit", "q", "", false},
 	}
 	if len(m.selected) > 0 {

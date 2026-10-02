@@ -10,6 +10,6 @@
  │   Post-step: false                 │
  │ enter toggles                      │
  │                                    │
- │ enter · esc cancel                 │
+ │ ctrl+s save · esc back             │
  │ pgup/pgdn details                  │
  ╰────────────────────────────────────╯

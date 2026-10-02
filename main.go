@@ -33,11 +33,6 @@ func main() {
 	if err := os.MkdirAll(config.Dir(), 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not create config dir: %v\n", err)
 	}
-	snapshot := scanWorkspace(cfg.ActiveRoots(), nil)
-	projects, err := snapshot.projects, snapshot.err
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "workspace scan incomplete:", err)
-	}
 
 	presets, presetErr := preset.Load(config.Dir())
 	if presetErr != nil {
@@ -62,12 +57,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, stateErr)
 	}
 
-	m := newModel(projects, cfg, presets, templates, uiSt)
-	initial, _ := m.handleScanResult(scanResultMsg{id: m.scanID, snapshot: snapshot})
-	m = initial.(model)
-	if snapshot.err != nil {
-		m.statusMsg = errorStyle.Render(snapshot.err.Error())
-	}
+	m := newModel(nil, cfg, presets, templates, uiSt)
+	m.startupCmd = m.scanCommand()
+	m.motion.pending = !m.motion.reduced
+	m.motion.generation++
 	prog := tea.NewProgram(m, tea.WithAltScreen())
 	finalModel, err := prog.Run()
 	if err != nil {

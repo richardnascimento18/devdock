@@ -39,6 +39,13 @@ func (m model) updateDashboardNavigation(key tea.KeyMsg) (tea.Model, tea.Cmd, bo
 	case "ctrl+p":
 		next, cmd := m.openPalette()
 		return next, cmd, true
+	case "!":
+		m.statusDetails = m.statusMsg
+		if m.statusDetails == "" {
+			m.statusDetails = "No status message. Select a project to inspect its location."
+		}
+		m.state = stateStatusDetails
+		return m, nil, true
 	case "q":
 		return m, tea.Quit, true
 	case "/":

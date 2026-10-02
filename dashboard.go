@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
 )
@@ -26,7 +27,10 @@ func (m model) viewList(w, h int) string {
 	l := m.dashboardLayout()
 	context := "all workspaces"
 	if m.workspaceScope != nil {
-		context = m.workspaceScope.Breadcrumb()
+		context = config.RootName(m.workspaceScope.Root) + " › " + m.workspaceScope.Domain
+		if len(m.workspaceScope.GroupPath) > 0 {
+			context += " › " + compactBreadcrumb(m.workspaceScope.GroupPath)
+		}
 		if context == "" {
 			context = m.activeRoot()
 		}
@@ -74,6 +78,9 @@ func (m model) viewList(w, h int) string {
 		}
 	}
 	status := m.statusMsg
+	if m.activityLabel() != "" {
+		status = m.activityView()
+	}
 	if len(m.selected) > 0 {
 		status = m.selectionStatus()
 		if m.statusMsg != "" {
@@ -91,6 +98,9 @@ func (m model) dashboardHint(width int) string {
 		return "enter apply · esc cancel · ↑/↓ results"
 	}
 	if len(m.selected) > 0 {
+		if width < 60 {
+			return "space · m move · f fav · esc clear"
+		}
 		return "space toggle · m move · f favorites · esc clear · ctrl+p actions"
 	}
 	if width < 60 {
@@ -134,6 +144,9 @@ func (m model) viewProjects(width, height int) string {
 		}
 		if m.lastFilter != "" {
 			content = fmt.Sprintf("No projects match %q.\nEsc clears search; n creates a project.", m.lastFilter)
+		}
+		if m.scanInFlight && m.lastFilter == "" {
+			content = "Loading projects from configured roots."
 		}
 		content = dimStyle.Render(content)
 	}

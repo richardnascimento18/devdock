@@ -3,7 +3,6 @@
 
 
 
-
                       ╭──────────────────────────────────────────────────────────────────────────╮
                       │ > Commands                                                               │
                       │ / Find an action…                                                        │
@@ -29,6 +28,7 @@
                       │   Refresh workspace  [r]                                                 │
                       │   Connect / refresh GitHub  [g]                                          │
                       │   Keyboard help  [?]                                                     │
+                      │   Show status details  [!]                                               │
                       │   Quit  [q]                                                              │
                       │ ↑/↓ choose · enter run · esc cancel                                      │
                       ╰──────────────────────────────────────────────────────────────────────────╯

@@ -4,9 +4,9 @@ Search  ·  Recents  ·  Favorites  ·  tmux-sessions  3 projects
   Workspace               > Projects
 > All workspaces          > ★ billing-api
   ▾ work  d286              work › backend › services · 5cede2
-  │ ▾ /backend  2           billing-api
-  │ │ · services  1         work › frontend · 1d5d4e
-  │ · /frontend  1          auth-日本語-é
+  ├─▾ /backend  2           billing-api
+  │ └─· services  1         work › frontend · 1d5d4e
+  └─· /frontend  1          auth-日本語-é
                             work › backend · 121282
 
 

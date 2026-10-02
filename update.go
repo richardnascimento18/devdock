@@ -57,6 +57,9 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 			if next.tmuxRefreshRequested {
 				commands = append(commands, next.tmuxRefreshCommand())
 			}
+			if tick := next.scheduleAnimation(); tick != nil {
+				commands = append(commands, tick)
+			}
 			result = next
 			cmd = tea.Batch(commands...)
 		}
@@ -129,12 +132,8 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		return m.handleBulkDone(msg)
 	case moveProjectDoneMsg:
 		return m.handleMoveProjectDone(msg)
-	case spinnerTickMsg:
-		if msg.id != m.spinnerID || !m.loading() || len(m.spinnerScr.frames) == 0 {
-			return m, nil
-		}
-		m.spinnerScr.frame = (m.spinnerScr.frame + 1) % len(m.spinnerScr.frames)
-		return m, spinnerTick(m.spinnerID)
+	case animationTickMsg:
+		return m.handleAnimationTick(msg)
 	}
 
 	switch m.state {
@@ -188,6 +187,11 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		return m.updateMovePickDomain(msg)
 	case stateMovePickPlacement:
 		return m.updatePlacement(msg)
+	case stateStatusDetails:
+		if key, ok := msg.(tea.KeyMsg); ok && (key.String() == "esc" || key.String() == "enter") {
+			m.state = stateList
+		}
+		return m, nil
 	case stateBulkConfirm, stateBulkResult:
 		return m.updateBulk(msg)
 	case stateHelp:
@@ -217,6 +221,7 @@ func (m model) handleGitHubReposLoaded(msg gh.ReposLoadedMsg) (tea.Model, tea.Cm
 	if msg.ID != m.repoLoadID || !m.cfg.IsGitHubConnected() {
 		return m, nil
 	}
+	m.repoLoading = false
 	if msg.Err != nil {
 		m.statusMsg = errorStyle.Render("✗  GitHub: " + msg.Err.Error())
 		return m, nil

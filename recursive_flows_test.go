@@ -93,8 +93,7 @@ func TestDeepGroupDeleteSelectsExactLocation(t *testing.T) {
 	m.inputScr.input.SetValue(loc.Path())
 	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = next.(model)
-	commands := cmd().(tea.BatchMsg)
-	next, _ = m.Update(commands[0]())
+	next, _ = m.Update(operationMessage(cmd))
 	m = next.(model)
 	if _, err := os.Stat(loc.Path()); !os.IsNotExist(err) {
 		t.Fatal("group remains")

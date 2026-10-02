@@ -36,6 +36,7 @@ func scanWorkspace(roots []string, repos []gh.Repo) workspaceSnapshot {
 func (m model) rescan() model { m.scanRequested = true; return m }
 func (m *model) scanCommand() tea.Cmd {
 	m.scanRequested = false
+	m.scanInFlight = true
 	m.scanID++
 	id := m.scanID
 	roots := append([]string(nil), m.cfg.ActiveRoots()...)
@@ -46,6 +47,8 @@ func (m model) handleScanResult(msg scanResultMsg) (tea.Model, tea.Cmd) {
 	if msg.id != m.scanID {
 		return m, nil
 	}
+	m.scanInFlight = false
+	m.startupCmd = nil
 	m.rawProjects = msg.snapshot.projects
 	m.workspaceTree = msg.snapshot.tree
 	m.workspaceDomains = msg.snapshot.domains

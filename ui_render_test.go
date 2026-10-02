@@ -33,6 +33,8 @@ func renderFixture() model {
 	}
 	templates := []tmpl.Template{{Name: "service", Description: "A service scaffold"}}
 	m := newModel(projects, config.Config{Roots: []string{"/workspace/work"}}, preset.DefaultPresets, templates, state.UIState{TreeMode: true, Favorites: map[string]bool{projects[0].Path: true}})
+	// Fixtures choose motion explicitly, independent of the test runner's env.
+	m.motion.reduced = false
 	root := &core.Node{Location: core.Location{Root: "/workspace/work"}, Kind: core.NodeRoot, Name: "work", ProjectCount: 3}
 	backend := &core.Node{Location: core.Location{Root: "/workspace/work", Domain: "backend"}, Kind: core.NodeDomain, Name: "backend", Projects: projects[2:], ProjectCount: 2}
 	services := &core.Node{Location: projects[0].Location, Kind: core.NodeGroup, Name: "services", Projects: projects[:1], ProjectCount: 1}
@@ -198,6 +200,25 @@ func fixtureScreens() map[string]model {
 		m.pendingDomainName = "backend"
 		m.confirmDelDomain = newConfirmDeleteDomainScreen("backend")
 	})
+	add("reduced-motion", func(m *model) {
+		m.state = stateCloningRepo
+		m.spinnerScr = newSpinnerScreen("Cloning repository…")
+		m.motion.reduced = true
+	})
+	add("scan-loading", func(m *model) { m.scanInFlight = true; m.motion.frame = 10 })
+	add("oauth-connecting", func(m *model) { m.state = stateGitHubAuth; m.githubAuthScr = githubAuthScreen{} })
+	add("oauth-error", func(m *model) {
+		m.state = stateGitHubAuth
+		m.githubAuthScr = githubAuthScreen{err: "Connection unavailable. Escape and retry with g."}
+	})
+	add("pty-narrow", func(m *model) { m.termW, m.termH = 40, 15; staticPTYFixture(m) })
+	add("status-details", func(m *model) {
+		m.termW, m.termH = 40, 15
+		m.state = stateStatusDetails
+		m.statusDetails = "! Refresh failed: " + strings.Repeat("/日本語-👩‍💻-é", 20) + ". Check this root, then press r to retry."
+	})
+	add("selected-narrow", func(m *model) { m.termW, m.termH = 40, 15; m.selected = map[string]bool{m.rawProjects[0].Path: true} })
+	add("tiny", func(m *model) { m.termW, m.termH = 20, 6 })
 	return values
 }
 
@@ -206,13 +227,14 @@ var sgrPattern = regexp.MustCompile(`\x1b\[([0-9;:]*)m`)
 // Skip complete foreground color payloads: an RGB component of 48 is legal.
 func backgroundSequence(output string) string {
 	for _, match := range sgrPattern.FindAllStringSubmatch(output, -1) {
-		params := strings.FieldsFunc(match[1], func(r rune) bool { return r == ';' || r == ':' })
+		params := strings.Split(match[1], ";")
 		for i := 0; i < len(params); i++ {
-			n, _ := strconv.Atoi(params[i])
+			compound := strings.Split(params[i], ":")
+			n, _ := strconv.Atoi(compound[0])
 			if n == 7 || n >= 40 && n <= 47 || n >= 100 && n <= 107 || n == 48 {
 				return match[0]
 			}
-			if n == 38 && i+1 < len(params) {
+			if n == 38 && len(compound) == 1 && i+1 < len(params) {
 				mode, _ := strconv.Atoi(params[i+1])
 				if mode == 5 {
 					i += 2
@@ -231,7 +253,7 @@ func TestBackgroundDetector(t *testing.T) {
 			t.Fatalf("missed %q", s)
 		}
 	}
-	for _, s := range []string{"\x1b[0m", "\x1b[49m", "\x1b[38;2;48;100;40m", "\x1b[38;5;104m"} {
+	for _, s := range []string{"\x1b[0m", "\x1b[49m", "\x1b[38;2;48;100;40m", "\x1b[38;5;104m", "\x1b[38:2:0:48:100:40m", "\x1b[38:2::48:100:40m", "\x1b[38:5:104;49m"} {
 		if backgroundSequence(s) != "" {
 			t.Fatalf("rejected %q", s)
 		}

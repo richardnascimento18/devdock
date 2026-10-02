@@ -41,3 +41,4 @@ jobs:
           (cd dist && sha256sum --check SHA256SUMS)
           "dist/devdock_$(cat VERSION)_linux_amd64" --version
           python3 scripts/smoke.py "dist/devdock_$(cat VERSION)_linux_amd64" --oauth-configured --configuration-editor
+          python3 scripts/smoke.py "dist/devdock_$(cat VERSION)_linux_amd64" --oauth-configured --configuration-editor --reduced-motion

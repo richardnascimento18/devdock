@@ -1,0 +1,14 @@
+DevDock  all workspaces · preset walker
+Search  [ / ] switch  3 projects
+
+> Projects
+> ★ ● billing-api
+  work › backend › services · 5cede2
+  billing-api
+  work › frontend · 1d5d4e
+  auth-日本語-é
+  work › backend · 121282
+
+
+1 selected
+space · m move · f fav · esc clear

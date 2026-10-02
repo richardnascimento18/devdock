@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/richardnascimento18/devdock/internal/detect"
 	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
@@ -25,7 +24,6 @@ var (
 	rootTagStyle     = ui.Foreground(theme.Info)
 	domainStyle      = ui.Foreground(theme.Muted)
 	selectedStyle    = ui.Foreground(theme.Selection).Bold(true)
-	boxStyle         = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(theme.Border).Padding(0, 1)
 	groupHeaderStyle = ui.Foreground(theme.Accent).Bold(true)
 	countBadgeStyle  = ui.Foreground(theme.Faint)
 	titleStyle       = ui.Foreground(theme.Accent).Bold(true)
@@ -38,10 +36,6 @@ func transparentInput() textinput.Model {
 }
 
 func RenderTitle() string { return titleStyle.Render("DevDock") }
-
-func centerInTerminal(w, h int, content string) string {
-	return ui.Fit(lipgloss.Place(max(w, 0), max(h, 0), lipgloss.Center, lipgloss.Center, content), w, h)
-}
 
 // Technology labels use semantic foregrounds rather than colored badge fills.
 func RenderLanguageTags(langs []string) string {

@@ -40,7 +40,13 @@ type model struct {
 	tmuxRefreshRequested   bool
 	tmuxRefreshID          uint64
 	tmuxDeleting           bool
-	spinnerID              uint64
+	motion                 animationClock
+	startupCmd             tea.Cmd
+	scanInFlight           bool
+	repoLoading            bool
+	tmuxRefreshing         bool
+	cachedTmux             map[string]bool
+	statusDetails          string
 	scanRequested          bool
 	scanID                 uint64
 	workspaceTree          core.Workspace
@@ -129,6 +135,9 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 
 	m := model{
 		focus:          ui.Projects,
+		motion:         animationClock{generation: 1, reduced: reducedMotion()},
+		repoLoading:    cfg.IsGitHubConnected(),
+		tmuxRefreshing: uiSt.ActiveTab == TabTmux,
 		cfg:            cfg,
 		repoLoadID:     1,
 		tmuxRefreshID:  1,
@@ -191,11 +200,18 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 	m.searchInput = transparentInput()
 	m.searchInput.Prompt = "/ "
 	m.sizePresentation()
+	m.motion.pending = !m.motion.reduced && m.activityLabel() != ""
 	return m
 }
 
 func (m model) Init() tea.Cmd {
 	var commands []tea.Cmd
+	if m.startupCmd != nil {
+		commands = append(commands, m.startupCmd)
+	}
+	if m.motion.pending {
+		commands = append(commands, animationTick(m.motion.generation))
+	}
 	if m.cfg.IsGitHubConnected() {
 		commands = append(commands, gh.CmdFetchRepos(m.cfg.GitHubToken, m.repoLoadID))
 	}
@@ -286,7 +302,7 @@ func (m model) refreshTabList() model {
 
 func (m *model) sizePresentation() {
 	l := m.dashboardLayout()
-	m.list.SetDelegate(projectDelegate{favorites: m.uiState.Favorites, selected: m.selected, focused: m.focus == ui.Projects})
+	m.list.SetDelegate(projectDelegate{sessions: m.cachedTmux, favorites: m.uiState.Favorites, selected: m.selected, focused: m.focus == ui.Projects})
 	m.list.SetSize(max(l.Projects, 1), max(l.BodyHeight-1, 1))
 	m.searchInput.Width = max(min(m.termW-6, 72), 1)
 }

@@ -7,12 +7,14 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
+	"github.com/richardnascimento18/devdock/internal/tmux"
 	"github.com/richardnascimento18/devdock/internal/ui"
 	"io"
 	"strings"
 )
 
 type projectDelegate struct {
+	sessions  map[string]bool
 	favorites map[string]bool
 	selected  map[string]bool
 	focused   bool
@@ -33,6 +35,9 @@ func (d projectDelegate) Render(w io.Writer, m list.Model, index int, it list.It
 			title = "★ " + title
 		}
 		detail = config.RootName(p.Root) + " › " + p.Location.Breadcrumb() + " · " + core.PathID(p.Path)[:6]
+		if m.Width() >= 45 && d.sessions[tmux.SessionName(p)] {
+			detail += " · ● tmux"
+		}
 		if m.Width() >= 55 && len(p.Languages) > 0 {
 			detail += " · " + strings.Join(p.Languages, "/")
 		}
