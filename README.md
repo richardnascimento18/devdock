@@ -48,7 +48,7 @@ First run asks for an existing workspace root and saves configuration. A malform
 | `x` / `X` | Delete a project/domain |
 | `G` / Ctrl+G | Create/delete a group at any depth |
 | `a` / `A` | Add/remove a root |
-| `e` | Open the preset/template editor |
+| `e` | Open the configuration, preset, and template editor |
 | `g` | Connect GitHub, or refresh connected repositories |
 | Esc | Cancel the current flow |
 | `q` | Quit from the main screen |
@@ -76,6 +76,8 @@ Example config without GitHub credentials:
 roots = ["/home/you/projects", "/mnt/work/projects"]
 default_preset = "nvim"
 ```
+
+The editor opened with `e` has **Presets**, **Templates**, and **Settings** tabs. Settings edits the existing default preset (an existing preset name, or blank to select the first preset) and invokes the existing add/remove-root workflows. Root removal prunes associated favorites, recents, and collapsed nodes; unavailable roots remain configured until deliberately removed. A configuration save clones the proposal, validates the whole config, writes atomically, and then replaces live state. Failed saves preserve the draft and previous config; cancellation and unchanged saves do not write. Default-preset changes take effect immediately and survive restart. Ignore patterns remain in `.ddignore`; view preferences remain in `state.json`. The editor does not display or edit OAuth credentials or internal values.
 
 The configuration file contains a GitHub access token after authorization. It is saved with mode `0600`; do not commit it or attach it to issue reports.
 

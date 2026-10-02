@@ -1,11 +1,11 @@
 package main
 
-// editor.go — interactive preset/template editor
+// editor.go — interactive preset/template/configuration editor
 //
 // Navigation is entirely keyboard-driven (vim-style: j/k, h/l, tab, enter).
 // The editor is split into three layers:
 //
-//  1. editorScreen  — top-level: two tabs (Presets / Templates) + item list
+//  1. editorScreen  — top-level: Presets / Templates / Settings + item list
 //  2. presetEditor  — edit a single Preset (windows, pane splits)
 //  3. templateEditor — edit a single Template (steps list)
 //
@@ -34,9 +34,10 @@ import (
 const (
 	editorTabPresets   = 0
 	editorTabTemplates = 1
+	editorTabSettings  = 2
 )
 
-var editorTabNames = []string{"Presets", "Templates"}
+var editorTabNames = []string{"Presets", "Templates", "Settings"}
 
 // ---------------------------------------------------------------------------
 // editorLayer controls which layer is visible
@@ -48,6 +49,7 @@ const (
 	editorLayerList     editorLayer = iota // browsing list of presets/templates
 	editorLayerPreset                      // editing a single preset
 	editorLayerTemplate                    // editing a single template
+	editorLayerConfig                      // editing application configuration
 )
 
 // ---------------------------------------------------------------------------
@@ -65,6 +67,7 @@ type editorScreen struct {
 
 	pe presetEditor
 	te templateEditor
+	ce configurationEditor
 
 	statusMsg string
 	termW     int
@@ -96,6 +99,8 @@ func (e *editorScreen) listLen() int {
 	switch e.tab {
 	case editorTabPresets:
 		return len(e.presets) + 1 // +1 for "create new"
+	case editorTabSettings:
+		return 3
 	default:
 		return len(e.tmpls) + 1
 	}
@@ -121,6 +126,8 @@ func (e editorScreen) Update(msg tea.Msg) (editorScreen, tea.Cmd) {
 		return e.updatePresetEditor(msg)
 	case editorLayerTemplate:
 		return e.updateTemplateEditor(msg)
+	case editorLayerConfig:
+		return e.updateConfigurationEditor(msg)
 	default:
 		return e.updateList(msg)
 	}
@@ -144,16 +151,21 @@ func (e editorScreen) updateList(msg tea.Msg) (editorScreen, tea.Cmd) {
 		e.cursor--
 		e.clampCursor()
 	case "h", "left", "shift+tab":
-		e.tab = (e.tab + 1) % 2 // only 2 tabs
+		e.tab = (e.tab + len(editorTabNames) - 1) % len(editorTabNames)
 		e.cursor = 0
 		e.statusMsg = ""
 	case "l", "right", "tab":
-		e.tab = (e.tab + 1) % 2
+		e.tab = (e.tab + 1) % len(editorTabNames)
 		e.cursor = 0
 		e.statusMsg = ""
 	case "enter":
 		e.statusMsg = ""
 		switch e.tab {
+		case editorTabSettings:
+			if e.cursor == 0 {
+				e.ce = newConfigurationEditor(e.cfg.DefaultPreset)
+				e.layer = editorLayerConfig
+			}
 		case editorTabPresets:
 			if e.cursor == len(e.presets) {
 				// Create new preset
@@ -319,6 +331,8 @@ func (e editorScreen) View() string {
 		return e.pe.View(e.termW, e.termH)
 	case editorLayerTemplate:
 		return e.te.View(e.termW, e.termH)
+	case editorLayerConfig:
+		return e.viewConfigurationEditor()
 	default:
 		return e.viewList()
 	}
@@ -342,6 +356,19 @@ func (e editorScreen) viewList() string {
 	// List
 	var listLines []string
 	switch e.tab {
+	case editorTabSettings:
+		value := e.cfg.DefaultPreset
+		if value == "" {
+			value = "(first preset)"
+		}
+		listLines = append(listLines,
+			renderEditorListItem(e.cursor == 0, "Default preset", dimStyle.Render("  "+value)),
+			renderEditorListItem(e.cursor == 1, "Add root", ""),
+			renderEditorListItem(e.cursor == 2, "Remove root", ""),
+			"", dimStyle.Render("Configured roots:"))
+		for _, root := range e.cfg.ActiveRoots() {
+			listLines = append(listLines, "  "+root)
+		}
 	case editorTabPresets:
 		for i, p := range e.presets {
 			var windows []string

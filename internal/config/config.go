@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"slices"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/richardnascimento18/devdock/internal/fileutil"
@@ -122,4 +124,20 @@ func Validate(cfg Config) error {
 	}
 	return nil
 }
-func (c Config) Clone() Config { c.Roots = append([]string(nil), c.Roots...); return c }
+func (c Config) Clone() Config { c.Roots = slices.Clone(c.Roots); return c }
+
+// Commit validates and persists a detached proposal before replacing live config.
+// An unchanged proposal succeeds without writing; errors return a copy of current.
+func Commit(current, proposed Config) (Config, bool, error) {
+	proposed = proposed.Clone()
+	if err := Validate(proposed); err != nil {
+		return current.Clone(), false, err
+	}
+	if reflect.DeepEqual(current, proposed) {
+		return current.Clone(), false, nil
+	}
+	if err := Save(proposed); err != nil {
+		return current.Clone(), false, err
+	}
+	return proposed, true, nil
+}

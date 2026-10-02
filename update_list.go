@@ -382,6 +382,7 @@ func (m model) startDeleteDomain() (tea.Model, tea.Cmd) {
 
 func (m model) startAddRoot() (tea.Model, tea.Cmd) {
 	m.inputScr = newInputScreen("Add Root Directory — enter path:", "~/projects", "enter confirm  •  esc cancel")
+	m.inputScr.input.CharLimit = 0
 	m.state = stateAddRoot
 	return m, nil
 }

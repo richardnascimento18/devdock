@@ -121,13 +121,16 @@ func (m model) updateAddRoot(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			proposed := m.cfg.Clone()
 			proposed.AddRoot(path)
-			if err := config.Save(proposed); err != nil {
+			committed, changed, err := config.Commit(m.cfg, proposed)
+			if err != nil {
 				m.inputScr.err = fmt.Sprintf("error saving config: %v", err)
 				return m, nil
 			}
-			m.cfg = proposed
+			m.cfg = committed
 			m.rootSel.SetRoots(m.cfg.ActiveRoots())
-			m = m.rescan()
+			if changed {
+				m = m.rescan()
+			}
 			m.state = stateList
 			return m, nil
 		}
