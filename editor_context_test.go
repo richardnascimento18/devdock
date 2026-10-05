@@ -97,3 +97,24 @@ func TestContextEditorCancelRetainsOriginalCollection(t *testing.T) {
 		t.Fatal("cancel committed draft")
 	}
 }
+
+func TestSettingsRootFlowResizePreservesReturnLayout(t *testing.T) {
+	m := renderFixture()
+	m.state = stateAddRoot
+	m.editorRootReturn = true
+	m.editorScr = newEditorScreen(m.presets, m.templates, 120, 40)
+	m.editorScr.tab = editorTabSettings
+	m.inputScr = newInputScreen("Add root", "/workspace/new", "enter confirm · esc cancel")
+	m = dashboardKey(t, m, keyRune("/pending/root"))
+	for _, size := range [][2]int{{140, 40}, {80, 24}, {40, 15}} {
+		next, _ := m.Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+		m = next.(model)
+		if m.editorScr.termW != size[0] || m.editorScr.termH != size[1] || m.inputScr.input.Value() != "/pending/root" {
+			t.Fatal("paused Settings context/draft lost on resize")
+		}
+	}
+	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+	if m.state != stateEditor || m.editorScr.termW != 40 || !strings.Contains(ansi.Strip(m.View()), "Settings") || !strings.Contains(ansi.Strip(m.View()), "esc") {
+		t.Fatal("return used stale editor dimensions")
+	}
+}

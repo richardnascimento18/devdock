@@ -10,7 +10,7 @@ Started from reconciled staging `37ac721918ccc04e66e3eda98c81380aa614b364`;
 production `cbfc93cb85765afc043a3d90bd6a76723398a814` was its ancestor, with
 identical file trees. Production remained default; only production/staging
 remote branches remained; working tree was clean. Latest prerelease was beta.10;
-beta.11 was unused. Rulesets 24337571 and 24336971 were active and retained
+beta.11 was unused. Rulesets 24347571 and 24346971 were active and retained
 required CI, PR, deletion and non-fast-forward restrictions without bypass actors.
 Classic protection endpoints return 404 because protection uses rulesets.
 Evidence: [preflight](pass-3f/preflight.json), branch/release snapshots and rulesets
@@ -173,9 +173,9 @@ The feature PR stays open for corrections on the same branch.
 ## M. Automated validation
 
 Detailed logs live in [pass-3f](pass-3f/); machine-readable counts are in
-[test-summary.json](pass-3f/test-summary.json). Current totals: 157 top-level Go
-tests, 433 including subtests, zero skips/failures, 59 ANSI/plain fixture pairs,
-11 Python tests; total statement coverage 66.9%.
+[test-summary.json](pass-3f/test-summary.json). Current totals: 158 top-level Go
+tests, 434 including subtests, zero skips/failures, 59 ANSI/plain fixture pairs,
+11 Python tests; total statement coverage 67.0%.
 
 Exact minimum Go 1.26.0 compatibility tests passed. Its vulnerability scan reports
 18 called standard-library advisories, fixed in subsequent Go patch releases;

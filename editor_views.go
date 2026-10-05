@@ -193,6 +193,9 @@ func (e editorScreen) viewList() string {
 	if e.tab == editorTabSettings {
 		hint = "j/k choose · enter edit · tab switch · pgup/pgdn roots · esc back"
 	}
+	if w < 74 {
+		hint = "enter edit · tab section · esc back"
+	}
 	return strings.Join([]string{ui.Header("Configuration", w), ui.Fit(strings.Join(tabs, " · "), w, 1), "", body, ui.Footer(hint, e.statusMsg, w)}, "\n")
 }
 func (pe presetEditor) form(w, h int) editorForm {

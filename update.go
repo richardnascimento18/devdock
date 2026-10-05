@@ -87,6 +87,9 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		if m.state == statePTYExecution {
 			return m.updatePTYExecution(msg)
 		}
+		if m.editorRootReturn && m.state != stateEditor {
+			m.editorScr, _ = m.editorScr.Update(msg)
+		}
 		if m.state == stateEditor {
 			return m.updateEditor(msg)
 		}
