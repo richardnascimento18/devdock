@@ -1,0 +1,29 @@
+DevDock  Configuration · Templates › service › step 1
+  Presets · > Templates ·   Settings
+
+  Templates                     Steps                           > Step
+> service · draft             > 1 [command] pwd                 > Type: command
+  + New template                + Add step                      h/l changes type
+                                + Add post-step
+                                                                  Command
+                                                                  pwd
+
+                                                                  Output path (optional)
+                                                                  result.txt
+
+                                                                  Post-step: false
+                                                                enter toggles
+
+                                                                Variables: {{project_name}}, {{project_path}}, {{domain}}, {{root}}
+
+
+
+
+
+
+
+
+
+
+
+tab field · i type · enter accept · ctrl+s save · esc discard fields · alt+1 collection · alt+2 items · alt+3 fields

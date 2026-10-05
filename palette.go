@@ -100,6 +100,7 @@ func (m model) openPalette() (tea.Model, tea.Cmd) {
 	m.palette = paletteScreen{input: transparentInput(), actions: m.availableActions(), target: rowIdentity(m.list.SelectedItem()), selection: m.selectionSignature()}
 	m.palette.input.Prompt = "/ "
 	m.palette.input.Placeholder = "Find an action…"
+	m.palette.actions = append(m.palette.actions, m.scopeActions()...)
 	m.palette.filter()
 	m.state = statePalette
 	return m, m.palette.input.Focus()
@@ -188,7 +189,13 @@ func (m model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.state = stateList
+			if strings.HasPrefix(a.key, "scope:") {
+				return m.chooseScope(strings.TrimPrefix(a.key, "scope:")), nil
+			}
 			switch a.key {
+			case "parent-scope", "root-scope", "all-scope":
+				keys := map[string]string{"parent-scope": "backspace", "root-scope": "ctrl+u", "all-scope": "ctrl+a"}
+				return m.navigateScope(keys[a.key]), nil
 			case "clear-selection":
 				m.selected = nil
 				return m, nil

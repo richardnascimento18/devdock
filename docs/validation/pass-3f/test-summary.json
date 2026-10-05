@@ -1,0 +1,9 @@
+{
+  "top_level_go_tests": 157,
+  "go_tests_including_subtests": 433,
+  "skipped": 0,
+  "failed": 0,
+  "fixture_pairs": 59,
+  "python_tests": 11,
+  "coverage_total": "total:\t\t\t\t\t\t\t\t\t\t(statements)\t\t\t66.9%"
+}

@@ -1,0 +1,29 @@
+DevDock  Configuration · Presets › walker › nvim
+> Presets ·   Templates ·   Settings
+
+  Presets             > Window · Default
+> walker · default …  > Window name
+  nvim                  nvim
+  dev-split
+  + New preset
+                        Command (blank = shell)
+                        nvim
+
+
+                        Split layout: disabled
+                      enter toggles · e edits enabled layout
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+enter / i edit · ctrl+s save · esc back · alt+1 collection · alt+2 items · pgup…

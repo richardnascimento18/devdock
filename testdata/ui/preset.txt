@@ -1,3 +1,16 @@
+DevDock  Configuration · Presets › walker
+> Presets ·   Templates ·   Settings
+
+  Presets                     > Windows                       > Edit Preset · Default
+> walker · default · draft    > nvim                            Preset name
+  nvim                          terminal                        walker
+  dev-split                     ai-chat
+  + New preset                  + Add window
+                                                              Selected window
+                                                              nvim
+
+                                                              Command
+                                                              nvim
 
 
 
@@ -10,19 +23,17 @@
 
 
 
-                      ╭──────────────────────────────────────────────────────────────────────────╮
-                      │ > Edit Preset · Default                                                  │
-                      │   Preset name                                                            │
-                      │   walker                                                                 │
-                      │                                                                          │
-                      │                                                                          │
-                      │ Windows                                                                  │
-                      │ > nvim                                                                   │
-                      │   terminal                                                               │
-                      │   ai-chat                                                                │
-                      │   + Add window                                                           │
-                      │                                                                          │
-                      │ Selected: nvim                                                           │
-                      │ nvim                                                                     │
-                      │ j/k choose · i name · enter edit · d remove · ctrl+s save · esc back     │
-                      ╰──────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+j/k choose · i name · enter edit · d remove · ctrl+s save · esc back · alt+1 collection · alt+2 items · alt+3 fields

@@ -69,14 +69,15 @@ type editorScreen struct {
 	te templateEditor
 	ce configurationEditor
 
-	discarding   bool
-	deleting     bool
-	deleteName   string
-	scroll       int
-	manualScroll bool
-	statusMsg    string
-	termW        int
-	termH        int
+	discarding    bool
+	contextMaster bool
+	deleting      bool
+	deleteName    string
+	scroll        int
+	manualScroll  bool
+	statusMsg     string
+	termW         int
+	termH         int
 }
 
 func newEditorScreen(presets []preset.Preset, templates []tmpl.Template, w, h int) editorScreen {

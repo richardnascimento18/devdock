@@ -1,0 +1,14 @@
+
+ ╭────────────────────────────────────╮
+ │ > Choose tmux preset               │
+ │ ▶ long-preset-long-pres… (default… │
+ │   nvim  [nvim · terminal]          │
+ │   dev-split  [dev[split]]          │
+ │                                    │
+ │ Selected: long-preset-long-preset- │
+ │ long-preset-long-preset-long-prese │
+ │ t-long-preset-long-preset-long-pre │
+ │ set-long-preset-long-preset-       │
+ │ ↑/↓ choose · enter confirm · esc   │
+ │ cancel                             │
+ ╰────────────────────────────────────╯

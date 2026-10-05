@@ -1,0 +1,39 @@
+DevDock  all workspaces · preset walker
+Search  ·  Recents  ·  Favorites  ·  tmux-sessions  3 projects
+
+  Workspace               > Projects                                              Inspector
+› ◉ All workspaces 3      > billing-api ★                                       billing-api
+  ▾ work 3                  ⚡ Express · ⑂ GitHub · ● tmux    … › services      ⚡ Express
+  ├─▾ /backend 2            billing-api
+  │ └─· services 1          Ts TS · ⑂ Git                      work › frontend  Location
+  └─· /frontend 1           auth-日本語-é                                       backend › services
+                            ⌂ local                             work › backend
+                                                                                /workspace/work/backend/services/billi
+                                                                                ng-api
+
+                                                                                Git
+                                                                                ⑂ GitHub · acme/billing-api
+
+                                                                                Tmux
+                                                                                ● billing-api · active (cached)
+                                                                                Preset · walker
+
+                                                                                Favorite
+                                                                                ★ Favorite
+
+                                                                                Actions
+                                                                                enter open · f favorite
+                                                                                m move · x delete with confirmation
+
+
+
+
+
+
+
+
+
+
+
+/workspace/work/backend/services/billing-api
+/ search · enter open · alt+1/2/3 panes · ⌫ parent · ctrl+p scope/actions · ? help

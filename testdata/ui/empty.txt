@@ -1,12 +1,18 @@
+██████╗ ███████╗██╗   ██╗██████╗  ██████╗  ██████╗██╗  ██╗
+██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗██╔════╝██║ ██╔╝
+██║  ██║█████╗  ██║   ██║██║  ██║██║   ██║██║     █████╔╝
+██║  ██║██╔══╝  ╚██╗ ██╔╝██║  ██║██║   ██║██║     ██╔═██╗
+██████╔╝███████╗ ╚████╔╝ ██████╔╝╚██████╔╝╚██████╗██║  ██╗
+╚═════╝ ╚══════╝  ╚═══╝  ╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝
 DevDock  all workspaces · preset walker
 Search  ·  Recents  ·  Favorites  ·  tmux-sessions  0 projects
 
   Workspace               > Projects                                              Inspector
-> All workspaces          No projects here yet.                                 Select a project to inspect.
-  ▾ work  d286            Press n to create or g to connect GitHub.             ctrl+p opens available actions.
-  ├─▾ /backend  2
-  │ └─· services  1
-  └─· /frontend  1
+› ◉ All workspaces 0      No projects here yet.                                 Select a project to inspect.
+  ▾ work 3                Press n to create or g to connect GitHub.             ctrl+p opens available actions.
+  ├─▾ /backend 2
+  │ └─· services 1
+  └─· /frontend 1
 
 
 
@@ -29,11 +35,4 @@ Search  ·  Recents  ·  Favorites  ·  tmux-sessions  0 projects
 
 
 
-
-
-
-
-
-
-
-/ search · space select · enter open · f favorite · tab focus · ctrl+p actions · ? help
+/ search · enter open · alt+1/2/3 panes · ⌫ parent · ctrl+p scope/actions · ? help

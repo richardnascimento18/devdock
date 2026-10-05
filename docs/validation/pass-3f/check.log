@@ -1,0 +1,218 @@
+all modules verified
+...........
+----------------------------------------------------------------------
+Ran 11 tests in 0.031s
+
+OK
+1.1.0-beta.11
+ok  	github.com/richardnascimento18/devdock	1.197s
+ok  	github.com/richardnascimento18/devdock/internal/config	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/core	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/detect	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/fileutil	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/github	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/preset	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/pty	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/state	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/template	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/tmux	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/ui	(cached)
+ok  	github.com/richardnascimento18/devdock	9.062s
+ok  	github.com/richardnascimento18/devdock/internal/config	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/core	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/detect	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/fileutil	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/github	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/preset	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/pty	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/state	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/template	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/tmux	(cached)
+ok  	github.com/richardnascimento18/devdock/internal/ui	(cached)
+=== Symbol Results ===
+
+Vulnerability #1: GO-2026-6218
+    Avoid quadratic complexity in resolvePath in net/url
+  More info: https://pkg.go.dev/vuln/GO-2026-6218
+  Standard library
+    Found in: net/url@go1.26
+    Fixed in: net/url@go1.26.6
+    Example traces found:
+      #1: internal/github/github.go:75:24: github.Client.request calls http.Client.Do, which eventually calls url.URL.Parse
+
+Vulnerability #2: GO-2026-6090
+    Limit handshake messages we are willing to accept post-handshake in
+    crypto/tls
+  More info: https://pkg.go.dev/vuln/GO-2026-6090
+  Standard library
+    Found in: crypto/tls@go1.26
+    Fixed in: crypto/tls@go1.26.6
+    Example traces found:
+      #1: internal/github/github.go:75:24: github.Client.request calls http.Client.Do, which eventually calls tls.Conn.HandshakeContext
+      #2: internal/github/github.go:79:2: github.Client.request calls http.body.Close, which eventually calls tls.Conn.Read
+      #3: main.go:34:14: devdock.main calls fmt.Fprintf, which calls tls.Conn.Write
+      #4: internal/github/github.go:75:24: github.Client.request calls http.Client.Do, which eventually calls tls.Dialer.DialContext
+
+Vulnerability #3: GO-2026-5972
+    Enforce maximum recursion depth in encoding/asn1
+  More info: https://pkg.go.dev/vuln/GO-2026-5972
+  Standard library
+    Found in: encoding/asn1@go1.26
+    Fixed in: encoding/asn1@go1.26.6
+    Example traces found:
+      #1: internal/pty/pty.go:104:16: pty.Session.Close calls sync.Once.Do, which eventually calls asn1.Unmarshal
+
+Vulnerability #4: GO-2026-5856
+    Invoking Encrypted Client Hello privacy leak in crypto/tls
+  More info: https://pkg.go.dev/vuln/GO-2026-5856
+  Standard library
+    Found in: crypto/tls@go1.26
+    Fixed in: crypto/tls@go1.26.5
+    Example traces found:
+      #1: internal/github/github.go:75:24: github.Client.request calls http.Client.Do, which eventually calls tls.Conn.HandshakeContext
+      #2: internal/github/github.go:79:2: github.Client.request calls http.body.Close, which eventually calls tls.Conn.Read
+      #3: main.go:34:14: devdock.main calls fmt.Fprintf, which calls tls.Conn.Write
+      #4: internal/github/github.go:75:24: github.Client.request calls http.Client.Do, which eventually calls tls.Dialer.DialContext
+
+Vulnerability #5: GO-2026-5039
+    Arbitrary inputs are included in errors without any escaping in
+    net/textproto
+  More info: https://pkg.go.dev/vuln/GO-2026-5039
+  Standard library
+    Found in: net/textproto@go1.26
+    Fixed in: net/textproto@go1.26.4
+    Example traces found:
+      #1: internal/github/github.go:79:2: github.Client.request calls http.body.Close, which eventually calls textproto.Reader.ReadMIMEHeader
+
+Vulnerability #6: GO-2026-5037
+    Inefficient candidate hostname parsing in crypto/x509
+  More info: https://pkg.go.dev/vuln/GO-2026-5037
+  Standard library
+    Found in: crypto/x509@go1.26
+    Fixed in: crypto/x509@go1.26.4
+    Example traces found:
+      #1: main.go:34:14: devdock.main calls fmt.Fprintf, which eventually calls x509.Certificate.Verify
+      #2: main.go:34:14: devdock.main calls fmt.Fprintf, which eventually calls x509.Certificate.VerifyHostname
+      #3: main.go:41:42: devdock.main calls errors.joinError.Error, which calls x509.HostnameError.Error
+
+Vulnerability #7: GO-2026-5026
+    Invoking failure to reject ASCII-only Punycode-encoded labels in
+    golang.org/x/net/idna
+  More info: https://pkg.go.dev/vuln/GO-2026-5026
+  Standard library
+    Found in: net/http@go1.26
+    Fixed in: net/http@go1.26.6
+    Example traces found:
+      #1: internal/github/github.go:75:24: github.Client.request calls http.Client.Do
+
+Vulnerability #8: GO-2026-4971
+    Panic in Dial and LookupPort when handling NUL byte on Windows in net
+  More info: https://pkg.go.dev/vuln/GO-2026-4971
+  Standard library
+    Found in: net@go1.26
+    Fixed in: net@go1.26.3
+    Example traces found:
+      #1: internal/github/github.go:75:24: github.Client.request calls http.Client.Do, which eventually calls net.Dialer.DialContext
+
+Vulnerability #9: GO-2026-4970
+    Root escape via symlink plus trailing slash in os
+  More info: https://pkg.go.dev/vuln/GO-2026-4970
+  Standard library
+    Found in: os@go1.26
+    Fixed in: os@go1.26.5
+    Example traces found:
+      #1: internal/template/template.go:292:22: template.CommandOutput calls os.Root.OpenFile
+
+Vulnerability #10: GO-2026-4947
+    Unexpected work during chain building in crypto/x509
+  More info: https://pkg.go.dev/vuln/GO-2026-4947
+  Standard library
+    Found in: crypto/x509@go1.26
+    Fixed in: crypto/x509@go1.26.2
+    Example traces found:
+      #1: main.go:34:14: devdock.main calls fmt.Fprintf, which eventually calls x509.Certificate.Verify
+
+Vulnerability #11: GO-2026-4946
+    Inefficient policy validation in crypto/x509
+  More info: https://pkg.go.dev/vuln/GO-2026-4946
+  Standard library
+    Found in: crypto/x509@go1.26
+    Fixed in: crypto/x509@go1.26.2
+    Example traces found:
+      #1: main.go:34:14: devdock.main calls fmt.Fprintf, which eventually calls x509.Certificate.Verify
+
+Vulnerability #12: GO-2026-4918
+    Infinite loop in HTTP/2 transport when given bad SETTINGS_MAX_FRAME_SIZE in
+    net/http/internal/http2 in golang.org/x/net
+  More info: https://pkg.go.dev/vuln/GO-2026-4918
+  Standard library
+    Found in: net/http@go1.26
+    Fixed in: net/http@go1.26.3
+    Example traces found:
+      #1: internal/github/github.go:75:24: github.Client.request calls http.Client.Do
+
+Vulnerability #13: GO-2026-4870
+    Unauthenticated TLS 1.3 KeyUpdate record can cause persistent connection
+    retention and DoS in crypto/tls
+  More info: https://pkg.go.dev/vuln/GO-2026-4870
+  Standard library
+    Found in: crypto/tls@go1.26
+    Fixed in: crypto/tls@go1.26.2
+    Example traces found:
+      #1: internal/github/github.go:75:24: github.Client.request calls http.Client.Do, which eventually calls tls.Conn.HandshakeContext
+      #2: internal/github/github.go:79:2: github.Client.request calls http.body.Close, which eventually calls tls.Conn.Read
+      #3: main.go:34:14: devdock.main calls fmt.Fprintf, which calls tls.Conn.Write
+      #4: internal/github/github.go:75:24: github.Client.request calls http.Client.Do, which eventually calls tls.Dialer.DialContext
+
+Vulnerability #14: GO-2026-4866
+    Case-sensitive excludedSubtrees name constraints cause Auth Bypass in
+    crypto/x509
+  More info: https://pkg.go.dev/vuln/GO-2026-4866
+  Standard library
+    Found in: crypto/x509@go1.26
+    Fixed in: crypto/x509@go1.26.2
+    Example traces found:
+      #1: main.go:34:14: devdock.main calls fmt.Fprintf, which eventually calls x509.Certificate.Verify
+
+Vulnerability #15: GO-2026-4602
+    FileInfo can escape from a Root in os
+  More info: https://pkg.go.dev/vuln/GO-2026-4602
+  Standard library
+    Found in: os@go1.26
+    Fixed in: os@go1.26.1
+    Example traces found:
+      #1: internal/detect/detect.go:122:28: detect.Detector.Languages calls os.ReadDir
+
+Vulnerability #16: GO-2026-4601
+    Incorrect parsing of IPv6 host literals in net/url
+  More info: https://pkg.go.dev/vuln/GO-2026-4601
+  Standard library
+    Found in: net/url@go1.26
+    Fixed in: net/url@go1.26.1
+    Example traces found:
+      #1: internal/github/git.go:83:27: github.ParseRemote calls url.Parse
+      #2: internal/github/github.go:75:24: github.Client.request calls http.Client.Do, which eventually calls url.URL.Parse
+
+Vulnerability #17: GO-2026-4600
+    Panic in name constraint checking for malformed certificates in crypto/x509
+  More info: https://pkg.go.dev/vuln/GO-2026-4600
+  Standard library
+    Found in: crypto/x509@go1.26
+    Fixed in: crypto/x509@go1.26.1
+    Example traces found:
+      #1: main.go:34:14: devdock.main calls fmt.Fprintf, which eventually calls x509.Certificate.Verify
+
+Vulnerability #18: GO-2026-4599
+    Incorrect enforcement of email constraints in crypto/x509
+  More info: https://pkg.go.dev/vuln/GO-2026-4599
+  Standard library
+    Found in: crypto/x509@go1.26
+    Fixed in: crypto/x509@go1.26.1
+    Example traces found:
+      #1: main.go:34:14: devdock.main calls fmt.Fprintf, which eventually calls x509.Certificate.Verify
+
+Your code is affected by 18 vulnerabilities from the Go standard library.
+This scan also found 5 vulnerabilities in packages you import and 10
+vulnerabilities in modules you require, but your code doesn't appear to call
+these vulnerabilities.
+Use '-show verbose' for more details.

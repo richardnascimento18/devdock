@@ -486,7 +486,7 @@ func (m model) updateDeleteTmuxSession(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "enter":
 			typed := strings.TrimSpace(m.confirmDelTmux.input.Value())
-			if typed != m.confirmDelTmux.sessionName {
+			if typed != m.confirmDelTmux.target() {
 				m.confirmDelTmux.err = "name does not match — try again or esc to cancel"
 				m.confirmDelTmux.input.SetValue("")
 				return m, nil

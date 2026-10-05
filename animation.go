@@ -13,6 +13,7 @@ type animationClock struct {
 	generation       uint64
 	frame            int
 	pending, reduced bool
+	label            string
 }
 type animationTickMsg struct{ generation uint64 }
 
@@ -20,8 +21,8 @@ func reducedMotion() bool {
 	value := strings.ToLower(os.Getenv("DEVDOCK_REDUCED_MOTION"))
 	return value == "1" || value == "true" || value == "on" || os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb"
 }
-func animationTick(generation uint64) tea.Cmd {
-	return tea.Tick(120*time.Millisecond, func(time.Time) tea.Msg { return animationTickMsg{generation} })
+func animationTick(generation uint64, delay time.Duration) tea.Cmd {
+	return tea.Tick(delay, func(time.Time) tea.Msg { return animationTickMsg{generation} })
 }
 func (m model) activityLabel() string {
 	switch {
@@ -48,7 +49,18 @@ func (m model) activityLabel() string {
 // Only this presentation clock schedules animation ticks. Async service IDs and
 // deadlines remain independent; animation never starts or completes operations.
 func (m *model) scheduleAnimation() tea.Cmd {
-	if m.motion.reduced || m.activityLabel() == "" {
+	label := m.activityLabel()
+	if label != m.motion.label {
+		if label != "" && (m.motion.label != "" || !m.motion.pending) {
+			m.motion.frame = 0
+		}
+		if m.motion.pending && m.motion.label != "" {
+			m.motion.generation++
+			m.motion.pending = false
+		}
+		m.motion.label = label
+	}
+	if m.motion.reduced || label == "" {
 		if m.motion.pending {
 			m.motion.generation++
 			m.motion.pending = false
@@ -60,7 +72,11 @@ func (m *model) scheduleAnimation() tea.Cmd {
 	}
 	m.motion.pending = true
 	m.motion.generation++
-	return animationTick(m.motion.generation)
+	delay := 160 * time.Millisecond
+	if m.motion.frame == 0 {
+		delay = 320 * time.Millisecond
+	}
+	return animationTick(m.motion.generation, delay)
 }
 func (m model) handleAnimationTick(msg animationTickMsg) (tea.Model, tea.Cmd) {
 	if msg.generation != m.motion.generation || !m.motion.pending || m.motion.reduced || m.activityLabel() == "" {

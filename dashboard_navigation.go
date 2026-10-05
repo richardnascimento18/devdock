@@ -17,6 +17,19 @@ func (m model) updateDashboardNavigation(key tea.KeyMsg) (tea.Model, tea.Cmd, bo
 		return m.applySearch(), cmd, true
 	}
 	switch key.String() {
+	case "alt+1", "alt+2", "alt+3":
+		switch key.String() {
+		case "alt+1":
+			m.focus = ui.Workspace
+		case "alt+2":
+			m.focus = ui.Projects
+		case "alt+3":
+			m.focus = ui.Inspector
+		}
+		m.inspectorScroll = 0
+		return m, nil, true
+	case "backspace", "ctrl+u", "ctrl+a":
+		return m.navigateScope(key.String()), nil, true
 	case "esc":
 		if m.isFiltered {
 			m.lastFilter = ""
@@ -41,6 +54,9 @@ func (m model) updateDashboardNavigation(key tea.KeyMsg) (tea.Model, tea.Cmd, bo
 		return next, cmd, true
 	case "!":
 		m.statusDetails = m.statusMsg
+		if m.scanWarnings != "" {
+			m.statusDetails += "\n\nWorkspace scan warnings:\n" + m.scanWarnings
+		}
 		if m.statusDetails == "" {
 			m.statusDetails = "No status message. Select a project to inspect its location."
 		}

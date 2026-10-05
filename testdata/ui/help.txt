@@ -5,6 +5,9 @@
                       │ Navigation                                                               │
                       │ j/k · ↑/↓  navigate focused pane                                         │
                       │ tab / shift+tab  cycle Workspace / Projects / Inspector                  │
+                      │ alt+1 / alt+2 / alt+3  direct Workspace / Projects / Inspector           │
+                      │ backspace / ctrl+u / ctrl+a  parent / current root / all scope           │
+                      │ ctrl+p · scope <query>  fuzzy workspace/group selection                  │
                       │ ←/→ · h/l  collapse / expand workspace node                              │
                       │ enter  show workspace scope / open project                               │
                       │ { / }  cycle root scope                                                  │
@@ -31,8 +34,5 @@
                       │ attach       Attach tmux session                                         │
                       │ f            Toggle favorite                                             │
                       │ m            Move project                                                │
-                      │ x            Delete project                                              │
-                      │ n            Create project                                              │
-                      │ clone        Clone repository                                            │
                       │ j/k scroll · ? / esc close                                               │
                       ╰──────────────────────────────────────────────────────────────────────────╯

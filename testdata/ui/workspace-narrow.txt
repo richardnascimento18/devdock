@@ -2,11 +2,11 @@ DevDock  all workspaces · preset walker
 Search  [ / ] switch  3 projects
 
 > Workspace
-> All workspaces
-  ▾ work  d286
-  ├─▾ /backend  2
-  │ └─· services  1
-  └─· /frontend  1
+> ◉ All workspaces 3
+  ▾ work 3
+  ├─▾ /backend 2
+  │ └─· services 1
+  └─· /frontend 1
 
 
 

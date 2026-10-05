@@ -2,25 +2,21 @@ DevDock  all workspaces · preset walker
 Search  ·  Recents  ·  Favorites  ·  tmux-sessions  1 projects
 
   Workspace               > Projects                                              Inspector
-> All workspaces          > ★ billing-api                                       Project
-  ▾ work  d286              work › backend › services · 5cede2                  billing-api
-  ├─▾ /backend  2
-  │ └─· services  1                                                             Location
-  └─· /frontend  1                                                              /workspace/work
-                                                                                backend › services
+› ◉ All workspaces 3      > billing-api ★                                       billing-api
+  ▾ work 3                  🐹 Go · ⑂ GitHub                  … › services      🐹 Go
+  ├─▾ /backend 2
+  │ └─· services 1                                                              Location
+  └─· /frontend 1                                                               backend › services
+
                                                                                 /workspace/work/backend/services/billi
                                                                                 ng-api
 
-                                                                                Detected stack
-                                                                                Go
-
-                                                                                GitHub
-                                                                                acme/billing-api
+                                                                                Git
+                                                                                ⑂ GitHub · acme/billing-api
 
                                                                                 Tmux
-                                                                                Preset: walker
-                                                                                Not checked; the tmux tab refreshes se
-                                                                                ssions.
+                                                                                Not checked · visit tmux tab
+                                                                                Preset · walker
 
                                                                                 Favorite
                                                                                 ★ Favorite
@@ -35,5 +31,9 @@ Search  ·  Recents  ·  Favorites  ·  tmux-sessions  1 projects
 
 
 
+
+
+
+
 /workspace/work/backend/services/billing-api
-/ search · space select · enter open · f favorite · tab focus · ctrl+p actions · ? help
+/ search · enter open · alt+1/2/3 panes · ⌫ parent · ctrl+p scope/actions · ? help

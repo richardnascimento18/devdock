@@ -1,0 +1,25 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                      ╭──────────────────────────────────────────────────────────────────────────╮
+                      │ > ! Kill tmux session                                                    │
+                      │ Kill tmux session "backend/services/billing-api"? All windows and panes  │
+                      │ will be lost.                                                            │
+                      │                                                                          │
+                      │ Type "backend/services/billing-api" to confirm:                          │
+                      │                                                                          │
+                      │ > backend/services/billing-api                                           │
+                      │ enter confirm · esc cancel                                               │
+                      ╰──────────────────────────────────────────────────────────────────────────╯

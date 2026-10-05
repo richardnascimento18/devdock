@@ -240,7 +240,7 @@ func (m model) updateBulk(msg tea.Msg) (tea.Model, tea.Cmd) {
 		id := m.bulk.id
 		rows := append([]bulkMoveRow(nil), m.bulk.rows...)
 		return m, func() tea.Msg {
-			result, executed := executeBulk(rows, core.PlanMove, core.ExecuteMove)
+			result, executed := executeBulk(rows, core.PlanMove, m.moveFilesystem.Execute)
 			return bulkDoneMsg{id, result, executed}
 		}
 	}

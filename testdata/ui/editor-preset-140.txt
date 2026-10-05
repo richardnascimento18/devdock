@@ -1,0 +1,29 @@
+DevDock  Configuration · Presets › walker › nvim
+> Presets ·   Templates ·   Settings
+
+  Presets                       Windows                         > Window · Default
+> walker · default · draft    > nvim                            > Window name
+  nvim                          terminal                          nvim
+  dev-split                     ai-chat
+  + New preset                  + Add window                      Command (blank = shell)
+                                                                  nvim
+
+                                                                  Split layout: disabled
+                                                                enter toggles · e edits enabled layout
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+tab field · i type · enter accept · ctrl+s save all · esc discard fields · alt+1 collection · alt+2 items · alt+3 fields

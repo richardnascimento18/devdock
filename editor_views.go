@@ -125,16 +125,28 @@ func editorChoices(labels []string, cursor, rows, width int) string {
 	return strings.Join(lines, "\n")
 }
 func (e editorScreen) View() string {
+	switch e.layer {
+	case editorLayerConfig:
+		e.tab = editorTabSettings
+	case editorLayerPreset:
+		e.tab = editorTabPresets
+	case editorLayerTemplate:
+		e.tab = editorTabTemplates
+	}
 	if e.discarding {
 		return ui.Modal("Discard unsaved changes?", "The draft has changes.\n\nDiscard the draft and return to the collection?", "y discard · esc continue editing", e.termW, e.termH)
 	}
 	if e.deleting {
 		return ui.ModalAt("Remove definition", e.definitionBody(), "enter remove · esc cancel", e.termW, e.termH, e.scroll)
 	}
+	if e.termW >= 74 {
+		return e.viewContextEditor()
+	}
 	if e.layer == editorLayerList {
 		return e.viewList()
 	}
 	form := e.form()
+	form.title = e.editorBreadcrumb() + " › " + form.title
 	return editorFormView(form, e.termW, e.termH, e.scroll, e.manualScroll)
 }
 func (e editorScreen) form() editorForm {

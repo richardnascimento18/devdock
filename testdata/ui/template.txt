@@ -1,3 +1,10 @@
+DevDock  Configuration · Templates › service
+  Presets · > Templates ·   Settings
+
+  Templates                   > Steps                         > Edit Template
+> service · draft             > + Add step                    service
+  + New template                + Add post-step
+                                                              A service scaffold
 
 
 
@@ -13,13 +20,20 @@
 
 
 
-                      ╭──────────────────────────────────────────────────────────────────────────╮
-                      │ > Edit Template                                                          │
-                      │ service                                                                  │
-                      │ A service scaffold                                                       │
-                      │                                                                          │
-                      │ Steps                                                                    │
-                      │ > + Add step                                                             │
-                      │   + Add post-step                                                        │
-                      │ j/k step · enter edit · m metadata · d remove · ctrl+s save · esc back   │
-                      ╰──────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+j/k step · enter edit · m metadata · d remove · ctrl+s save · esc back · alt+1 collection · alt+2 items · alt+3 fields

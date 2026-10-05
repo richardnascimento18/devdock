@@ -1,0 +1,39 @@
+DevDock  all workspaces · preset walker
+Search  ·  Recents  ·  Favorites  ·  tmux-sessions  3 projects
+
+  Workspace               > Tmux sessions                                         Inspector
+› ◉ All workspaces 3      > billing-api                                         Tmux
+  ▾ work 3                  ● active   work › backend › services                billing-api · active
+  ├─▾ /backend 2            auth-日本語-é
+  │ └─· services 1          ● active   work › backend                           Location
+  └─· /frontend 1           legacy-session                                      work › backend › services
+                            ● active
+                                                                                Technical session
+                                                                                devdock-billing-api-5cede220befcfae8
+
+                                                                                Actions
+                                                                                enter attach · x kill with confirmatio
+                                                                                n
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/ search · enter open · alt+1/2/3 panes · ⌫ parent · ctrl+p scope/actions · ? help

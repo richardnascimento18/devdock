@@ -234,25 +234,32 @@ func (p presetPickerScreen) content(termW, termH int) modalContent {
 	start := min(max(p.cursor-rows/2, 0), max(len(p.presets)-rows, 0))
 	for i := start; i < min(start+rows, len(p.presets)); i++ {
 		ps := p.presets[i]
-		label := ps.Name
-		if ps.Name == p.defaultName {
-			label += dimStyle.Render(" (default)")
-		}
-		var winParts []string
-		for _, w := range ps.Windows {
-			if w.Layout != nil {
-				winParts = append(winParts, w.Name+dimStyle.Render("[split]"))
-			} else {
-				winParts = append(winParts, w.Name)
-			}
-		}
-		summary := dimStyle.Render("  [" + strings.Join(winParts, " · ") + "]")
-		var line string
+		// Style semantic fragments once; styling an ANSI-bearing label can
+		// corrupt its escapes when Lip Gloss applies underline/width handling.
+		nameStyle := ui.Foreground(theme.Secondary)
+		arrow := "  "
 		if i == p.cursor {
-			line = activeStyle.Render("▶ "+label) + summary
-		} else {
-			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render("  "+label) + summary
+			nameStyle = activeStyle
+			arrow = "▶ "
 		}
+		marker := ""
+		if ps.Name == p.defaultName {
+			marker = " (default)"
+		}
+		budget := max(ui.ModalInnerWidth(termW)-ansi.StringWidth(arrow+marker), 1)
+		if budget > 40 {
+			budget -= 12
+		}
+		line := nameStyle.Render(arrow) + nameStyle.Render(ansi.Truncate(ps.Name, budget, "…")) + dimStyle.Render(marker)
+		var windows []string
+		for _, win := range ps.Windows {
+			label := win.Name
+			if win.Layout != nil {
+				label += "[split]"
+			}
+			windows = append(windows, label)
+		}
+		line += dimStyle.Render("  [" + strings.Join(windows, " · ") + "]")
 		inner.WriteString(ansi.Truncate(line, ui.ModalInnerWidth(termW), "…") + "\n")
 	}
 	if len(p.presets) > 0 {
@@ -388,6 +395,7 @@ func (s confirmDeleteDomainScreen) content(termW, termH int) modalContent {
 type confirmDeleteTmuxScreen struct {
 	modalScreen
 	sessionName string
+	targetName  string
 	input       textinput.Model
 	err         string
 }
@@ -396,7 +404,7 @@ func newConfirmDeleteTmuxScreen(sessionName string) confirmDeleteTmuxScreen {
 	ti := transparentInput()
 	ti.Placeholder = sessionName
 	ti.Focus()
-	ti.CharLimit = 80
+	ti.CharLimit = 0
 	ti.Width = 52
 	ti.Cursor.Style = cursorStyle
 	ti.PromptStyle = promptStyle
@@ -410,14 +418,21 @@ func (s confirmDeleteTmuxScreen) Update(msg tea.Msg) (confirmDeleteTmuxScreen, t
 	return s, cmd
 }
 
+func (s confirmDeleteTmuxScreen) target() string {
+	if s.targetName != "" {
+		return s.targetName
+	}
+	return s.sessionName
+}
+
 func (s confirmDeleteTmuxScreen) content(termW, termH int) modalContent {
 	s.input.Width = max(ui.ModalInnerWidth(termW)-2, 1)
 	var inner strings.Builder
 	inner.WriteString(warningStyle.Render(fmt.Sprintf(
-		"Kill tmux session \"%s\"? All windows and panes will be lost.", s.sessionName,
+		"Kill tmux session \"%s\"? All windows and panes will be lost.", s.target(),
 	)) + "\n\n")
 	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render(
-		fmt.Sprintf("Type \"%s\" to confirm:", s.sessionName),
+		fmt.Sprintf("Type \"%s\" to confirm:", s.target()),
 	) + "\n\n")
 	inner.WriteString(s.input.View())
 	if s.err != "" {
