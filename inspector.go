@@ -76,33 +76,37 @@ func (m model) inspectorLines(width int) []string {
 			add("GitHub", x.repo.FullName)
 			add("Actions", "enter clone repository")
 		case tmuxSessionItem:
-			add("Tmux", x.name)
+			add("Tmux", ui.Foreground(theme.Tmux).Render(x.displayName()+" · active"))
+			add("Location", x.location)
+			add("Technical session", dimStyle.Render(x.name))
 			add("Actions", "enter attach · x kill with confirmation")
 		default:
 			lines = append(lines, dimStyle.Render("Select a project to inspect.\nctrl+p opens available actions."))
 		}
 		return lines
 	}
-	add("Project", p.Name)
-	add("Location", p.Root+"\n"+p.Location.Breadcrumb()+"\n"+p.Path)
+	lines = append(lines, selectedStyle.Render(p.Name))
 	if len(p.Languages) > 0 {
-		add("Detected stack", strings.Join(p.Languages, " · "))
-	} else {
-		add("Detected stack", "No recognized stack markers")
+		lines = append(lines, RenderLanguageTags(p.Languages))
+	}
+	lines = append(lines, "")
+	add("Location", dimStyle.Render(p.Location.Breadcrumb()+"\n"+p.Path))
+	repo := "⌂ Local project"
+	if p.LocalGit {
+		repo = "⑂ Local Git repository"
 	}
 	if p.GitHubRepo != "" {
-		add("GitHub", p.GitHubRepo)
+		repo = "⑂ GitHub · " + p.GitHubRepo
 	}
-	// The backend does not cache local branch/dirty state or project-session
-	// attachment. Avoid inventing these facts in a presentation redesign.
-	session := "Not checked; the tmux tab refreshes sessions."
+	add("Git", ui.Foreground(theme.Git).Render(repo))
+	session := "Not checked · visit tmux tab"
 	if m.cachedTmux != nil {
-		session = "No session in the cached snapshot."
+		session = "No cached session"
 		if m.cachedTmux[tmux.SessionName(p)] {
-			session = "● Session available (cached)"
+			session = "● " + p.Name + " · active (cached)"
 		}
 	}
-	add("Tmux", "Preset: "+m.presetSel.SelectedName()+"\n"+session)
+	add("Tmux", ui.Foreground(theme.Tmux).Render(session)+"\n"+dimStyle.Render("Preset · "+m.presetSel.SelectedName()))
 	favorite := "☆ Not a favorite"
 	if m.uiState.Favorites[p.Path] {
 		favorite = "★ Favorite"

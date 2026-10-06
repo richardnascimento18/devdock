@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
@@ -46,7 +47,10 @@ type model struct {
 	repoLoading            bool
 	tmuxRefreshing         bool
 	cachedTmux             map[string]bool
+	moveFilesystem         core.Mover
 	statusDetails          string
+	scanWarnings           string
+	scanWarningCount       int
 	scanRequested          bool
 	scanID                 uint64
 	workspaceTree          core.Workspace
@@ -122,7 +126,9 @@ type model struct {
 	pendingLaunchReady  bool
 	pendingLaunchPreset preset.Preset
 
-	rawProjects []core.Project
+	rawProjects        []core.Project
+	projectIndex       map[string]core.Project
+	duplicateLocations map[string]bool
 }
 
 type movePlacementOption struct {
@@ -199,8 +205,10 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 	m.list = l
 	m.searchInput = transparentInput()
 	m.searchInput.Prompt = "/ "
+	m.refreshProjectDisambiguators()
 	m.sizePresentation()
 	m.motion.pending = !m.motion.reduced && m.activityLabel() != ""
+	m.motion.label = m.activityLabel()
 	return m
 }
 
@@ -210,7 +218,7 @@ func (m model) Init() tea.Cmd {
 		commands = append(commands, m.startupCmd)
 	}
 	if m.motion.pending {
-		commands = append(commands, animationTick(m.motion.generation))
+		commands = append(commands, animationTick(m.motion.generation, 320*time.Millisecond))
 	}
 	if m.cfg.IsGitHubConnected() {
 		commands = append(commands, gh.CmdFetchRepos(m.cfg.GitHubToken, m.repoLoadID))
@@ -289,7 +297,7 @@ func (m model) refreshTabList() model {
 	case TabTmux:
 		var items []list.Item
 		for _, s := range m.tmuxSessions {
-			items = append(items, tmuxSessionItem{name: s})
+			items = append(items, m.sessionItem(s))
 		}
 		m.list.SetItems(items)
 	default: // TabSearch
@@ -302,12 +310,13 @@ func (m model) refreshTabList() model {
 
 func (m *model) sizePresentation() {
 	l := m.dashboardLayout()
-	m.list.SetDelegate(projectDelegate{sessions: m.cachedTmux, favorites: m.uiState.Favorites, selected: m.selected, focused: m.focus == ui.Projects})
+	m.list.SetDelegate(projectDelegate{projects: m.projectIndex, duplicates: m.duplicateLocations, sessions: m.cachedTmux, favorites: m.uiState.Favorites, selected: m.selected, focused: m.focus == ui.Projects})
 	m.list.SetSize(max(l.Projects, 1), max(l.BodyHeight-1, 1))
 	m.searchInput.Width = max(min(m.termW-6, 72), 1)
 }
 
 func (m model) rebuildList(verified bool) model {
+	m.refreshProjectDisambiguators()
 	m.reconcileSelection()
 	m.refreshWorkspaceRows()
 	selected := rowIdentity(m.list.SelectedItem())
@@ -362,4 +371,19 @@ func rowIdentity(it list.Item) string {
 		return x.name
 	}
 	return ""
+}
+
+// Snapshot-derived metadata is cached when project/scope data changes, never
+// rebuilt for every animation frame or terminal resize.
+func (m *model) refreshProjectDisambiguators() {
+	names := map[string]int{}
+	m.projectIndex = make(map[string]core.Project, len(m.rawProjects))
+	m.duplicateLocations = map[string]bool{}
+	for _, p := range m.rawProjects {
+		names[p.Name+"\x00"+compactProjectLocation(p)]++
+		m.projectIndex[p.Path] = p
+	}
+	for _, p := range m.rawProjects {
+		m.duplicateLocations[p.Path] = names[p.Name+"\x00"+compactProjectLocation(p)] > 1
+	}
 }

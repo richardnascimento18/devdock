@@ -1,8 +1,5 @@
 
 
-
-
-
                       ╭──────────────────────────────────────────────────────────────────────────╮
                       │ > Commands                                                               │
                       │ / Find an action…                                                        │
@@ -30,5 +27,12 @@
                       │   Keyboard help  [?]                                                     │
                       │   Show status details  [!]                                               │
                       │   Quit  [q]                                                              │
+                      │   Parent workspace scope                                                 │
+                      │   Current root scope                                                     │
+                      │   All workspaces scope                                                   │
+                      │   Scope All workspaces  [scope:]                                         │
+                      │   Scope work                                                             │
+                      │   Scope work › backend                                                   │
+                      │   Scope work › backend › services                                        │
                       │ ↑/↓ choose · enter run · esc cancel                                      │
                       ╰──────────────────────────────────────────────────────────────────────────╯

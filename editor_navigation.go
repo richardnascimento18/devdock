@@ -13,6 +13,10 @@ import (
 
 func (e *editorScreen) sizeInputs() {
 	width := max(ui.ModalInnerWidth(e.termW)-2, 1)
+	if e.termW >= 74 {
+		_, _, detail := e.editorColumnWidths()
+		width = max(detail-4, 1)
+	}
 	inputs := []*textinput.Model{&e.ce.defaultPreset, &e.pe.nameInput, &e.pe.editNameInp, &e.pe.editCmdInp, &e.pe.splitEditor.cmdInput, &e.pe.splitEditor.sizeInput, &e.te.nameInput, &e.te.descInput, &e.te.editRunInput, &e.te.editPathInput, &e.te.editOutputInput}
 	for _, input := range inputs {
 		input.Width = width
@@ -21,6 +25,9 @@ func (e *editorScreen) sizeInputs() {
 func (e editorScreen) editorScrollLimit() int {
 	if e.deleting {
 		return ui.ModalScrollLimit(e.definitionBody(), "enter remove · esc cancel", e.termW, e.termH)
+	}
+	if e.termW >= 74 {
+		return e.contextScrollLimit()
 	}
 	if e.layer == editorLayerList {
 		labels, preview := e.collectionDetails()
@@ -56,6 +63,7 @@ func (e editorScreen) Update(msg tea.Msg) (editorScreen, tea.Cmd) {
 			switch key.String() {
 			case "y":
 				e.discarding = false
+				e.contextMaster = false
 				e.layer = editorLayerList
 				e.scroll = 0
 			case "esc", "n":
@@ -76,6 +84,11 @@ func (e editorScreen) Update(msg tea.Msg) (editorScreen, tea.Cmd) {
 				return e.commitDelete(), nil
 			}
 			return e, nil
+		}
+		if e.termW >= 74 && !e.discarding && !e.deleting {
+			if next, handled := e.contextNavigation(key); handled {
+				return next, nil
+			}
 		}
 		if key.String() == "pgdown" || key.String() == "pgup" {
 			e.manualScroll = true

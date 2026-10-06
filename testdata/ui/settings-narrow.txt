@@ -11,4 +11,4 @@ Configured roots:
 
 
 
-j/k choose · enter edit · tab switch · …
+enter edit · tab section · esc back

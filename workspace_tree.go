@@ -119,29 +119,54 @@ func (m model) viewWorkspace(width, height int) string {
 	for i := start; i < min(start+rows, len(m.workspaceRows)); i++ {
 		row := m.workspaceRows[i]
 		label := "All workspaces"
+		guide, count := "", len(m.rawProjects)
+		activeScope := m.workspaceScope == nil && m.activeRoot() == ""
+		style := ui.Foreground(theme.Secondary)
+		glyph := "◉"
 		if row.node != nil {
 			n := row.node
-			guide := row.guide
-			glyph := "▾"
+			guide = row.guide
+			label = n.Name
+			if n.Kind == core.NodeRoot {
+				for _, other := range m.workspaceTree.Roots {
+					if other.Root != n.Root && other.Name == n.Name {
+						label += " · " + core.PathID(n.Root)[:4]
+						break
+					}
+				}
+			}
+			count = n.ProjectCount
+			activeScope = m.workspaceScope != nil && m.workspaceScope.Key() == n.Key()
+			glyph = "▾"
 			if len(n.Children) == 0 {
 				glyph = "·"
 			} else if m.collapsedNodes[n.Key()] {
 				glyph = "▸"
 			}
-			label = guide + glyph + " " + n.Name + dimStyle.Render(fmt.Sprintf("  %d", n.ProjectCount))
-			if n.Kind == core.NodeDomain {
-				label = guide + glyph + " /" + n.Name + dimStyle.Render(fmt.Sprintf("  %d", n.ProjectCount))
-			}
-			if n.Kind == core.NodeRoot {
-				label = glyph + " " + n.Name + dimStyle.Render("  "+core.PathID(n.Root)[:4])
+			switch n.Kind {
+			case core.NodeRoot:
+				style = ui.Foreground(theme.Info).Bold(true)
+			case core.NodeDomain:
+				label = "/" + label
+				style = ui.Foreground(theme.Accent)
 			}
 		}
 		prefix := "  "
-		if i == m.workspaceCursor {
-			prefix = "> "
-			label = activeStyle.Render(ansi.Strip(label))
+		if activeScope {
+			prefix = "● "
+			style = style.Bold(true)
 		}
-		lines = append(lines, ui.Fit(prefix+label, width, 1))
+		if i == m.workspaceCursor {
+			prefix = "› "
+			if m.focus == ui.Workspace {
+				prefix = "> "
+				style = selectedStyle.Underline(true)
+			}
+		}
+		suffix := dimStyle.Render(fmt.Sprintf(" %d", count))
+		budget := max(width-ansi.StringWidth(prefix+guide+glyph+" "+suffix), 1)
+		line := prefix + dimStyle.Render(guide) + style.Render(glyph+" ") + style.Render(ansi.Truncate(label, budget, "…")) + suffix
+		lines = append(lines, ui.Fit(line, width, 1))
 	}
 	if len(m.workspaceRows) == 1 {
 		lines = append(lines, dimStyle.Render("No roots found.\nPress a to add a root."))
@@ -163,23 +188,12 @@ func (m model) updateWorkspace(key tea.KeyMsg) (model, bool) {
 	case "end":
 		m.workspaceCursor = len(m.workspaceRows) - 1
 	case "enter":
-		m.workspaceScope = nil
-		m.rootSel.cursor = 0
+		var loc *core.Location
 		if m.workspaceCursor > 0 {
-			loc := m.workspaceRows[m.workspaceCursor].node.Location
-			loc.GroupPath = append([]string(nil), loc.GroupPath...)
-			m.workspaceScope = &loc
-			for i, root := range m.rootSel.roots {
-				if root == loc.Root {
-					m.rootSel.cursor = i + 1
-					break
-				}
-			}
+			copy := m.workspaceRows[m.workspaceCursor].node.Location
+			loc = &copy
 		}
-		m.lastFilter = ""
-		m.isFiltered = false
-		m = m.rebuildList(m.cfg.IsGitHubConnected())
-		m.focus = ui.Projects
+		m = m.switchScope(loc)
 	case " ", "right", "l", "left", "h":
 		if m.workspaceCursor == 0 {
 			return m, true

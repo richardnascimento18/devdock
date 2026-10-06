@@ -168,6 +168,12 @@ func scanEntries(parent *Node, entries []os.DirEntry, inspect InspectFunc, ignor
 				name = found.Name
 			}
 			p := Project{Location: parent.Location, Name: name, Path: path, Kind: KindProject, Languages: found.Languages}
+			for _, child := range children {
+				if child.Name() == ".git" && child.Type()&os.ModeSymlink == 0 {
+					p.LocalGit = true
+					break
+				}
+			}
 			// Own the ancestry so consumers cannot mutate another project's location.
 			p.GroupPath = append([]string(nil), p.GroupPath...)
 			parent.Projects = append(parent.Projects, p)

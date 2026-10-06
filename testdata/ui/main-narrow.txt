@@ -2,12 +2,12 @@ DevDock  all workspaces · preset walker
 Search  [ / ] switch  3 projects
 
 > Projects
-> ★ billing-api
-  work › backend › services · 5cede2
+> billing-api ★
+  🐹 Go · ⑂ GitHub   … › services
   billing-api
-  work › frontend · 1d5d4e
+  Ts TS · ⌂ local   … › frontend
   auth-日本語-é
-  work › backend · 121282
+  ⌂ local   … › backend
 
 
 /workspace/work/backend/services/billin…

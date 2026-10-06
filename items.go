@@ -137,12 +137,19 @@ func visualIndent(depth int) string {
 }
 
 // tmuxSessionItem represents a live tmux session in the TabTmux list.
-type tmuxSessionItem struct{ name string }
+type tmuxSessionItem struct{ name, display, location, confirmation string }
+
+func (t tmuxSessionItem) displayName() string {
+	if t.display != "" {
+		return t.display
+	}
+	return t.name
+}
 
 func (t tmuxSessionItem) Title() string {
 	bullet := lipgloss.NewStyle().Foreground(theme.Success).Bold(true).Render("● ")
-	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(t.name)
+	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(t.displayName())
 	return bullet + name
 }
 func (t tmuxSessionItem) Description() string { return "" }
-func (t tmuxSessionItem) FilterValue() string { return t.name }
+func (t tmuxSessionItem) FilterValue() string { return t.displayName() + " " + t.location }

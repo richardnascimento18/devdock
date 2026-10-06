@@ -433,6 +433,12 @@ func (m model) startDeleteTmuxSession() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.confirmDelTmux = newConfirmDeleteTmuxScreen(ts.name)
+	target := ts.confirmation
+	if target == "" {
+		target = ts.displayName()
+	}
+	m.confirmDelTmux.targetName = target
+	m.confirmDelTmux.input.Placeholder = target
 	m.state = stateDeleteTmuxSession
 	return m, nil
 }

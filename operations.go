@@ -87,6 +87,6 @@ func (m model) handleTmuxKilled(msg tmuxKilledMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.state = stateList
-	m.statusMsg = successStyle.Render(fmt.Sprintf("Session %q killed", msg.name))
+	m.statusMsg = successStyle.Render(fmt.Sprintf("Session %q killed", m.confirmDelTmux.target()))
 	return m.refreshTmuxSessions(), nil
 }

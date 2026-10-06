@@ -59,3 +59,15 @@ func compactBreadcrumb(path []string) string {
 	}
 	return strings.Join(path, " › ")
 }
+
+// Adapted from the original beta mark. Reserve it for roomy startup/empty states.
+const asciiTitle = `██████╗ ███████╗██╗   ██╗██████╗  ██████╗  ██████╗██╗  ██╗
+██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗██╔════╝██║ ██╔╝
+██║  ██║█████╗  ██║   ██║██║  ██║██║   ██║██║     █████╔╝
+██║  ██║██╔══╝  ╚██╗ ██╔╝██║  ██║██║   ██║██║     ██╔═██╗
+██████╔╝███████╗ ╚████╔╝ ██████╔╝╚██████╔╝╚██████╗██║  ██╗
+╚═════╝ ╚══════╝  ╚═══╝  ╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝`
+
+func (m model) showBrandMark() bool {
+	return m.termW >= 110 && m.termH >= 36 && (m.scanInFlight && len(m.rawProjects) == 0 || len(m.list.Items()) == 0 && m.lastFilter == "")
+}

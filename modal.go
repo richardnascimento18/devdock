@@ -1,6 +1,10 @@
 package main
 
-import "github.com/richardnascimento18/devdock/internal/ui"
+import (
+	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/ui"
+	"strings"
+)
 
 type modalScreen struct{ scroll int }
 type modalContent struct{ title, body, hint string }
@@ -58,6 +62,15 @@ func (m model) currentModal() modalContent {
 	return m.inputScr.content(w, h)
 }
 func (m model) modalScrollLimit() int {
+	if m.settingsFlowVisible() {
+		left := min(28, m.termW/4)
+		detail := max(m.termW-left-2, 1)
+		copy := m
+		copy.termW = detail + 6
+		c := copy.currentModal()
+		lines := strings.Split(ansi.Hardwrap(c.body, detail, true), "\n")
+		return max(len(lines)-max(m.termH-7, 1), 0)
+	}
 	c := m.currentModal()
 	return ui.ModalScrollLimit(c.body, c.hint, m.termW, m.termH)
 }

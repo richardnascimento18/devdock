@@ -1,0 +1,12 @@
+ok  	github.com/richardnascimento18/devdock	1.121s
+ok  	github.com/richardnascimento18/devdock/internal/config	0.015s
+ok  	github.com/richardnascimento18/devdock/internal/core	0.029s
+ok  	github.com/richardnascimento18/devdock/internal/detect	0.049s
+ok  	github.com/richardnascimento18/devdock/internal/fileutil	0.005s
+ok  	github.com/richardnascimento18/devdock/internal/github	5.037s
+ok  	github.com/richardnascimento18/devdock/internal/preset	0.007s
+ok  	github.com/richardnascimento18/devdock/internal/pty	0.014s
+ok  	github.com/richardnascimento18/devdock/internal/state	0.009s
+ok  	github.com/richardnascimento18/devdock/internal/template	0.011s
+ok  	github.com/richardnascimento18/devdock/internal/tmux	0.007s
+ok  	github.com/richardnascimento18/devdock/internal/ui	0.007s

@@ -201,7 +201,7 @@ func TestCachedInspectorAndCompactPTYControls(t *testing.T) {
 	name := tmux.SessionName(m.rawProjects[0])
 	next, _ := m.Update(tmuxSessionsMsg{id: m.tmuxRefreshID, sessions: []string{name}})
 	m = next.(model)
-	if !strings.Contains(strings.Join(m.inspectorLines(40), "\n"), "Session available (cached)") {
+	if !strings.Contains(strings.Join(m.inspectorLines(40), "\n"), m.rawProjects[0].Name+" · active (cached)") {
 		t.Fatal("known session missing")
 	}
 	for _, width := range []int{24, 40, 120} {

@@ -1,0 +1,25 @@
+
+
+
+
+ ╭────────────────────────────────────╮
+ │ > Templates › service › step 1 › … │
+ │ > Type: command                    │
+ │ h/l changes type                   │
+ │                                    │
+ │   Command                          │
+ │   pwd                              │
+ │                                    │
+ │                                    │
+ │   Output path (optional)           │
+ │   result.txt                       │
+ │                                    │
+ │                                    │
+ │   Post-step: false                 │
+ │ enter toggles                      │
+ │                                    │
+ │ Variables: {{project_name}}, {{pro │
+ │ ject_path}}, {{domain}}, {{root}}  │
+ │ tab field · i type · enter accept  │
+ │ · ctrl+s save · esc discard fields │
+ ╰────────────────────────────────────╯

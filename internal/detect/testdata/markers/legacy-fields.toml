@@ -1,0 +1,4 @@
+name = "Legacy fields"
+command = "nvim"
+[window]
+name = "editor"

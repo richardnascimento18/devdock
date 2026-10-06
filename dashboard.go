@@ -10,6 +10,9 @@ import (
 
 func (m model) dashboardLayout() ui.Layout {
 	l := ui.Measure(m.termW, m.termH)
+	if m.showBrandMark() {
+		l.BodyHeight = max(l.BodyHeight-7, 1)
+	}
 	if l.Mode == ui.Narrow || l.Mode == ui.Medium && m.focus == ui.Inspector || !m.treeMode && m.focus == ui.Workspace {
 		l.Workspace, l.Projects, l.Inspector = l.Width, l.Width, l.Width
 	} else if !m.treeMode {
@@ -39,6 +42,9 @@ func (m model) viewList(w, h int) string {
 		context = m.activeRoot()
 	}
 	header := ui.Header(context+" · preset "+m.presetSel.SelectedName(), w)
+	if m.showBrandMark() {
+		header = titleStyle.Render(asciiTitle) + "\n" + header
+	}
 	var tabs []string
 	for i, name := range tabNames {
 		if i == m.activeTab {
@@ -112,7 +118,7 @@ func (m model) dashboardHint(width int) string {
 	if m.focus == ui.Inspector {
 		return "j/k scroll · enter open · f favorite · m move · esc projects · ctrl+p actions"
 	}
-	return "/ search · space select · enter open · f favorite · tab focus · ctrl+p actions · ? help"
+	return "/ search · enter open · alt+1/2/3 panes · ⌫ parent · ctrl+p scope/actions · ? help"
 }
 
 func (m model) viewProjects(width, height int) string {

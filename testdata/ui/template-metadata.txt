@@ -1,3 +1,18 @@
+DevDock  Configuration · Templates › service
+  Presets · > Templates ·   Settings
+
+  Templates                     Steps                         > Template metadata
+> service · draft             > + Add step                      Name
+  + New template                + Add post-step                 service
+
+
+                                                              > Description
+                                                                A service scaffold
+
+
+                                                                Interactive: false
+
+                                                                Creates project folder: false
 
 
 
@@ -10,18 +25,15 @@
 
 
 
-                      ╭──────────────────────────────────────────────────────────────────────────╮
-                      │ > Template metadata                                                      │
-                      │   Name                                                                   │
-                      │   service                                                                │
-                      │                                                                          │
-                      │                                                                          │
-                      │ > Description                                                            │
-                      │   A service scaffold                                                     │
-                      │                                                                          │
-                      │                                                                          │
-                      │   Interactive: false                                                     │
-                      │                                                                          │
-                      │   Creates project folder: false                                          │
-                      │ tab field · i type · enter toggle · ctrl+s save · esc back               │
-                      ╰──────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+tab field · i type · enter toggle · ctrl+s save · esc back · alt+1 collection · alt+2 items · alt+3 fields

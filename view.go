@@ -13,6 +13,9 @@ func (m model) View() string {
 
 func (m model) viewScreen() string {
 	w, h := m.termW, m.termH
+	if m.settingsFlowVisible() {
+		return m.viewSettingsFlow()
+	}
 	if m.flowModal() {
 		return m.currentModal().View(w, h, m.modalScroll)
 	}

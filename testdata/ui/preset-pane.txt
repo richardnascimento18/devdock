@@ -1,3 +1,13 @@
+DevDock  Configuration · Presets › dev-split › dev
+> Presets ·   Templates ·   Settings
+
+  Presets                       Windows                       > Pane layout
+> walker · default            > dev · split                   * Unsaved draft
+  nvim                          + Add window                  Direction: horizontal
+  dev-split · draft
+  + New preset                                                > 1 · nvim · 0%
+                                                                2 · shell · 0%
+                                                                3 · shell · 0%
 
 
 
@@ -12,15 +22,18 @@
 
 
 
-                      ╭──────────────────────────────────────────────────────────────────────────╮
-                      │ > Pane layout · Unsaved                                                  │
-                      │ * Unsaved draft                                                          │
-                      │                                                                          │
-                      │ Direction: horizontal                                                    │
-                      │                                                                          │
-                      │ > 1 · nvim · 0%                                                          │
-                      │   2 · shell · 0%                                                         │
-                      │   3 · shell · 0%                                                         │
-                      │ j/k choose · r direction · a add · d remove · enter accept · esc back ·  │
-                      │ ctrl+s save all                                                          │
-                      ╰──────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+j/k choose · r direction · a add · d remove · enter accept · esc back · ctrl+s save all · alt+1 collection · alt+2 item…

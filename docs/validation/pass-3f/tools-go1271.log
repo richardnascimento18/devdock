@@ -1,0 +1,4 @@
+# go install honors the caller's GOBIN; check.sh uses it on PATH.
+go install honnef.co/go/tools/cmd/staticcheck@v0.8.1
+go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12

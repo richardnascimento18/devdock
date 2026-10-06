@@ -5,6 +5,9 @@
                       [38;2;197;165;255m│[0m [1;38;2;197;165;255mNavigation[0m                                                               [38;2;197;165;255m│[0m
                       [38;2;197;165;255m│[0m j/k · ↑/↓  navigate focused pane                                         [38;2;197;165;255m│[0m
                       [38;2;197;165;255m│[0m tab / shift+tab  cycle Workspace / Projects / Inspector                  [38;2;197;165;255m│[0m
+                      [38;2;197;165;255m│[0m alt+1 / alt+2 / alt+3  direct Workspace / Projects / Inspector           [38;2;197;165;255m│[0m
+                      [38;2;197;165;255m│[0m backspace / ctrl+u / ctrl+a  parent / current root / all scope           [38;2;197;165;255m│[0m
+                      [38;2;197;165;255m│[0m ctrl+p · scope <query>  fuzzy workspace/group selection                  [38;2;197;165;255m│[0m
                       [38;2;197;165;255m│[0m ←/→ · h/l  collapse / expand workspace node                              [38;2;197;165;255m│[0m
                       [38;2;197;165;255m│[0m enter  show workspace scope / open project                               [38;2;197;165;255m│[0m
                       [38;2;197;165;255m│[0m { / }  cycle root scope                                                  [38;2;197;165;255m│[0m
@@ -31,8 +34,5 @@
                       [38;2;197;165;255m│[0m attach       Attach tmux session                                         [38;2;197;165;255m│[0m
                       [38;2;197;165;255m│[0m f            Toggle favorite                                             [38;2;197;165;255m│[0m
                       [38;2;197;165;255m│[0m m            Move project                                                [38;2;197;165;255m│[0m
-                      [38;2;197;165;255m│[0m x            Delete project                                              [38;2;197;165;255m│[0m
-                      [38;2;197;165;255m│[0m n            Create project                                              [38;2;197;165;255m│[0m
-                      [38;2;197;165;255m│[0m clone        Clone repository                                            [38;2;197;165;255m│[0m
                       [38;2;197;165;255m│[0m [38;2;173;173;189mj/k scroll · ? / esc close[0m                                               [38;2;197;165;255m│[0m
                       [38;2;197;165;255m╰──────────────────────────────────────────────────────────────────────────╯[0m
