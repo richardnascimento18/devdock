@@ -1,6 +1,7 @@
 # Pass 3F manual acceptance — required before merging
 
-Status: **PENDING OWNER FEEDBACK**. This is a candidate, not an accepted pass.
+Status: **OWNER ACCEPTED on 2026-10-06**. The owner explicitly approved merge/
+promotion after acceptable real-machine and UI manual testing.
 
 Branch: `fix/pass-3f-ux-acceptance`. Target: `1.1.0-beta.11`.
 The acceptance checkpoint supplies the exact candidate SHA and binary. Run that
@@ -43,11 +44,15 @@ on this feature branch and repeat validation/acceptance.
 
 ## Owner feedback record
 
-Candidate SHA: supplied at checkpoint / recorded in review-package `candidate.json`.
-Mounted standalone result: pending.
-Mounted bulk result: pending.
-Collision / state / favorite / recent result: pending.
-Legacy workspace marker result: pending.
-Caelestia visual/transparency result: pending.
-Requested corrections: pending.
-Explicit approval: **NOT RECEIVED**.
+Candidate SHA: `c77ba7a66e4585b24af7c61315f884a0b6e7d517` (PR #35).
+Owner feedback: “I approve this Pass 3F candidate for merge/promotion. My manual
+testing is acceptable, including the real-machine behavior and current UI.”
+
+Mounted move and UX/visual acceptance gates: accepted by the owner as part of the
+candidate's overall real-machine approval. Collision/state/favorite/recent and
+legacy-marker results were not separately itemized. No individual PASS/FAIL log
+or visual capture was supplied, and none is inferred here.
+Requested corrections: none. Additional UI changes were explicitly excluded
+unless a release-cycle regression requires them.
+Explicit approval: **RECEIVED**. See [full approval](owner-approval.json).
+Release and reconciliation still require their own automated evidence.

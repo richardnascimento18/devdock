@@ -1,8 +1,9 @@
 # Pass 3F — UX acceptance and regression corrections
 
-Status: candidate implementation; **owner acceptance pending**. Pass 3 is not
-independently accepted. No feature merge, staging/production promotion, release,
-or Pass 4 work is authorized before the owner acceptance gate.
+Status: **owner accepted the candidate on 2026-10-06** and explicitly authorized
+merge/promotion. Accepted SHA: `c77ba7a66e4585b24af7c61315f884a0b6e7d517`.
+The owner reported acceptable manual testing, including real-machine behavior and
+current UI. The protected release cycle is now authorized; Pass 4 remains deferred.
 
 ## Preflight and scope
 
@@ -10,7 +11,7 @@ Started from reconciled staging `37ac721918ccc04e66e3eda98c81380aa614b364`;
 production `cbfc93cb85765afc043a3d90bd6a76723398a814` was its ancestor, with
 identical file trees. Production remained default; only production/staging
 remote branches remained; working tree was clean. Latest prerelease was beta.10;
-beta.11 was unused. Rulesets 24347571 and 24346971 were active and retained
+beta.11 was unused. Rulesets 24337571 and 24336971 were active and retained
 required CI, PR, deletion and non-fast-forward restrictions without bypass actors.
 Classic protection endpoints return 404 because protection uses rulesets.
 Evidence: [preflight](pass-3f/preflight.json), branch/release snapshots and rulesets
@@ -50,7 +51,9 @@ The portable check/rename fallback cannot guarantee atomic no-replace against
 an external writer between the check and rename. This limitation is documented
 in README and explicitly deferred to Pass 4 concurrency hardening; no journal or
 full transaction system was introduced. Owner standalone/bulk/collision/state/
-favorite/recent results on the actual mounted workspace: **pending**.
+favorite/recent acceptance on the actual mounted workspace: the owner accepted
+the candidate's real-machine behavior on 2026-10-06. Individual checklist results
+were not separately itemized; see the recorded approval.
 
 ## B. Legacy .devdock
 
@@ -65,7 +68,8 @@ No file is rewritten.
 Eight stored TOML fixtures test the full scanner outcome: no type, empty type,
 project, group, subgroup, malformed, unknown, and other legacy fields without
 type. They verify project boundaries, empty group retention and unchanged marker
-bytes. Actual owner workspace scan result: pending.
+bytes. The owner accepted the candidate's real-machine behavior; no separate marker-scan
+transcript was supplied.
 
 ## C. ANSI corruption
 
@@ -159,7 +163,9 @@ static. Generation checks, idle/hidden-work handling and reduced motion remain.
 No pane/row/modal fills, reverse-video styles or decorative backgrounds were added.
 Existing source and light/dark × color-profile rendered invariants remain, with
 all fixtures under repeated resize and PTY emitted-byte checks. Owner Caelestia/
-wallpaper confirmation is pending; automated checks cannot establish it.
+wallpaper acceptance is covered by the owner's explicit approval of the current
+UI in the required real-machine acceptance gate; automated checks alone do not
+establish it. No separate visual capture was supplied.
 
 ## L. Manual acceptance
 
@@ -167,8 +173,11 @@ The [mandatory checklist](pass-3f/manual-acceptance.md) prominently requires rea
 mounted standalone/bulk moves, collision behavior, project state and favorite/
 recent remapping, plus full UI/resize/transparency review. Candidate SHA, PR and
 binary path are supplied at the checkpoint and in review-package `candidate.json`.
-Owner feedback, requested corrections and explicit merge approval: **not received**.
-The feature PR stays open for corrections on the same branch.
+Owner approval received on 2026-10-06: “I approve this Pass 3F candidate for
+merge/promotion. My manual testing is acceptable, including the real-machine
+behavior and current UI.” No additional corrections were requested. The full
+[approval record](pass-3f/owner-approval.json) preserves the scope of that feedback.
+PR #35 was merged only after confirming all five existing checks were successful.
 
 ## M. Automated validation
 
@@ -197,14 +206,22 @@ the review package at the acceptance checkpoint.
 
 ## N. GitHub lifecycle
 
-Feature → staging PR: created only after local validation. Green hosted feature CI
-is required at the acceptance checkpoint. **No merge before owner approval.**
-Staging push CI, staging→production PR/source validation/full matrix, merge, beta.11
-release, fresh download of actual published assets, checksums/architecture/version/
-PTY/transparency/ANSI checks and protected production→staging reconciliation remain
-pending until approval. Local candidate binaries are not published-release evidence.
-Final production ancestor/identical-tree checks and permanent-branch cleanup follow
-release. This report will be updated with actual results after acceptance.
+Feature [PR #35](https://github.com/richardnascimento18/devdock/pull/35) was
+accepted at `c77ba7a66e4585b24af7c61315f884a0b6e7d517`; all five hosted
+checks in [run 37343522047](https://github.com/richardnascimento18/devdock/actions/runs/37343522047)
+were successful before the protected merge. The staging merge is
+`9a3d86800d9244a80561b0b5875894e38d83b334`; staging push
+[run 37531366794](https://github.com/richardnascimento18/devdock/actions/runs/37531366794)
+passed. This documentation-only approval record precedes production promotion;
+the accepted UI implementation is unchanged.
+
+The remaining authorized release cycle uses a protected staging→production PR,
+full matrix/source validation, beta.11 publication, fresh published-asset downloads,
+checksum/architecture/version/normal and reduced-motion PTY/transparency/ANSI
+verification, and protected production→staging reconciliation. The completed
+lifecycle evidence and final A–O report will be packaged separately after the
+release; local candidate files are not authoritative published-release evidence.
+No Pass 4 work is authorized by this approval.
 
 ## O. Deferred Pass 4
 
