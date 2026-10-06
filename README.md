@@ -156,8 +156,8 @@ Licensed under [MIT](LICENSE).
 
 The [Pass 1B live engineering report](docs/pass-1b-report.md) records verified branch protections, hosted CI runs, release artifacts, and remaining limitations.
 
-## Pass 3F acceptance candidate
+## Pass 3F UX acceptance
 
 Project rows prioritize names and foreground stack/repository/tmux markers, with compact muted locations. The Inspector provides full paths and loaded details. Scope changes preserve the search query and clear the previous multi-selection; search text entry keeps ordinary editing keys. Scan warnings show a count and `! details`, where complete errors remain readable. The original beta mark appears on wide, tall empty/startup states; ordinary navigation uses the compact wordmark. Activity stays static for the first 320 ms, then uses a slower foreground sweep; reduced motion stays static.
 
-Pass 3F requires owner acceptance on the real mounted workspace and transparent Arch Linux/Caelestia terminal. Passing automated tests does not establish that acceptance. The feature PR must remain unmerged until explicit owner approval. See [the candidate report](docs/validation/pass-3f.md) and [manual acceptance checklist](docs/validation/pass-3f/manual-acceptance.md).
+The owner accepted the Pass 3F candidate on 2026-10-06 after manual testing on the real mounted workspace and transparent Arch Linux/Caelestia environment, and explicitly authorized merge/promotion. Automated tests complement that acceptance. See [the validation report](docs/validation/pass-3f.md) and [manual acceptance record](docs/validation/pass-3f/manual-acceptance.md). Pass 4 remains deferred.
