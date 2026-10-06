@@ -1,5 +1,5 @@
 DevDock  Template Setup
-⣾ Step 1/1
+… Step 1/1
 ╭──────────────────────────────────────╮
 │$ printf 日本語 é 👩‍💻                  │
 │Preparing workspace…                  │

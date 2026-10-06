@@ -19,6 +19,7 @@ type Project struct {
 	Location
 	Name       string      `json:"name"`
 	Path       string      `json:"path"`
+	LocalGit   bool        `json:"local_git,omitempty"`
 	GitHubRepo string      `json:"github_repo,omitempty"`
 	Languages  []string    `json:"languages,omitempty"`
 	Kind       ProjectKind `json:"kind,omitempty"`

@@ -1,3 +1,13 @@
+DevDock  Configuration · Settings
+  Presets ·   Templates · > Settings
+
+  Settings                    > Default preset
+> Default preset · first pr…  ! Choose an existing preset or leave blank.
+  Add root                    > Default preset
+  Remove root                   unknown
+
+                              Available: walker, nvim, dev-split
+                              Blank uses the first preset.
 
 
 
@@ -11,17 +21,19 @@
 
 
 
-                      ╭──────────────────────────────────────────────────────────────────────────╮
-                      │ > Default preset · Unsaved                                               │
-                      │ ! Choose an existing preset or leave blank.                              │
-                      │                                                                          │
-                      │ * Unsaved draft                                                          │
-                      │                                                                          │
-                      │ > Default preset                                                         │
-                      │   unknown                                                                │
-                      │                                                                          │
-                      │                                                                          │
-                      │ Available: walker, nvim, dev-split                                       │
-                      │ Blank uses the first preset.                                             │
-                      │ i / enter edit · ctrl+s save · esc back                                  │
-                      ╰──────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+i / enter edit · ctrl+s save · esc back · alt+1 collection · alt+2 items · alt+3 fields

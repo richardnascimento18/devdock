@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"github.com/charmbracelet/x/ansi"
 	"reflect"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/core"
@@ -64,9 +67,30 @@ func (m model) handleScanResult(msg scanResultMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	m.isFiltered = false
+	m.scanWarnings = ""
+	m.scanWarningCount = 0
 	if msg.snapshot.err != nil {
-		m.statusMsg = errorStyle.Render("workspace scan incomplete: " + msg.snapshot.err.Error())
+		m.scanWarnings = msg.snapshot.err.Error()
+		m.scanWarningCount = warningCount(msg.snapshot.err)
+		m.statusMsg = warningStyle.Render(fmt.Sprintf("⚠ Workspace scan completed with %d warnings · ! details", m.scanWarningCount))
+	} else if m.scanWarnings == "" && m.scanWarningCount == 0 && strings.Contains(ansi.Strip(m.statusMsg), "Workspace scan completed with") {
+		m.statusMsg = ""
 	}
 	m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 	return m, nil
+}
+
+// Count joined scan failures without counting contextual wrappers twice.
+func warningCount(err error) int {
+	if err == nil {
+		return 0
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		count := 0
+		for _, child := range joined.Unwrap() {
+			count += warningCount(child)
+		}
+		return count
+	}
+	return 1
 }

@@ -125,16 +125,28 @@ func editorChoices(labels []string, cursor, rows, width int) string {
 	return strings.Join(lines, "\n")
 }
 func (e editorScreen) View() string {
+	switch e.layer {
+	case editorLayerConfig:
+		e.tab = editorTabSettings
+	case editorLayerPreset:
+		e.tab = editorTabPresets
+	case editorLayerTemplate:
+		e.tab = editorTabTemplates
+	}
 	if e.discarding {
 		return ui.Modal("Discard unsaved changes?", "The draft has changes.\n\nDiscard the draft and return to the collection?", "y discard · esc continue editing", e.termW, e.termH)
 	}
 	if e.deleting {
 		return ui.ModalAt("Remove definition", e.definitionBody(), "enter remove · esc cancel", e.termW, e.termH, e.scroll)
 	}
+	if e.termW >= 74 {
+		return e.viewContextEditor()
+	}
 	if e.layer == editorLayerList {
 		return e.viewList()
 	}
 	form := e.form()
+	form.title = e.editorBreadcrumb() + " › " + form.title
 	return editorFormView(form, e.termW, e.termH, e.scroll, e.manualScroll)
 }
 func (e editorScreen) form() editorForm {
@@ -180,6 +192,9 @@ func (e editorScreen) viewList() string {
 	hint := "j/k choose · enter edit · d remove · tab switch · pgup/pgdn details · esc back"
 	if e.tab == editorTabSettings {
 		hint = "j/k choose · enter edit · tab switch · pgup/pgdn roots · esc back"
+	}
+	if w < 74 {
+		hint = "enter edit · tab section · esc back"
 	}
 	return strings.Join([]string{ui.Header("Configuration", w), ui.Fit(strings.Join(tabs, " · "), w, 1), "", body, ui.Footer(hint, e.statusMsg, w)}, "\n")
 }

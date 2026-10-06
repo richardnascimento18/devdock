@@ -2,6 +2,8 @@
 
 - Node.js GitHub Action deprecation warnings.
 - Native arm64 runtime and terminal smoke coverage.
+- Full concurrency transactions, including closing the destination-check/portable-rename race on filesystems without atomic no-replace support.
+- Canonical repository identity from Git-reported remotes, never folder names: SSH/HTTPS and `.git` normalization; origin/upstream; forks; renamed directories; worktrees; multiple remotes; duplicate clones; malformed remotes; GitHub Enterprise/non-GitHub hosts. Current cached GitHub linking remains the existing implementation in 3F.
 - Crash journals, power-loss operation recovery, durable directory writes.
 - Configuration/state multi-file recovery and compensation failure rehearsal.
 - Real OAuth authorization, rejection, expiry, interruption and credential flows.

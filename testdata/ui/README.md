@@ -6,7 +6,7 @@ is required. Review with `cat testdata/ui/main-wide.ansi` in a transparent termi
 Use `less -R testdata/ui/help.ansi` for larger fixtures. A text editor can inspect
 the matching plain text.
 
-The 40 pairs include wide/medium/narrow dashboard, 200-level tree, duplicate
+The fixture pairs include wide/medium/narrow dashboard, 200-level tree, duplicate
 names, search/collections, inspector, palette/help, bulk confirmation, editors,
 loading/error/OAuth, template terminal, static progress and tiny-terminal states.
 Motion frames and terminal profiles are explicit, independent of runner env.
@@ -29,3 +29,5 @@ it effectively fills cells even without a literal background setter.
 
 These fixtures establish output behavior. Wallpaper/compositor visibility must
 still be inspected by the user; an ANSI capture cannot establish that observation.
+
+Pass 3F adds direct pane focus, metadata/GitHub/local/tmux combinations, fuzzy scope selection, concise warnings, tmux human confirmation, preset-picker ANSI integrity, delayed/running shimmer, and wide/medium/narrow editor properties. `TestANSIIntegrityScreensAndPresetFragments` rejects malformed escapes and visible raw SGR fragments across terminal profiles, with explicit handling of literal user text. PTY smoke checks emitted ANSI as well as transparency.

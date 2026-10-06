@@ -81,7 +81,59 @@ func PlanMove(p Project, destination Location, directoryName string) (MovePlan, 
 	plan.Status = MoveValid
 	return plan, nil
 }
-func ExecuteMove(plan MovePlan) (Project, error) {
+
+// Mover allows filesystem primitives to be supplied without global hooks. Zero
+// values use the native syscalls. Both the fast path and copy publication use
+// the same guarded no-replace compatibility behavior.
+type Mover struct {
+	NoReplace func(string, string) error
+	Rename    func(string, string) error
+}
+
+func (m Mover) rename(src, dst string) error {
+	exclusive := m.NoReplace
+	if exclusive == nil {
+		exclusive = renameExclusive
+	}
+	portable := m.Rename
+	if portable == nil {
+		portable = os.Rename
+	}
+	return renameCompatible(src, dst, exclusive, portable)
+}
+
+func renameCompatible(src, dst string, exclusive, portable func(string, string) error) error {
+	err := exclusive(src, dst)
+	if err == nil {
+		return nil
+	}
+	// EINVAL can also mean a directory moved into itself. Validate the paths
+	// before treating it as an unsupported flag; ordinary rename still reports
+	// any other invalid operation. ENOTSUP aliases EOPNOTSUPP on Linux.
+	if !errors.Is(err, syscall.EINVAL) && !errors.Is(err, syscall.ENOSYS) && !errors.Is(err, syscall.EOPNOTSUPP) {
+		return err
+	}
+	info, statErr := os.Lstat(src)
+	if statErr != nil {
+		return statErr
+	}
+	if filepath.Clean(src) == filepath.Clean(dst) || info.IsDir() && IsDescendant(src, dst) {
+		return syscall.EINVAL
+	}
+	// Lstat also rejects dangling destination symlinks. Recheck immediately
+	// before publication. POSIX rename cannot atomically promise no-replace:
+	// an external writer racing this check remains a Pass 4 limitation.
+	if _, statErr := os.Lstat(dst); statErr == nil {
+		return os.ErrExist
+	} else if !os.IsNotExist(statErr) {
+		return statErr
+	}
+	return portable(src, dst)
+}
+
+func ExecuteMove(plan MovePlan) (Project, error) { return (Mover{}).Execute(plan) }
+
+func (m Mover) Execute(plan MovePlan) (Project, error) {
 	// Plans are advisory: revalidate to catch a changed source or destination.
 	checked, err := PlanMove(plan.Source, plan.Destination, plan.DirectoryName)
 	if err != nil {
@@ -95,7 +147,7 @@ func ExecuteMove(plan MovePlan) (Project, error) {
 		p.Name = checked.DirectoryName
 	}
 	p.Path, p.Location = checked.Path, checked.Destination
-	if err := moveDir(checked.Source.Path, checked.Path, renameExclusive, os.RemoveAll); err != nil {
+	if err := moveDirWithPublication(checked.Source.Path, checked.Path, m.rename, m.rename, os.RemoveAll); err != nil {
 		var partial *PartialMoveError
 		if errors.As(err, &partial) {
 			return p, err
@@ -113,6 +165,11 @@ func MoveProject(p Project, destination Location, directoryName string) (Project
 }
 
 func moveDir(src, dst string, rename func(string, string) error, remove func(string) error) error {
+	initial := func(src, dst string) error { return renameCompatible(src, dst, rename, os.Rename) }
+	return moveDirWithPublication(src, dst, initial, (Mover{}).rename, remove)
+}
+
+func moveDirWithPublication(src, dst string, rename, publish func(string, string) error, remove func(string) error) error {
 	info, err := os.Lstat(src)
 	if err != nil {
 		return err
@@ -142,7 +199,7 @@ func moveDir(src, dst string, rename func(string, string) error, remove func(str
 	if err := copyTree(src, copied); err != nil {
 		return errors.Join(fmt.Errorf("copy: %w", err), os.RemoveAll(stage))
 	}
-	if err := renameExclusive(copied, dst); err != nil {
+	if err := publish(copied, dst); err != nil {
 		return errors.Join(fmt.Errorf("publish copy: %w", err), os.RemoveAll(stage))
 	}
 	if err := os.Remove(stage); err != nil {

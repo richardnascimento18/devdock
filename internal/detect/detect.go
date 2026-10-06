@@ -280,6 +280,11 @@ func ReadDevDockMarker(dir string) (*DevDockMarker, error) {
 	if err := toml.Unmarshal(data, &m); err != nil {
 		return nil, fmt.Errorf("invalid .devdock marker: %w", err)
 	}
+	// Historical markers classified valid missing/blank types as projects.
+	// Normalize in memory only; never rewrite the user's marker.
+	if strings.TrimSpace(m.Type) == "" {
+		m.Type = "project"
+	}
 	if m.Type != "project" && m.Type != "group" && m.Type != "subgroup" {
 		return nil, fmt.Errorf("unknown .devdock type %q", m.Type)
 	}

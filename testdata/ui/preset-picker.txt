@@ -1,0 +1,24 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                      ╭──────────────────────────────────────────────────────────────────────────╮
+                      │ > Choose tmux preset                                                     │
+                      │ ▶ walker (default)  [nvim · terminal · ai-chat]                          │
+                      │   nvim  [nvim · terminal]                                                │
+                      │   dev-split  [dev[split]]                                                │
+                      │                                                                          │
+                      │ Selected: walker                                                         │
+                      │ ↑/↓ choose · enter confirm · esc cancel                                  │
+                      ╰──────────────────────────────────────────────────────────────────────────╯

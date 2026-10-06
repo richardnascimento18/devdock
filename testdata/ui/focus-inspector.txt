@@ -1,0 +1,39 @@
+DevDock  all workspaces · preset walker
+Search  ·  Recents  ·  Favorites  ·  tmux-sessions  3 projects
+
+  Workspace                 Projects                                            > Inspector
+› ◉ All workspaces 3      › billing-api ★                                       billing-api
+  ▾ work 3                  🐹 Go · ⑂ GitHub                  … › services      🐹 Go
+  ├─▾ /backend 2            billing-api
+  │ └─· services 1          Ts TS · ⌂ local                    work › frontend  Location
+  └─· /frontend 1           auth-日本語-é                                       backend › services
+                            ⌂ local                             work › backend
+                                                                                /workspace/work/backend/services/billi
+                                                                                ng-api
+
+                                                                                Git
+                                                                                ⑂ GitHub · acme/billing-api
+
+                                                                                Tmux
+                                                                                Not checked · visit tmux tab
+                                                                                Preset · walker
+
+                                                                                Favorite
+                                                                                ★ Favorite
+
+                                                                                Actions
+                                                                                enter open · f favorite
+                                                                                m move · x delete with confirmation
+
+
+
+
+
+
+
+
+
+
+
+/workspace/work/backend/services/billing-api
+j/k scroll · enter open · f favorite · m move · esc projects · ctrl+p actions

@@ -1,0 +1,39 @@
+DevDock  Configuration › Settings
+Roots / Values
+
+  Settings                    > Add root directory
+  Default preset · first pr…  > /mounted/workspace
+> Add root
+  Remove root                 Filesystem target [09946511e1e43724]:
+                              /mounted/workspace
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+enter save · esc cancel

@@ -1,0 +1,13 @@
+goos: linux
+goarch: amd64
+pkg: github.com/richardnascimento18/devdock
+cpu: AMD Ryzen 7 5700G with Radeon Graphics         
+BenchmarkDeepTreeAndSelection/deep-200-16         	     169	    711882 ns/op	  412706 B/op	    1574 allocs/op
+BenchmarkDeepTreeAndSelection/selection-5000-16   	     128	    935468 ns/op	  563231 B/op	    1422 allocs/op
+BenchmarkDeepTreeAndSelection/resize-burst-16     	    1528	     81219 ns/op	  231648 B/op	      41 allocs/op
+BenchmarkDashboardSearch/1000-16                  	     159	    692799 ns/op	  127067 B/op	    3044 allocs/op
+BenchmarkDashboardSearch/5000-16                  	      33	   3499105 ns/op	  756790 B/op	   15403 allocs/op
+BenchmarkFoundationRender/1000-16                 	     320	    365833 ns/op	  118968 B/op	    1280 allocs/op
+BenchmarkFoundationRender/5000-16                 	     331	    369925 ns/op	  116526 B/op	    1280 allocs/op
+PASS
+ok  	github.com/richardnascimento18/devdock	1.426s

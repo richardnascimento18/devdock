@@ -2,12 +2,12 @@ DevDock  all workspaces · preset walker
 Search  [ / ] switch  3 projects
 
 > Inspector
-Project
 billing-api
+🐹 Go
 
 Location
-/workspace/work
 backend › services
+
 /workspace/work/backend/services/billi
 ng-api
 /workspace/work/backend/services/billin…

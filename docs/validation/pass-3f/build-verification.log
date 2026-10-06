@@ -1,0 +1,5 @@
+devdock_1.1.0-beta.11_linux_amd64: OK
+devdock_1.1.0-beta.11_linux_arm64: OK
+/tmp/devdock-pass3f-validation-build/devdock_1.1.0-beta.11_linux_amd64: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=jOOGWiKFgv_1md85Llxg/8stEM6jrnrdNRd1e_GX_/0uf5KYQryTBu2VlgYQPc/wPR5ZOx4SJp1TJ_ZA6Sn, BuildID[sha1]=8a1a5a4afdb62e1c0ba8df0d880201ffecee3093, stripped
+/tmp/devdock-pass3f-validation-build/devdock_1.1.0-beta.11_linux_arm64: ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically linked, Go BuildID=6ZzsMP7MEK_6yHnr1-wp/DNCoQ6p6OA2b18AVJgLC/Sl4U9rjGkQUjqYJgUKzK/vD-lsl7SjM26NmbQIlSs, BuildID[sha1]=d5640bb77a991614778e702c7cf6daacb0ffbfd4, stripped
+DevDock 1.1.0-beta.11 (commit 37ac721918ccc04e66e3eda98c81380aa614b364, built 2026-10-02T23:25:08Z)

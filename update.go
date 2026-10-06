@@ -87,6 +87,9 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		if m.state == statePTYExecution {
 			return m.updatePTYExecution(msg)
 		}
+		if m.editorRootReturn && m.state != stateEditor {
+			m.editorScr, _ = m.editorScr.Update(msg)
+		}
 		if m.state == stateEditor {
 			return m.updateEditor(msg)
 		}
@@ -486,7 +489,7 @@ func (m model) updateDeleteTmuxSession(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "enter":
 			typed := strings.TrimSpace(m.confirmDelTmux.input.Value())
-			if typed != m.confirmDelTmux.sessionName {
+			if typed != m.confirmDelTmux.target() {
 				m.confirmDelTmux.err = "name does not match — try again or esc to cancel"
 				m.confirmDelTmux.input.SetValue("")
 				return m, nil

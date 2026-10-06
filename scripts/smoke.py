@@ -1,5 +1,5 @@
 import argparse, fcntl, os, pathlib, pty, select, signal, struct, subprocess, tempfile, termios, time, tomllib
-from terminal_style import decorative_background
+from terminal_style import decorative_background, malformed_ansi
 parser = argparse.ArgumentParser(description="Smoke-test a DevDock binary in an isolated terminal/workspace.")
 parser.add_argument("binary", type=pathlib.Path)
 parser.add_argument("--oauth-configured", action="store_true", help="expect an embedded public Client ID; never complete authorization")
@@ -14,6 +14,7 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
     project = root / 'apps' / 'demo'
     project.mkdir(parents=True)
     (project / 'go.mod').write_text('module demo\n')
+    (project / '.devdock').write_text('name = "demo"\n')
     config_dir = test_home / '.config' / 'devdock'
     config_dir.mkdir(parents=True)
     (config_dir / 'config.toml').write_text(f'roots = ["{root}"]\n')
@@ -44,6 +45,16 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
         os.write(master, b'\x1b'); drain(0.2)
         os.write(master, b'r'); drain(0.3)
         assert process.poll() is None, 'refresh terminated the TUI'
+        for direct in (b'\x1b1', b'\x1b2', b'\x1b3', b'\x1b2'):
+            os.write(master, direct); drain(0.15)
+            assert process.poll() is None, 'direct pane navigation terminated TUI'
+        os.write(master, b'\x10'); drain(0.15)
+        os.write(master, b'scope apps'); drain(0.2)
+        os.write(master, b'\r'); drain(0.2)
+        assert process.poll() is None, 'palette scope selection launched or terminated TUI'
+        for scope_key in (b'\x7f', b'\x15', b'\x01'):
+            os.write(master, scope_key); drain(0.15)
+            assert process.poll() is None, 'scope shortcut terminated TUI'
         os.write(master, b'\t'); drain(0.2)
         assert b'Inspector' in captured, 'inspector did not render'
         os.write(master, b'\t'); drain(0.2)
@@ -110,6 +121,7 @@ with tempfile.TemporaryDirectory(prefix='devdock-smoke-') as directory:
         assert process.wait(timeout=5) == 0, 'TUI shutdown failed'
         assert (config_dir / 'presets.json').exists(), 'defaults not generated'
         assert (config_dir / 'templates.json').exists(), 'templates not generated'
+        assert malformed_ansi(captured) is None, 'malformed ANSI or leaked SGR emitted'
         assert decorative_background(captured) is None, 'explicit background/inverse video emitted'
         print('PASS: isolated TUI startup, project rendering, workspace, inspector, live search, multi-selection/bulk cancellation, palette/Settings, help, resize, flat view, root switching, favorite, preset/template forms, OAuth, cancellation, shutdown, transparency')
         print('Captured terminal bytes:', len(captured))

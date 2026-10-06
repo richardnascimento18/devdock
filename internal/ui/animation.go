@@ -10,8 +10,8 @@ import (
 // Reduced motion is static and all glyph/padding cells inherit default background.
 func Activity(label string, frame int, reduced bool) string {
 	label = ansi.Truncate(label, 72, "…")
-	if reduced {
-		return Foreground(Default.Info).Bold(true).Render("… " + label)
+	if reduced || frame == 0 {
+		return Foreground(Default.Info).Render("… " + label)
 	}
 	frames := []string{"⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"}
 	var parts []string
@@ -19,7 +19,7 @@ func Activity(label string, frame int, reduced bool) string {
 	for graphemes.Next() {
 		parts = append(parts, graphemes.Str())
 	}
-	peak := frame%(len(parts)+12) - 6
+	peak := (frame/2)%(len(parts)+12) - 6
 	var out strings.Builder
 	out.WriteString(Foreground(Default.Accent).Bold(true).Render(frames[frame%len(frames)] + " "))
 	for i, text := range parts {
@@ -29,9 +29,9 @@ func Activity(label string, frame int, reduced bool) string {
 		}
 		style := Foreground(Default.Muted)
 		if distance < 2 {
-			style = Foreground(Default.Info).Bold(true)
+			style = Foreground(Default.Info)
 		} else if distance < 5 {
-			style = Foreground(Default.Accent)
+			style = Foreground(Default.Secondary)
 		}
 		out.WriteString(style.Render(text))
 	}

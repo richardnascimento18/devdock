@@ -1,0 +1,22 @@
+
+
+
+
+
+
+
+ ╭────────────────────────────────────╮
+ │ > Presets › walker › nvim › Windo… │
+ │ > Window name                      │
+ │   nvim                             │
+ │                                    │
+ │                                    │
+ │   Command (blank = shell)          │
+ │   nvim                             │
+ │                                    │
+ │                                    │
+ │   Split layout: disabled           │
+ │ enter toggles · e edits enabled la │
+ │ yout                               │
+ │ ctrl+s save · esc back             │
+ ╰────────────────────────────────────╯

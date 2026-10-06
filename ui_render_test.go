@@ -22,6 +22,7 @@ import (
 	"github.com/richardnascimento18/devdock/internal/preset"
 	"github.com/richardnascimento18/devdock/internal/state"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
+	"github.com/richardnascimento18/devdock/internal/tmux"
 	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
@@ -219,6 +220,7 @@ func fixtureScreens() map[string]model {
 	})
 	add("selected-narrow", func(m *model) { m.termW, m.termH = 40, 15; m.selected = map[string]bool{m.rawProjects[0].Path: true} })
 	add("tiny", func(m *model) { m.termW, m.termH = 20, 6 })
+	pass3fFixtures(add)
 	return values
 }
 
@@ -430,4 +432,83 @@ func BenchmarkFoundationRender(b *testing.B) {
 			}
 		})
 	}
+}
+
+func pass3fFixtures(add func(string, func(*model))) {
+	for _, focus := range []ui.Pane{ui.Workspace, ui.Projects, ui.Inspector} {
+		pane := focus
+		add("focus-"+strings.ToLower(pane.String()), func(m *model) { m.focus = pane })
+	}
+	add("metadata-tmux-github-local", func(m *model) {
+		m.rawProjects = append([]core.Project(nil), m.rawProjects...)
+		m.rawProjects[0].Languages = []string{"Express"}
+		m.rawProjects[0].LocalGit = true
+		m.rawProjects[1].LocalGit = true
+		m.cachedTmux = map[string]bool{tmux.SessionName(m.rawProjects[0]): true}
+		*m = m.rebuildList(false)
+	})
+	add("scope-picker", func(m *model) {
+		next, _ := m.openPalette()
+		*m = next.(model)
+		m.palette.input.SetValue("scope services")
+		m.palette.filter()
+	})
+	add("scan-warning-concise", func(m *model) {
+		m.scanWarningCount = 2
+		m.scanWarnings = "inspect /workspace/work/one: invalid .devdock marker\ninspect /workspace/work/two: unknown .devdock type"
+		m.statusMsg = warningStyle.Render("⚠ Workspace scan completed with 2 warnings · ! details")
+	})
+	add("preset-picker", func(m *model) {
+		m.state = statePickPreset
+		m.presetPicker = newPresetPicker(m.presets, m.presets[0].Name)
+	})
+	add("preset-picker-long-narrow", func(m *model) {
+		m.termW, m.termH = 40, 15
+		m.state = statePickPreset
+		values := preset.Clone(m.presets)
+		values[0].Name = strings.Repeat("long-preset-", 10)
+		m.presetPicker = newPresetPicker(values, values[0].Name)
+	})
+	add("tmux-human-confirmation", func(m *model) {
+		m.state = stateDeleteTmuxSession
+		m.confirmDelTmux = newConfirmDeleteTmuxScreen(tmux.SessionName(m.rawProjects[0]))
+		m.confirmDelTmux.targetName = "backend/services/billing-api"
+		m.confirmDelTmux.input.Placeholder = m.confirmDelTmux.targetName
+	})
+	add("tmux-human-list", func(m *model) {
+		m.tmuxSessions = []string{tmux.SessionName(m.rawProjects[0]), tmux.SessionName(m.rawProjects[2]), "legacy-session"}
+		m.activeTab = TabTmux
+		*m = m.refreshTabList()
+	})
+	add("shimmer-delayed", func(m *model) { m.scanInFlight = true; m.motion.frame = 0 })
+	add("shimmer-running", func(m *model) { m.scanInFlight = true; m.motion.frame = 24 })
+	for _, width := range []int{140, 80, 40} {
+		width := width
+		for _, kind := range []string{"preset", "template"} {
+			kind := kind
+			add(fmt.Sprintf("editor-%s-%d", kind, width), func(m *model) {
+				m.termW, m.termH = width, 30
+				m.state = stateEditor
+				m.editorScr = newEditorScreen(m.presets, m.templates, width, 30)
+				if kind == "preset" {
+					m.editorScr.layer = editorLayerPreset
+					m.editorScr.pe = newPresetEditor(m.presets[0], false)
+					m.editorScr.pe, _ = m.editorScr.pe.Update(tea.KeyMsg{Type: tea.KeyEnter})
+				} else {
+					m.editorScr.tab = editorTabTemplates
+					m.editorScr.layer = editorLayerTemplate
+					m.editorScr.te = newTemplateEditor(tmpl.Template{Name: "service", Steps: []tmpl.TemplateStep{{Type: "command", Run: "pwd", Output: "result.txt"}}}, false)
+					m.editorScr.te.openStepEdit(m.editorScr.te.steps[0])
+				}
+			})
+		}
+	}
+	add("settings-add-root-inline", func(m *model) {
+		m.state = stateAddRoot
+		m.editorRootReturn = true
+		m.editorScr = newEditorScreen(m.presets, m.templates, 120, 40)
+		m.editorScr.tab = editorTabSettings
+		m.editorScr.cursor = 1
+		m.inputScr = newInputScreen("Add root directory", "/mounted/workspace", "enter save · esc cancel")
+	})
 }

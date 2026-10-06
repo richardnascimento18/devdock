@@ -57,6 +57,12 @@ func (m model) beginSearch() (tea.Model, tea.Cmd) {
 func (m model) updateSearch(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if key, ok := msg.(tea.KeyMsg); ok {
 		switch key.String() {
+		case "alt+1", "alt+2", "alt+3":
+			m.searching = false
+			m.searchInput.Blur()
+			m.isFiltered = strings.TrimSpace(m.lastFilter) != ""
+			next, cmd, _ := m.updateDashboardNavigation(key)
+			return next, cmd
 		case "ctrl+p":
 			m.searching = false
 			m.searchInput.Blur()
