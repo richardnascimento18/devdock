@@ -23,6 +23,7 @@ import (
 )
 
 type model struct {
+	workspaces             app.Workspaces
 	appContext             context.Context
 	preferences            app.Preferences
 	selected               map[string]bool
@@ -143,6 +144,7 @@ func newModelWithPreferences(projects []core.Project, cfg config.Config, presets
 	roots := cfg.ActiveRoots()
 
 	m := model{
+		workspaces:     app.NewWorkspaces(),
 		preferences:    preferences,
 		focus:          ui.Projects,
 		motion:         animationClock{generation: 1, reduced: reducedMotion()},
@@ -225,7 +227,7 @@ func (m model) Init() tea.Cmd {
 		commands = append(commands, animationTick(m.motion.generation, 320*time.Millisecond))
 	}
 	if m.cfg.IsGitHubConnected() {
-		commands = append(commands, gh.CmdFetchRepos(m.cfg.GitHubToken, m.repoLoadID))
+		commands = append(commands, cmdFetchRepos(m.context(), m.cfg.GitHubToken, m.repoLoadID))
 	}
 	if m.activeTab == TabTmux {
 		id := m.tmuxRefreshID

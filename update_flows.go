@@ -2,7 +2,6 @@ package main
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	gh "github.com/richardnascimento18/devdock/internal/github"
 )
 
 func (m model) updateGitHubAuth(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -14,7 +13,7 @@ func (m model) updateGitHubAuth(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	}
-	if _, ok := msg.(gh.ReposLoadedMsg); ok {
+	if _, ok := msg.(ReposLoadedMsg); ok {
 		m.state = stateList
 	}
 	return m, nil

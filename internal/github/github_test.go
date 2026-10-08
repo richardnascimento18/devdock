@@ -79,36 +79,6 @@ func TestRequestContextAndErrors(t *testing.T) {
 		t.Fatal("missing ID not reported")
 	}
 }
-func TestParseRemote(t *testing.T) {
-	for _, tc := range []struct{ input, want string }{{"git@github.com:owner/repo.git", "owner/repo"}, {"https://github.com/owner/repo.git", "owner/repo"}, {"ssh://git@github.com/owner/repo", "owner/repo"}, {"https://evilgithub.com/owner/repo", ""}, {"https://example.org/github.com/owner/repo", ""}, {"https://github.com/owner/repo/extra", ""}} {
-		if got := ParseRemote(tc.input); got != tc.want {
-			t.Errorf("%q: %q", tc.input, got)
-		}
-	}
-}
-
-func TestGitInitializationStopsAtEveryFailure(t *testing.T) {
-	for fail := 0; fail < 6; fail++ {
-		calls := 0
-		sentinel := errors.New("failed")
-		err := initRepo(context.Background(), t.TempDir(), "https://github.com/owner/repo.git", func(ctx context.Context, dir string, args ...string) error {
-			calls++
-			if calls == fail+1 {
-				return sentinel
-			}
-			return nil
-		})
-		if !errors.Is(err, sentinel) || calls != fail+1 {
-			t.Fatalf("step %d: %v calls %d", fail, err, calls)
-		}
-	}
-}
-func TestCloneCollisionPreflight(t *testing.T) {
-	if err := CloneRepo("unused", t.TempDir()); err == nil {
-		t.Fatal("existing directory accepted")
-	}
-}
-
 func TestAPIPaginationAndPartialFailure(t *testing.T) {
 	calls := 0
 	client := &Client{APIBase: "https://example.invalid", HTTP: doerFunc(func(r *http.Request) (*http.Response, error) {

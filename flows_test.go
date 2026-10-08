@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/pty"
 	"os"
 	"path/filepath"
@@ -23,12 +24,12 @@ func fixtureModel(t *testing.T, roots ...string) model {
 	t.Setenv("HOME", t.TempDir())
 	ui, _ := state.Load(config.Dir())
 	snapshot := scanWorkspace(roots, nil)
-	if snapshot.err != nil {
-		t.Fatal(snapshot.err)
+	if snapshot.Err != nil {
+		t.Fatal(snapshot.Err)
 	}
-	m := newModel(snapshot.projects, config.Config{Roots: roots}, preset.DefaultPresets, tmpl.DefaultTemplates, ui)
-	m.workspaceDomains = snapshot.domains
-	m.workspaceTree = snapshot.tree
+	m := newModel(snapshot.Projects, config.Config{Roots: roots}, preset.DefaultPresets, tmpl.DefaultTemplates, ui)
+	m.workspaceDomains = snapshot.Domains
+	m.workspaceTree = snapshot.Tree
 	return m.rebuildList(false)
 }
 func TestMultiRootGroupDeleteRequiresFullPath(t *testing.T) {
@@ -205,7 +206,7 @@ func TestResizeAndStaleScanResults(t *testing.T) {
 	}
 	m.scanID = 2
 	before := len(m.rawProjects)
-	next, _ = m.Update(scanResultMsg{id: 1, snapshot: workspaceSnapshot{projects: []core.Project{{Name: "stale"}}}})
+	next, _ = m.Update(scanResultMsg{id: 1, snapshot: app.Snapshot{Projects: []core.Project{{Name: "stale"}}}})
 	if len(next.(model).rawProjects) != before {
 		t.Fatal("stale scan applied")
 	}
@@ -283,7 +284,7 @@ func TestSnapshotKeepsStateForUnavailableRoots(t *testing.T) {
 	m.uiState.ToggleFavorite(filepath.Join(missing, "apps", "demo"))
 	m.uiState.AddRecent(core.Project{Location: core.Location{Root: missing, Domain: "apps"}, Path: filepath.Join(missing, "apps", "demo"), Name: "demo"})
 	snapshot := scanWorkspace(m.cfg.Roots, nil)
-	if snapshot.err == nil {
+	if snapshot.Err == nil {
 		t.Fatal("scan failure suppressed")
 	}
 	next, _ := m.handleScanResult(scanResultMsg{id: m.scanID, snapshot: snapshot})

@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/richardnascimento18/devdock/internal/git"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/pty"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
@@ -544,7 +545,7 @@ func (p *ptyScreen) startNextStep() (cmd tea.Cmd) {
 				return ptyDoneMsg{err: fmt.Errorf("write project marker: %w", err)}
 			}
 			if repo.FullName != "" {
-				return ptyDoneMsg{err: gh.InitRepoWithRemoteContext(ctx, projectPath, repo.CloneURL)}
+				return ptyDoneMsg{err: git.NewClient().Init(ctx, projectPath, repo.CloneURL)}
 			}
 			return ptyDoneMsg{}
 		}

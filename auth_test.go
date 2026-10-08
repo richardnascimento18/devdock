@@ -31,7 +31,7 @@ func TestAuthStartsAsyncAndCancelledResultsAreIgnored(t *testing.T) {
 	if f.started || cmd == nil {
 		t.Fatal("network work ran in Update")
 	}
-	started := cmd().(gh.DeviceStartedMsg)
+	started := cmd().(DeviceStartedMsg)
 	if !f.started {
 		t.Fatal("command did not start")
 	}
@@ -45,7 +45,7 @@ func TestAuthStartsAsyncAndCancelledResultsAreIgnored(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("stale start launched poll")
 	}
-	next, _ = m.Update(gh.AuthDoneMsg{ID: started.ID, Token: "token", Username: "user"})
+	next, _ = m.Update(AuthDoneMsg{ID: started.ID, Token: "token", Username: "user"})
 	m = next.(model)
 	if m.cfg.IsGitHubConnected() {
 		t.Fatal("stale auth mutated state")
@@ -56,7 +56,7 @@ func TestAuthPersistenceFailureKeepsActiveCredentials(t *testing.T) {
 	m := model{state: stateGitHubAuth, authID: 1, preferences: app.NewPreferences(app.PathsAt(t.TempDir()))}
 	// An invalid root makes proposed config validation fail deterministically.
 	m.cfg = config.Config{Roots: []string{"relative"}}
-	next, cmd := m.handleGitHubAuthDone(gh.AuthDoneMsg{ID: 1, Token: "token", Username: "user"})
+	next, cmd := m.handleGitHubAuthDone(AuthDoneMsg{ID: 1, Token: "token", Username: "user"})
 	m = next.(model)
 	if m.cfg.GitHubToken != "" || m.githubAuthScr.err == "" || cmd != nil {
 		t.Fatal("failed credential save committed")
@@ -68,13 +68,13 @@ func TestAuthRetryIgnoresPreviousAttemptWhileNewScreenActive(t *testing.T) {
 	m := model{authClient: f}
 	first, cmd := m.startGitHubAuth()
 	m = first.(model)
-	old := cmd().(gh.DeviceStartedMsg)
+	old := cmd().(DeviceStartedMsg)
 	m.cancelAuth()
 	next, _ := m.startGitHubAuth()
 	m = next.(model)
 	// The current attempt already has its presentation clock scheduled.
 	m.motion.pending = true
-	next, cmd = m.Update(gh.AuthDoneMsg{ID: old.ID, Token: "stale", Username: "stale"})
+	next, cmd = m.Update(AuthDoneMsg{ID: old.ID, Token: "stale", Username: "stale"})
 	m = next.(model)
 	if m.state != stateGitHubAuth || m.cfg.GitHubToken != "" || cmd != nil {
 		t.Fatal("old response affected new attempt")

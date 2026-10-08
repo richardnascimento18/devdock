@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/richardnascimento18/devdock/internal/core"
-	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
 	"github.com/richardnascimento18/devdock/internal/tmux"
@@ -117,17 +116,17 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		return m.handleTmuxKilled(msg)
 	case scanResultMsg:
 		return m.handleScanResult(msg)
-	case gh.ReposLoadedMsg:
+	case ReposLoadedMsg:
 		return m.handleGitHubReposLoaded(msg)
-	case gh.DeviceStartedMsg:
+	case DeviceStartedMsg:
 		return m.handleDeviceStarted(msg)
-	case gh.AuthDoneMsg:
+	case AuthDoneMsg:
 		return m.handleGitHubAuthDone(msg)
-	case gh.RepoCreatedMsg:
+	case RepoCreatedMsg:
 		return m.handleGitHubRepoCreated(msg)
 	case gitLinkedMsg:
 		return m.handleGitLinked(msg)
-	case gh.CloneDoneMsg:
+	case CloneDoneMsg:
 		return m.handleGitCloneDone(msg)
 	case bulkPreflightMsg:
 		return m.handleBulkPreflight(msg)
@@ -220,7 +219,7 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 // Background message handlers
 // ---------------------------------------------------------------------------
 
-func (m model) handleGitHubReposLoaded(msg gh.ReposLoadedMsg) (tea.Model, tea.Cmd) {
+func (m model) handleGitHubReposLoaded(msg ReposLoadedMsg) (tea.Model, tea.Cmd) {
 	if msg.ID != m.repoLoadID || !m.cfg.IsGitHubConnected() {
 		return m, nil
 	}
@@ -238,7 +237,7 @@ func (m model) handleGitHubReposLoaded(msg gh.ReposLoadedMsg) (tea.Model, tea.Cm
 	return m, nil
 }
 
-func (m model) handleGitHubAuthDone(msg gh.AuthDoneMsg) (tea.Model, tea.Cmd) {
+func (m model) handleGitHubAuthDone(msg AuthDoneMsg) (tea.Model, tea.Cmd) {
 	if m.state != stateGitHubAuth || msg.ID != m.authID {
 		return m, nil
 	}
@@ -259,7 +258,7 @@ func (m model) handleGitHubAuthDone(msg gh.AuthDoneMsg) (tea.Model, tea.Cmd) {
 	return m, m.fetchRepos()
 }
 
-func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cmd) {
+func (m model) handleGitHubRepoCreated(msg RepoCreatedMsg) (tea.Model, tea.Cmd) {
 	if m.state != stateCreatingGitHub {
 		return m, nil
 	}
@@ -305,10 +304,12 @@ func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cm
 		return m, nil
 	}
 	p.GitHubRepo = msg.Repo.FullName
-	return m, func() tea.Msg { return gitLinkedMsg{project: p, err: gh.InitRepoWithRemote(p.Path, msg.Repo.CloneURL)} }
+	return m, func() tea.Msg {
+		return gitLinkedMsg{project: p, err: m.workspaces.Git.Init(m.context(), p.Path, msg.Repo.CloneURL)}
+	}
 }
 
-func (m model) handleGitCloneDone(msg gh.CloneDoneMsg) (tea.Model, tea.Cmd) {
+func (m model) handleGitCloneDone(msg CloneDoneMsg) (tea.Model, tea.Cmd) {
 	if m.state != stateCloningRepo {
 		return m, nil
 	}

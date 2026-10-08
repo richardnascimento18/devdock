@@ -4,7 +4,6 @@ import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/config"
-	gh "github.com/richardnascimento18/devdock/internal/github"
 )
 
 func (m model) updatePickRootForClone(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -70,5 +69,5 @@ func (m model) beginClone(domain string) (tea.Model, tea.Cmd) {
 	m.pendingDomain = domain
 	m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Cloning %s...", m.pendingGHRepo.Name))
 	m.state = stateCloningRepo
-	return m, gh.CmdCloneRepo(m.pendingGHRepo.CloneURL, m.currentLocation(), m.pendingGHRepo.Name)
+	return m, cmdCloneRepo(m.context(), m.workspaces, m.pendingGHRepo.CloneURL, m.currentLocation(), m.pendingGHRepo.Name)
 }

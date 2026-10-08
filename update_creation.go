@@ -5,7 +5,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
-	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
 	"github.com/richardnascimento18/devdock/internal/ui"
@@ -321,7 +320,7 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 	if m.pendingCreateGH && m.cfg.IsGitHubConnected() {
 		m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Creating GitHub repo \"%s\"...", m.pendingProjectName))
 		m.state = stateCreatingGitHub
-		return m, gh.CmdCreateRepo(m.cfg.GitHubToken, m.pendingProjectName, m.pendingGHPrivate)
+		return m, cmdCreateRepo(m.context(), m.cfg.GitHubToken, m.pendingProjectName, m.pendingGHPrivate)
 	}
 
 	if m.pendingTemplate != nil {

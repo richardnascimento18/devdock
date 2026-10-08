@@ -5,7 +5,6 @@ import (
 	"github.com/richardnascimento18/devdock/internal/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/tmux"
 )
 
@@ -20,7 +19,7 @@ func (m model) beginDelete(root, path string) (tea.Model, tea.Cmd) {
 	id := m.operationID
 	m.spinnerScr = newSpinnerScreen("Deleting " + path + "...")
 	m.state = stateDeletingWorkspace
-	return m, func() tea.Msg { return deleteDoneMsg{id: id, path: path, err: core.DeletePath(root, path)} }
+	return m, func() tea.Msg { return deleteDoneMsg{id: id, path: path, err: m.workspaces.Delete(root, path)} }
 }
 func (m model) handleDeleteDone(msg deleteDoneMsg) (tea.Model, tea.Cmd) {
 	if m.state != stateDeletingWorkspace || msg.id != m.operationID {

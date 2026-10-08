@@ -35,10 +35,10 @@ func (m model) startGitHubAuth() (tea.Model, tea.Cmd) {
 	m.state = stateGitHubAuth
 	return m, func() tea.Msg {
 		dc, err := client.StartDeviceFlow(ctx)
-		return gh.DeviceStartedMsg{Code: dc, Err: err, ID: id}
+		return DeviceStartedMsg{Code: dc, Err: err, ID: id}
 	}
 }
-func (m model) handleDeviceStarted(msg gh.DeviceStartedMsg) (tea.Model, tea.Cmd) {
+func (m model) handleDeviceStarted(msg DeviceStartedMsg) (tea.Model, tea.Cmd) {
 	if m.state != stateGitHubAuth || msg.ID != m.authID {
 		return m, nil
 	}
@@ -53,14 +53,14 @@ func (m model) handleDeviceStarted(msg gh.DeviceStartedMsg) (tea.Model, tea.Cmd)
 	return m, func() tea.Msg {
 		token, err := client.PollForToken(ctx, msg.Code)
 		if err != nil {
-			return gh.AuthDoneMsg{Err: err, ID: id}
+			return AuthDoneMsg{Err: err, ID: id}
 		}
 		username, err := client.FetchUsername(ctx, token)
-		return gh.AuthDoneMsg{Token: token, Username: username, Err: err, ID: id}
+		return AuthDoneMsg{Token: token, Username: username, Err: err, ID: id}
 	}
 }
 func (m *model) fetchRepos() tea.Cmd {
 	m.repoLoading = true
 	m.repoLoadID++
-	return gh.CmdFetchRepos(m.cfg.GitHubToken, m.repoLoadID)
+	return cmdFetchRepos(m.context(), m.cfg.GitHubToken, m.repoLoadID)
 }

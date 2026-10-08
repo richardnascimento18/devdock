@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
+	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	"github.com/richardnascimento18/devdock/internal/state"
 	"github.com/richardnascimento18/devdock/internal/template"
@@ -18,4 +20,8 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 func newEditorScreen(presets []preset.Preset, templates []template.Template, w, h int) editorScreen {
 	paths, _ := app.ResolvePaths()
 	return newEditorScreenWithPreferences(presets, templates, w, h, app.NewPreferences(paths))
+}
+
+func scanWorkspace(roots []string, repos []gh.Repo) app.Snapshot {
+	return app.NewWorkspaces().Refresh(context.Background(), roots, repos)
 }

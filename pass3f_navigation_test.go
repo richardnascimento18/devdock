@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"strings"
 	"testing"
 
@@ -77,7 +78,7 @@ func TestPaletteFuzzyScopeSelectionAndReturnFocus(t *testing.T) {
 func TestConciseScanWarningsKeepFullDetails(t *testing.T) {
 	m := renderFixture()
 	problem := errors.Join(errors.New("inspect /mounted/one: invalid TOML"), errors.New("inspect /mounted/two: unavailable"))
-	next, _ := m.handleScanResult(scanResultMsg{id: m.scanID, snapshot: workspaceSnapshot{tree: m.workspaceTree, projects: m.rawProjects, domains: m.workspaceDomains, err: problem}})
+	next, _ := m.handleScanResult(scanResultMsg{id: m.scanID, snapshot: app.Snapshot{Tree: m.workspaceTree, Projects: m.rawProjects, Domains: m.workspaceDomains, Err: problem}})
 	m = next.(model)
 	if m.scanWarningCount != 2 || !strings.Contains(ansi.Strip(m.statusMsg), "2 warnings") || strings.Contains(m.statusMsg, "/mounted/") {
 		t.Fatal("verbose main warning")

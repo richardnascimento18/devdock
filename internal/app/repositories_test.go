@@ -1,6 +1,8 @@
-package github
+package app
 
 import (
+	"context"
+	gh "github.com/richardnascimento18/devdock/internal/github"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,15 +20,15 @@ func TestLocalCloneAtDeepLocationAndCollision(t *testing.T) {
 	for i := 0; i < 35; i++ {
 		location = location.Child("g")
 	}
-	msg := CmdCloneRepo(source, location, "api")().(CloneDoneMsg)
-	if msg.Err != nil || msg.Project.Location.Key() != location.Key() || msg.Project.Path != filepath.Join(location.Path(), "api") {
-		t.Fatalf("clone %+v", msg)
+	project, err := NewWorkspaces().Clone(context.Background(), source, location, "api")
+	if err != nil || project.Location.Key() != location.Key() || project.Path != filepath.Join(location.Path(), "api") {
+		t.Fatalf("clone %+v %v", project, err)
 	}
-	if _, err := os.Stat(filepath.Join(msg.Project.Path, ".git")); err != nil {
+	if _, err := os.Stat(filepath.Join(project.Path, ".git")); err != nil {
 		t.Fatal(err)
 	}
-	msg = CmdCloneRepo(source, location, "api")().(CloneDoneMsg)
-	if msg.Err == nil {
+	project, err = NewWorkspaces().Clone(context.Background(), source, location, "api")
+	if err == nil {
 		t.Fatal("clone collision accepted")
 	}
 }
@@ -47,7 +49,7 @@ func TestLinkSameNamesAndMarkerAliasesByFullRemote(t *testing.T) {
 		}
 		projects = append(projects, core.Project{Name: name, Path: path})
 	}
-	linked := LinkProjectsToRepos(projects, []Repo{{Name: "api", FullName: "first/api"}, {Name: "api", FullName: "second/api"}})
+	linked := NewWorkspaces().Associate(context.Background(), projects, []gh.Repo{{Name: "api", FullName: "first/api"}, {Name: "api", FullName: "second/api"}})
 	if linked[0].GitHubRepo != "first/api" || linked[1].GitHubRepo != "second/api" {
 		t.Fatalf("identity: %+v", linked)
 	}

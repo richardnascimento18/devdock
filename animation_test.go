@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,7 +42,7 @@ func TestSharedClockLifecycle(t *testing.T) {
 	if m.motion.frame != 1 || !m.motion.pending || cmd == nil {
 		t.Fatal("accepted tick not rescheduled")
 	}
-	next, _ = m.Update(scanResultMsg{id: m.scanID, snapshot: workspaceSnapshot{tree: m.workspaceTree, projects: m.rawProjects, domains: m.workspaceDomains}})
+	next, _ = m.Update(scanResultMsg{id: m.scanID, snapshot: app.Snapshot{Tree: m.workspaceTree, Projects: m.rawProjects, Domains: m.workspaceDomains}})
 	m = next.(model)
 	if m.motion.pending || m.scanInFlight {
 		t.Fatal("completed scan keeps ticking")

@@ -1,38 +1,41 @@
-package github
+package git
 
 import (
 	"context"
 	"fmt"
 	"github.com/richardnascimento18/devdock/internal/core"
+	"github.com/richardnascimento18/devdock/internal/process"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
 func CloneRepo(cloneURL, destPath string) error {
+	return NewClient().Clone(context.Background(), cloneURL, destPath)
+}
+func (c Client) Clone(ctx context.Context, cloneURL, destPath string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if _, err := os.Lstat(destPath); err == nil {
 		return fmt.Errorf("clone destination already exists: %w", os.ErrExist)
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	cmd := exec.Command("git", "clone", "--", cloneURL, destPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.Run(ctx, "", "clone", "--", cloneURL, destPath)
 }
 
 // GitCommand is the subprocess boundary used by repository initialization.
 type GitCommand func(ctx context.Context, dir string, args ...string) error
 
 func runGit(ctx context.Context, dir string, args ...string) error {
-	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	out, err := outputGit(ctx, dir, args...)
+	if err != nil {
+		return fmt.Errorf("git %s: %w: %s", args[0], err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 func InitRepoWithRemote(path, remote string) error {
 	return InitRepoWithRemoteContext(context.Background(), path, remote)
@@ -40,7 +43,7 @@ func InitRepoWithRemote(path, remote string) error {
 func InitRepoWithRemoteContext(ctx context.Context, path, remote string) error {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	return initRepo(ctx, path, remote, runGit)
+	return NewClient().Init(ctx, path, remote)
 }
 func initRepo(ctx context.Context, path, remote string, run GitCommand) error {
 	readme := filepath.Join(path, "README.md")
@@ -64,11 +67,12 @@ func initRepo(ctx context.Context, path, remote string, run GitCommand) error {
 }
 
 func DetectRemote(projectPath string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	return NewClient().Remote(context.Background(), projectPath)
+}
+func (c Client) Remote(parent context.Context, projectPath string) string {
+	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "remote", "get-url", "origin")
-	cmd.Dir = projectPath
-	out, err := cmd.Output()
+	out, err := c.Output(ctx, projectPath, "remote", "get-url", "origin")
 	if err != nil {
 		return "" // A project without an origin is a normal unlinked project.
 	}
@@ -94,26 +98,37 @@ func ParseRemote(raw string) string {
 	return ownerRepo
 }
 
+// IsGitInitialized asks Git, supporting worktree .git files and rejecting a
+// project nested within an unrelated parent repository.
 func IsGitInitialized(projectPath string) bool {
-	_, err := os.Stat(filepath.Join(projectPath, ".git"))
-	return err == nil
+	return NewClient().Initialized(context.Background(), projectPath)
+}
+func (c Client) Initialized(parent context.Context, projectPath string) bool {
+	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
+	defer cancel()
+	out, err := c.Output(ctx, projectPath, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return false
+	}
+	root, err := filepath.EvalSymlinks(strings.TrimSpace(string(out)))
+	if err != nil {
+		return false
+	}
+	project, err := filepath.EvalSymlinks(projectPath)
+	return err == nil && filepath.Clean(root) == filepath.Clean(project)
 }
 
-func LinkProjectsToRepos(projects []core.Project, repos []Repo) []core.Project {
-	byFullName := make(map[string]Repo, len(repos))
-	for _, r := range repos {
-		byFullName[strings.ToLower(r.FullName)] = r
-	}
-	linked := make([]core.Project, len(projects))
-	for i, p := range projects {
-		p.GitHubRepo = ""
-		if IsGitInitialized(p.Path) {
-			detected := DetectRemote(p.Path)
-			if repo, ok := byFullName[strings.ToLower(detected)]; ok {
-				p.GitHubRepo = repo.FullName
-			}
-		}
-		linked[i] = p
-	}
-	return linked
+type Client struct {
+	Run    GitCommand
+	Output func(context.Context, string, ...string) ([]byte, error)
+}
+
+func NewClient() Client { return Client{Run: runGit, Output: outputGit} }
+func outputGit(ctx context.Context, dir string, args ...string) ([]byte, error) {
+	return process.Output(ctx, dir, "git", args...)
+}
+func (c Client) Init(ctx context.Context, path, remote string) error {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	return initRepo(ctx, path, remote, c.Run)
 }
