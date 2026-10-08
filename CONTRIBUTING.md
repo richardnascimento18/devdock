@@ -8,8 +8,13 @@ DevDock manages recursive development workspaces. Preserve public workflows, per
 - `internal/core` owns workspace validation, discovery, creation, deletion, and collision-safe moves.
 - `internal/detect` classifies projects using a scan-local cache.
 - `internal/config`, `preset`, `template`, and `state` own validation and persistence of their data. `internal/fileutil` supplies atomic writes.
-- `internal/github`, `tmux`, and `pty` own external integrations. GitHub HTTP/auth and tmux execution have small injectable boundaries for testing.
+- `internal/app` coordinates workspace, preference and scaffold operations with plain Go requests/results and injected effects. Startup resolves its paths once.
+- `internal/git` owns local Git; `internal/github` owns HTTP/API and OAuth. Association uses canonical remote identity.
+- `internal/process`, `tmux`, and `pty` own context-aware execution. `internal/terminal` interprets bounded PTY output. These packages do not import Bubble Tea.
+- `internal/ui` owns foreground-only presentation, safe display text, responsive layout and technology badges.
 - Editor files divide collection orchestration, preset/window editing, panes, and template steps. Proposed collections are cloned and fully validated before disk persistence; active state changes afterward.
+
+See [application boundaries](docs/architecture/application.md), [TUI ownership](docs/architecture/tui.md) and [workspace invariants](docs/architecture/workspace-model.md).
 
 Keep changes incremental and protected by behavioral tests, especially for destructive operations, persistence, async cancellation, and failure propagation. Avoid introducing interfaces without an external boundary or concrete testing need.
 
@@ -24,6 +29,13 @@ make check
 
 `make check` runs gofmt verification, `go mod tidy` consistency, `go mod verify`, version-script tests, actionlint, version validation, `go test ./...`, `go test -race ./...`, `go vet ./...`, `staticcheck ./...`, `govulncheck ./...`, and `go build ./...`. Vulnerability checking requires network access. CI runs the suite on Linux with exact Go 1.26.9 and 1.27.2 and cross-builds both release architectures.
 
+Analysis tools have a separate `tools/go.mod`/`go.sum`; their dependencies do not
+enter the application module. Staticcheck and govulncheck share the pinned
+`golang.org/x/tools v0.51.0` export reader needed for Go 1.27. Install with
+`make tools`, which uses that reviewed module graph. Checks verify both module
+graphs. CI uses `GOTOOLCHAIN=local` so the minimum-compiler matrix cannot silently
+switch to the recommended toolchain in the application's `go.mod`.
+
 Tests must use `t.TempDir()` and isolated configuration. Use fake HTTP/auth clients, tmux runners, and Git command runners rather than real services or your own filesystem. PTY tests intentionally run short local child commands. Do not disable checks, loosen validation, or discard tests to make a change pass.
 
 ## Branches and commits
@@ -33,9 +45,7 @@ Permanent branches:
 - `staging`: integration branch and next release candidate.
 - `production`: stable/default branch containing officially released code.
 
-Legacy `main` was deleted after the successful Pass 1B rehearsal; no main branch is used in the permanent workflow.
-
-After Pass 1, do not develop directly on either branch. Create a purpose-specific branch from staging: `feat/…`, `fix/…`, `refactor/…`, `test/…`, `ci/…`, `docs/…`, `build/…`, `perf/…`, or `chore/…`. Use Conventional Commits, for example `fix(pty): preserve child exit errors`.
+Do not develop directly on either branch. Create a purpose-specific branch from staging: `feat/…`, `fix/…`, `refactor/…`, `test/…`, `ci/…`, `docs/…`, `build/…`, `perf/…`, or `chore/…`. Use Conventional Commits, for example `fix(pty): preserve child exit errors`.
 
 1. Commit coherent changes, run relevant checks, and push your development branch.
 2. Open a PR targeting `staging`. Require green **Required validation**; reviews are optional for this solo-maintainer workflow.
@@ -51,9 +61,7 @@ For an emergency hotfix, branch `fix/…` from production, merge the correction 
 
 ## Required GitHub settings (owner actions)
 
-The Pass 1B bootstrap configures repository rulesets and the publication environment through GitHub APIs and verifies them. OAuth registration remains an owner action. Use the settings below when restoring/recreating the repository; the live staging ruleset is 24336971 and production ruleset is 24337571, both active with no bypass actors. Both require PRs, conversation resolution, and block deletion/force pushes. Staging requires strict/up-to-date Required validation; production requires Production validation and Production source validation. Integration and production check names are distinct. Required approving reviews are zero for the solo maintainer. The production-release environment has a production-only branch policy and no required human approval.
-
-Bootstrap staging from the exact reviewed Pass 1 HEAD. Create production only from corrected, green staging with DEVDOCK_RELEASES_ENABLED unset or false. Publication must remain disabled during that creation; the baseline is not a release. If importing an older production branch without VERSION, the owner must establish a reviewed baseline VERSION before normal promotion policy can pass.
+Configure repository rulesets and the publication environment through the protected owner workflow. OAuth App registration remains an owner action. Verify actual settings when restoring the repository rather than relying on historical ruleset IDs.
 
 For **both** staging and production, configure GitHub branch protection or rulesets:
 
@@ -70,7 +78,7 @@ Create the GitHub environment **production-release**, limit deployment branches 
 
 ## Version and release lifecycle
 
-`VERSION` contains one reviewed SemVer without `v` or build metadata. Historical v1.0.0-beta and v1.1.0-beta tags/releases remain unchanged; the first CI/CD rehearsal is 1.1.0-beta.1, advancing the existing lineage. Later rehearsals advance the beta identifier explicitly. Versions are explicit; Conventional Commits describe changes but do not drive automatic increments. The Python validator rejects malformed versions and compares prerelease ordering. A production candidate must be greater than the production base version. Keep beta/prerelease status until later passes and release-candidate hardening justify a stable release.
+`VERSION` contains one reviewed SemVer without `v` or build metadata. Historical tags/releases remain unchanged. Advance the existing version lineage explicitly. Versions are explicit; Conventional Commits describe changes but do not drive automatic increments. The Python validator rejects malformed versions and compares prerelease ordering. A production candidate must be greater than the production base version. Keep beta/prerelease status until later passes and release-candidate hardening justify a stable release.
 
 Publication is gated by the repository variable **DEVDOCK_RELEASES_ENABLED** being exactly `true`; unset, false, or any other value skips the write-permission publication job. Keep it false while bootstrapping production and enable it only after protections, environment, and public OAuth Client ID are verified. It is also the emergency release kill switch; cancel an already-running publication job if immediate interruption is needed. No source edit is needed to toggle it.
 

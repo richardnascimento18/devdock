@@ -1,14 +1,6 @@
-# Workspace model (Pass 2)
+# Workspace model
 
-## Current problems
-
-Projects currently carry Root, Domain, Group and Subgroup strings. Scanner
-classification recursively searches descendants, then collection and group
-pickers search them again. Depth limits (five for projects, three for group
-pickers) omit projects and intermediate ancestry. Separate collapse maps and
-root/domain/name tmux sessions collide or cannot represent deeper locations.
-
-## Target and invariants
+## Locations and snapshots
 
 A Location contains an absolute configured Root, one Domain component, and an
 ordered GroupPath of validated name components. Project embeds Location and
@@ -25,6 +17,10 @@ capped at four levels and names precede compact location breadcrumbs.
 
 Visit each relevant directory once. Local explicit markers and language
 markers establish project boundaries; never traverse a project's source tree.
+A missing or blank `.devdock` type is a legacy project; `project` is a project,
+`group` and historical `subgroup` are groups. Malformed TOML and explicit unknown
+nonblank types produce errors. Valid legacy markers are not rewritten.
+
 `.ddgroup` takes precedence and explicit `.devdock` group markers retain empty
 groups. Legacy `.devdock` type `subgroup` is accepted only as a group marker at
 the input boundary. Unmarked containers are retained as groups when their
@@ -41,7 +37,10 @@ Configured roots themselves may remain symlinks. No application depth limit.
 Core Location resolution owns validation and containment. Create, template,
 clone, group and move workflows pass typed locations. A move separates
 preflight planning, execution (with revalidation), and state reconciliation.
-Exclusive rename/cross-device copy and rooted deletion retain Pass 1 safety.
+Exclusive rename/cross-device copy and rooted deletion retain collision and
+containment safety. Unsupported no-replace flags, including mounted-filesystem
+`EINVAL`, use the portability fallback. Its external-writer race remains a
+separate concurrency-hardening concern; the fallback is not an atomicity claim.
 Partial moves retain both paths and report the cleanup failure.
 
 Project identity is the cleaned absolute Path (a defined ProjectKey), not the

@@ -1,135 +1,77 @@
-# TUI presentation architecture
+# TUI ownership and rendering
 
-## Baseline (Pass 2B)
+The root package is the Bubble Tea adapter. `Update` handles typed completion
+messages, sizes presentation, and delegates input to the active route. `View`
+selects bounded presentation and never performs external I/O. Commands capture
+requests and dependencies before starting work; IDs reject stale completions.
 
-The root `model` owns the loaded `core.Workspace`, project index, configuration,
-persistence state, Bubbles list, flow enum, and screen drafts. `Update` dispatches
-async results and screen handlers; the deferred tail schedules requested scans
-and tmux refreshes. IDs reject stale async results. Preserve that contract.
+## State and routing
 
-`update_list.go` mixes navigation, search, root/preset selection, favorites,
-recents, tmux and action entry points. Operation handlers are already separated
-into creation, clone, move, group and root/delete files. `treelist.go` flattens
-the snapshot; it must never trigger scans on navigation. Tree mode uses node
-keys and bounded indentation; flat search includes location/root disambiguation.
+The model groups navigation, search, creation drafts, launch requests, OAuth,
+scans, repository loading and tmux snapshots by lifecycle. Navigation owns the
+loaded recursive workspace, scope, focus and derived row/index caches. Creation
+starts from a fresh draft. Bulk and group workflows retain explicit phases.
 
-`View` dispatches ~30 flow states. `screens.go` owns text inputs, destination/root
-pickers, confirmations, OAuth and loading; `widgets.go` owns selectors/help.
-The editor has collection, preset, template, settings and nested window/pane/step
-layers; it edits deep copies and validates proposals before safe persistence.
-Root actions return to Settings. PTY execution owns its own scrollable output.
+One exclusive route value identifies the active screen or workflow. Its route
+class identifies dashboard, overlay, operation, editor, terminal, help or palette
+ownership. This preserves existing transitions without independent screen/modal
+flags that could consume the same key. Operations reject dashboard action keys;
+Escape retains the established cancellation behavior of each workflow.
 
-Issues: fixed 62/70/76-column dialogs, list height subtracting 22 rows, an
-eight-row wordmark, scattered colors, opaque selections/badges/help/OAuth/PTY
-titles, duplicate key/help strings, fixed input widths, and unbounded help/forms.
-Bubbles also supplies opaque list-title styles and inverse-video input cursors.
-The loading spinner has operation IDs; input cursors otherwise create independent
-blink loops. Main rendering does not perform external I/O.
+`route_input.go` owns input dispatch; command adapters own external requests.
+Workspace operations return application results. Scanning, creation, domain/group
+creation, moves, clone and deletion run outside input handlers. Short preference
+commits use injected stores synchronously, preserving validation, rollback and
+ordering. They are a remaining latency boundary; changes to asynchronous save
+ordering require separate durability and failure-transition tests.
 
-## Target structure
+## Presentation components
 
-`internal/ui` holds semantic theme, cell-aware layout, focus, shared frame/modal,
-header/footer and text primitives. Keep this one package until a real boundary
-requires another. Root dashboard/tree/inspector/palette/form adapters project
-domain snapshots into components; components never invoke filesystem services.
-Existing operation/persistence handlers remain authoritative.
+Dashboard, recursive workspace tree, inspector, search and palette render loaded
+snapshots. Collection membership follows scope independently of tree expansion.
+Collapse preserves the selected project. Navigation and animation never rescan.
+The tmux inspector labels its loaded session snapshot as cached.
 
-`View` only selects a screen and bounds its output. Dashboard composition lives
-outside it; screen updates route navigation separately from operation intents.
-Bindings and contextual help share metadata. Modal state captures keys before
-the dashboard. Escape closes modal, cancels search, clears selection, or returns
-from a dedicated view, in that order; it never quits the main view.
+Editors own detached drafts, dirty-state checks and nested navigation; application
+preferences coordinate accepted proposals and store failures. `ptyScreen` owns
+keyboard translation, scrolling, logs and terminal presentation. Application
+scaffolding owns sequence/finalization and infrastructure owns processes.
 
-## Responsive and focus rules
+`internal/ui` owns semantic foreground styles, responsive layout, shared
+frames/modals, display-width clipping, input presentation and technology badges.
+Detection returns semantic labels. Diagnostics remain plain data until rendered.
 
-Minimum widths: workspace 24, projects 40, inspector 30, gutters 2. At 98 columns
-use three panes, at 66 use workspace/projects, below 66 use one focused pane.
-Inspector remains accessible as a dedicated pane at medium/narrow widths.
-Below 24×8 show a bounded size message. Height reserves six chrome rows; allocate
-the rest to visible content. Cap workspace/inspector/modal widths on huge screens.
-Use ANSI display/grapheme width, never byte counts, for truncation and wrapping.
+## Responsive navigation
 
-Tab/Shift+Tab cycle focus; focused titles use `>` and bold accent. In 3A the
-workspace focus controls root scope and project focus controls the existing list.
-`{`/`}` cycle roots directly, preserving an explicit fast shortcut. 3B expands
-workspace focus into the recursive tree and adds inspector focus. `[`/`]` retain
-collection tabs, `p`/`P` retain preset shortcuts, and existing action keys survive.
+At 98 columns the dashboard has three panes; at 66 it has workspace/projects;
+below 66 it shows the focused pane. The inspector remains accessible at every
+supported width. Below 24×8, show a bounded size message. Full logical group
+depth survives the capped visual indentation. Wrapped details and modals scroll.
 
-## Transparency and theme
+Tab/Shift+Tab cycle pane focus. `{`/`}` switch root scope directly, `[`/`]` switch
+collections, and `p`/`P` switch presets. Palette/help use shared action metadata.
+Existing project, group, editor and search keys retain their meanings.
 
-There are **no backgrounds or filled surfaces**, including selected rows,
-modals, blank padding, help, footer and headers. Semantic foreground roles:
-Primary, Secondary, Accent, Muted, Faint, Success, Warning, Error, Info, Border,
-BorderFocused, Selection, Favorite, Git and Tmux. Primary uses terminal default;
-adaptive foregrounds accommodate light/dark defaults and degrade with Lip Gloss.
-NO_COLOR removes color; focus/selection/error symbols remain meaningful.
+## Terminal safety and transparency
 
-Configure dependency defaults explicitly. Input cursors use an underline rather
-than inverse video. `TestPresentationStyleInvariant` scans first-party Go style
-calls; rendered tests inspect SGR including 40–47, 100–107, 48 indexed/RGB and
-inverse video. Reset/default-background 0/49 are permitted. Never strip output
-to make the test pass. Subprocess PTY content is sanitized by the existing parser.
-Actual wallpaper continuity still needs compositor review; ANSI fixtures and
-isolated real-terminal smoke provide automated evidence, not that observation.
+Apply `ui.SafeText` or `ui.SafeBlock` to external data before trusted styling.
+`ui.InputView` renders a detached copy without modifying the editable identity.
+Animated labels obey the same rule. Clip styled output by grapheme/display width;
+never run the sanitizer over an already styled composition.
 
-## Subsequent milestones
+All first-party surfaces use foreground colors, borders, effects and spacing.
+No pane, modal, selected row or cursor uses a background or reverse video.
+Input cursors use underline. Tests inspect style calls and rendered SGR, including
+indexed/RGB and colon forms. Wallpaper continuity needs real compositor review.
 
-3B implements `workspace_tree.go`, `dashboard.go`, `inspector.go`, `search.go`,
-`palette.go`, `dashboard_navigation.go` and a two-line project delegate. Container
-rows are cached from the loaded snapshot; project membership uses the chosen
-root/domain/group scope and is independent of workspace expansion. Collapse
-retains the selected project. Tab cycles all three panes; medium Inspector and
-narrow focus become dedicated views. `v` hides/shows the workspace composition.
-Live fuzzy search uses the existing small `fuzzy` dependency, preserves matching
-selection, supports coalesced slash/query input, and restores the prior query on
-cancel. Palette/help share action metadata; disabled actions state their reason.
-Inspectors only render loaded facts and scroll wrapped full paths; stale recents
-need a canonical loaded project before favorite/move/delete actions are enabled.
-Workflow screens share `modalContent` and responsive `ModalAt`: full paths wrap,
-PgUp/PgDown recover long details, hints stay visible, and resize clamps scrolling.
-Inputs and pickers capture focus; no modal paints a backdrop.
-3C implements ephemeral canonical-path selection (`bulk.go`), retained across
-navigation/filtering and cleared on root/scope/collection changes. Hidden count
-is explicit; bulk actions require all targets visible. Palette captures selection
-identity. Delete/remove requires clearing selection; bulk delete is deferred.
-Bulk move wraps the approved PlanMove/ExecuteMove services: plan every target,
-flag intra-batch collisions, confirm full paths, then re-plan every target before
-any mutation. Each execution still revalidates. Results distinguish moved,
-cleanup warnings and failed, reconcile completed locations, preserve pending
-state saves, rescan explicitly, and clear executed selection. All modals page.
-3D separates editor presentation (`editor_views.go`) from navigation/guards
-(`editor_navigation.go`) and existing draft/persistence handlers. Collection views
-have responsive previews; shared form blocks expose the active field and bounded
-manual detail scrolling. Draft snapshots drive an explicit unsaved indicator and
-confirmation before leaving a document. Nested Escape stops typing, then returns;
-field discard is labeled. Collection removal uses existing validated atomic saves,
-with a default-preset guard. Settings reuses the approved root workflows. Template
-command quoting/output/path checks run before accepting a step and again on save.
-No credentials enter presentation. Optional external handoff is not included.
-3E implements `animation.go` and `internal/ui/animation.go`: a single 120 ms
-on-demand clock, generation-checked ticks, and a restrained grapheme-safe moving
-foreground highlight. Activity includes scan, clone/create/move/delete, OAuth,
-repository loading, cached tmux refresh, and template terminal steps. Hidden or
-completed work stops presentation ticks. Async operation IDs and service commands
-remain independent. Startup scanning is an async intent through the same snapshot
-adapter; the initial screen now explains loading rather than waiting to appear.
+A single generation-checked animation clock runs only while activity is visible.
 `DEVDOCK_REDUCED_MOTION=1` (also true/on), nonempty `NO_COLOR`, or `TERM=dumb`
-selects static progress without affecting operations. No UI preference is persisted.
-Tmux inspection uses the latest loaded session snapshot and labels it cached;
-rendering never calls tmux. `!` opens pageable full status/error details. Tree guides
-show sibling continuation, cap visual indentation at four levels, and keep full
-logical depth and location. Template PTY chrome fits the minimum viable size with
-the interrupt control visible. Narrow modal hints retain save/confirm/cancel before
-less essential instructions; long definition confirmations share detail paging.
+selects static progress without changing operation execution.
 
-## Validation and review
+## Regression evidence
 
-Forty paired ANSI/plain fixtures cover responsive panes, deep hierarchy, duplicate
-names, collections, search, palette/help, editors/confirmations, loading/errors,
-OAuth, compact PTY, reduced motion and tiny terminals. All screens are checked at
-120×40, 100×30, 80×24, 60×20, 40×15, 24×8, 1×1, 0×0 and 300×80; repeated resize
-does not scan. Foreground SGR payloads, including colon syntax and optional color
-space, are parsed without confusing RGB values with decorative background codes.
-Actual PTY smoke runs both animated and static presentation in hosted validation.
-Benchmarks diagnose 1,000/5,000 projects, 200-level trees, 5,000 selected projects,
-rapid fuzzy input and resize bursts without brittle timing thresholds.
+Tracked ANSI/plain render pairs cover responsive layouts, recursive trees,
+collections, modal workflows, editors, OAuth, PTY and motion behavior. Resize,
+navigation, adversarial display data and stale messages have behavioral tests.
+Isolated PTY smoke exercises actual terminal input and restoration; fixtures
+cannot substitute for owner checks of the desktop and real external workflows.
