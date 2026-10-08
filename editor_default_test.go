@@ -72,7 +72,7 @@ func TestDefaultPresetRenameTransaction(t *testing.T) {
 					t.Fatal("restart selected fallback")
 				}
 			} else {
-				if !reflect.DeepEqual(m.cfg, cfg) || !reflect.DeepEqual(loaded, cfg) || m.editorScr.revision != 0 || m.editorScr.pe.nameInput.Value() != name || m.editorScr.pe.statusMsg == "" {
+				if !reflect.DeepEqual(m.cfg, cfg) || !reflect.DeepEqual(loaded, cfg) || m.editorScr.revision != 0 || m.editorScr.pe.nameInput.Value() != name || m.editorScr.pe.diagnostic.Summary == "" {
 					t.Fatal("failure committed or discarded draft")
 				}
 				after, err := os.ReadFile(config.Path())

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"strings"
 
 	"github.com/richardnascimento18/devdock/internal/config"
@@ -96,7 +98,7 @@ func (m model) chooseScope(key string) model {
 	}
 	loc, err := core.ParseNodeKey(core.NodeKey(key))
 	if err != nil {
-		m.statusMsg = errorStyle.Render(ui.SafeBlock("Scope unavailable: " + err.Error()))
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "Scope unavailable: " + err.Error()}
 		return m
 	}
 	return m.switchScope(&loc)

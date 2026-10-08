@@ -318,7 +318,7 @@ func TestTemplateFailureNeverQueuesSuccessfulLaunch(t *testing.T) {
 	m.ptyScr = newPTYScreen(100, 40, nil, root, tmpl.Vars{ProjectPath: root}, nil, root, gh.Repo{})
 	next, cmd := m.Update(pty.ExitMsg{Err: errors.New("exit status 7")})
 	m = next.(model)
-	if m.launch.ready || m.state != stateList || cmd != nil || !strings.Contains(m.statusMsg, "failed") {
+	if m.launch.ready || m.state != stateList || cmd != nil || !strings.Contains(m.diagnostic.Summary, "failed") {
 		t.Fatal("template failure shown as success")
 	}
 }

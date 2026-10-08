@@ -210,7 +210,7 @@ func (e editorScreen) viewContextEditor() string {
 		tabs = append(tabs, fieldLabel(name, e.tab == i))
 	}
 	header := ui.Header("Configuration · "+e.editorBreadcrumb(), e.termW)
-	return strings.Join([]string{header, ui.Fit(strings.Join(tabs, " · "), e.termW, 1), "", lipgloss.JoinHorizontal(lipgloss.Top, panes...), ui.Footer(hint, e.statusMsg, e.termW)}, "\n")
+	return strings.Join([]string{header, ui.Fit(strings.Join(tabs, " · "), e.termW, 1), "", lipgloss.JoinHorizontal(lipgloss.Top, panes...), ui.Footer(hint, diagnosticView(e.diagnostic), e.termW)}, "\n")
 }
 
 // Direct navigation reuses existing validation and draft guards. Property edits

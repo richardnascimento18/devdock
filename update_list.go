@@ -1,8 +1,9 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/ui"
 
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
@@ -72,9 +73,9 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 					if m.uiState.Favorites[projPath] {
-						m.statusMsg = successStyle.Render("★  added to favorites")
+						m.diagnostic = app.Diagnostic{Severity: app.Success, Summary: "★  added to favorites"}
 					} else {
-						m.statusMsg = dimStyle.Render("☆  removed from favorites")
+						m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: "☆  removed from favorites"}
 					}
 					if m.activeTab == TabFavorites {
 						m = m.refreshTabList()
@@ -110,7 +111,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				proposed := m.cfg.Clone()
 				proposed.DefaultPreset = proposedSel.SelectedName()
 				if err := m.preferences.Config.Save(proposed); err != nil {
-					m.statusMsg = errorStyle.Render(ui.SafeBlock("save config: " + err.Error()))
+					m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "save config: " + err.Error()}
 					return m, nil
 				}
 				m.cfg = proposed
@@ -126,7 +127,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.treeMode {
 					mode = "tree"
 				}
-				m.statusMsg = dimStyle.Render(ui.SafeBlock("view: " + mode))
+				m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: "view: " + mode}
 				m.saveState()
 				return m, nil
 			}
@@ -165,7 +166,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				var cmd tea.Cmd
 				if m.cfg.IsGitHubConnected() {
 					cmd = m.fetchRepos()
-					m.statusMsg = dimStyle.Render("↻  refreshing GitHub repos...")
+					m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: "↻  refreshing GitHub repos..."}
 				}
 				return m, cmd
 			}
@@ -175,7 +176,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.isFiltered = false
 				m.query.value = ""
 				m = m.refreshTabList()
-				m.statusMsg = ""
+				m.diagnostic = app.Diagnostic{}
 				return m, nil
 			}
 
@@ -220,7 +221,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.isFiltered = false
 				m.query.value = ""
 				m = m.refreshTabList()
-				m.statusMsg = ""
+				m.diagnostic = app.Diagnostic{}
 				return m, nil
 			}
 
@@ -335,7 +336,7 @@ func (m model) startNewDomainOnly() (tea.Model, tea.Cmd) {
 func (m model) startDeleteProject() (tea.Model, tea.Cmd) {
 	sel := m.list.SelectedItem()
 	if _, ok := sel.(githubItem); ok {
-		m.statusMsg = dimStyle.Render("Repository not cloned locally - nothing to delete")
+		m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: "Repository not cloned locally - nothing to delete"}
 		return m, nil
 	}
 	proj, ok := m.actionProject()
@@ -370,7 +371,7 @@ func (m model) startAddRoot() (tea.Model, tea.Cmd) {
 func (m model) startRemoveRoot() (tea.Model, tea.Cmd) {
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 0 {
-		m.statusMsg = errorStyle.Render("no roots to remove")
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no roots to remove"}
 		return m, nil
 	}
 	m.genericPicker = newRootPicker("Select root to remove:", roots, "↑/↓  •  enter  •  esc")

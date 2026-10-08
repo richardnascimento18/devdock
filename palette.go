@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"fmt"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -180,11 +182,11 @@ func (m model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.palette.selection != m.selectionSignature() {
 				m.state = stateList
-				m.statusMsg = warningStyle.Render("! Selection changed. Open commands again.")
+				m.diagnostic = app.Diagnostic{Severity: app.Warning, Summary: "! Selection changed. Open commands again."}
 				return m, nil
 			}
 			if a.project && rowIdentity(m.list.SelectedItem()) != m.palette.target {
-				m.statusMsg = warningStyle.Render("! Project selection changed. Choose the action again.")
+				m.diagnostic = app.Diagnostic{Severity: app.Warning, Summary: "! Project selection changed. Choose the action again."}
 				m.state = stateList
 				return m, nil
 			}

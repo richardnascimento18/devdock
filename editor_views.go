@@ -164,7 +164,7 @@ func (e editorScreen) form() editorForm {
 	for _, p := range e.presets {
 		names = append(names, ui.SafeText(p.Name))
 	}
-	return editorForm{title: "Default preset", blocks: []string{fieldLabel("Default preset", true) + "\n" + inputView(e.ce.defaultPreset, ui.ModalInnerWidth(e.termW)), "Available: " + strings.Join(names, ", ") + "\nBlank uses the first preset."}, hint: "i / enter edit · ctrl+s save · esc back", message: e.ce.statusMsg, dirty: e.dirty()}
+	return editorForm{title: "Default preset", blocks: []string{fieldLabel("Default preset", true) + "\n" + inputView(e.ce.defaultPreset, ui.ModalInnerWidth(e.termW)), "Available: " + strings.Join(names, ", ") + "\nBlank uses the first preset."}, hint: "i / enter edit · ctrl+s save · esc back", message: diagnosticView(e.ce.diagnostic), dirty: e.dirty()}
 }
 func (e editorScreen) viewList() string {
 	w, h := e.termW, e.termH
@@ -196,11 +196,11 @@ func (e editorScreen) viewList() string {
 	if w < 74 {
 		hint = "enter edit · tab section · esc back"
 	}
-	return strings.Join([]string{ui.Header("Configuration", w), ui.Fit(strings.Join(tabs, " · "), w, 1), "", body, ui.Footer(hint, e.statusMsg, w)}, "\n")
+	return strings.Join([]string{ui.Header("Configuration", w), ui.Fit(strings.Join(tabs, " · "), w, 1), "", body, ui.Footer(hint, diagnosticView(e.diagnostic), w)}, "\n")
 }
 func (pe presetEditor) form(w, h int) editorForm {
 	width := ui.ModalInnerWidth(w)
-	f := editorForm{title: "Edit Preset", dirty: pe.dirty(), message: pe.statusMsg, hint: "j/k choose · i name · enter edit · d remove · ctrl+s save · esc back"}
+	f := editorForm{title: "Edit Preset", dirty: pe.dirty(), message: diagnosticView(pe.diagnostic), hint: "j/k choose · i name · enter edit · d remove · ctrl+s save · esc back"}
 	switch pe.layer {
 	case pelWindowEdit:
 		split := "disabled"
@@ -245,7 +245,7 @@ func (pe presetEditor) form(w, h int) editorForm {
 }
 func (sp splitPaneEditor) form(w, h int) editorForm {
 	width := ui.ModalInnerWidth(w)
-	f := editorForm{title: "Pane layout", dirty: sp.dirty(), message: sp.statusMsg, hint: "j/k choose · r direction · a add · d remove · enter accept · esc back"}
+	f := editorForm{title: "Pane layout", dirty: sp.dirty(), message: diagnosticView(sp.diagnostic), hint: "j/k choose · r direction · a add · d remove · enter accept · esc back"}
 	if sp.editing {
 		f.title = "Pane"
 		f.focus = sp.editFocus
@@ -275,7 +275,7 @@ func stepLabel(sd stepDraft) string {
 }
 func (te templateEditor) form(w, h int) editorForm {
 	width := ui.ModalInnerWidth(w)
-	f := editorForm{title: "Edit Template", dirty: te.dirty(), message: te.statusMsg, hint: "j/k step · enter edit · m metadata · d remove · ctrl+s save · esc back"}
+	f := editorForm{title: "Edit Template", dirty: te.dirty(), message: diagnosticView(te.diagnostic), hint: "j/k step · enter edit · m metadata · d remove · ctrl+s save · esc back"}
 	switch te.layer {
 	case telMetaEdit:
 		f.title = "Template metadata"
@@ -389,5 +389,5 @@ func (e editorScreen) collectionDetails() ([]string, string) {
 }
 
 func (e editorScreen) definitionBody() string {
-	return ui.SafeText(e.deleteName) + "\n\nRemove this definition from DevDock configuration.\n" + e.statusMsg
+	return ui.SafeText(e.deleteName) + "\n\nRemove this definition from DevDock configuration.\n" + diagnosticView(e.diagnostic)
 }

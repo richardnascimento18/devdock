@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/ui"
 )
@@ -38,7 +40,7 @@ func (m model) updateDashboardNavigation(key tea.KeyMsg) (tea.Model, tea.Cmd, bo
 		}
 		if len(m.selected) > 0 {
 			m.selected = nil
-			m.statusMsg = dimStyle.Render("Selection cleared")
+			m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: "Selection cleared"}
 			return m, nil, true
 		}
 	case "tab", "shift+tab":
@@ -53,7 +55,7 @@ func (m model) updateDashboardNavigation(key tea.KeyMsg) (tea.Model, tea.Cmd, bo
 		next, cmd := m.openPalette()
 		return next, cmd, true
 	case "!":
-		m.statusDetails = m.statusMsg
+		m.statusDetails = m.diagnostic.Summary
 		if m.scan.warnings != "" {
 			m.statusDetails += "\n\nWorkspace scan warnings:\n" + m.scan.warnings
 		}
@@ -104,7 +106,7 @@ func (m model) updateDashboardNavigation(key tea.KeyMsg) (tea.Model, tea.Cmd, bo
 		case "f":
 			return m.bulkFavorites(), nil, true
 		case "x", "X", "ctrl+g", "A":
-			m.statusMsg = warningStyle.Render("! Clear selection with esc before deleting or removing.")
+			m.diagnostic = app.Diagnostic{Severity: app.Warning, Summary: "! Clear selection with esc before deleting or removing."}
 			return m, nil, true
 		}
 	}

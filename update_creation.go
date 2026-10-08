@@ -1,13 +1,15 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
-	"github.com/richardnascimento18/devdock/internal/ui"
+
 	"path/filepath"
 	"strings"
 )
@@ -53,7 +55,7 @@ func (m model) updatePickRoot(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if k.String() == "enter" {
 			if m.genericPicker.cursor < 0 || m.genericPicker.cursor >= len(m.cfg.ActiveRoots()) {
 				m.state = stateList
-				m.statusMsg = errorStyle.Render("no root selected")
+				m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no root selected"}
 				return m, nil
 			}
 			root := m.cfg.ActiveRoots()[m.genericPicker.cursor]
@@ -150,7 +152,7 @@ func (m model) updatePickRootForDomain(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if k.String() == "enter" {
 			if m.genericPicker.cursor < 0 || m.genericPicker.cursor >= len(m.cfg.ActiveRoots()) {
 				m.state = stateList
-				m.statusMsg = errorStyle.Render("no root selected")
+				m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no root selected"}
 				return m, nil
 			}
 			root := m.cfg.ActiveRoots()[m.genericPicker.cursor]
@@ -302,7 +304,7 @@ func (m model) updateAskRepoPrivacy(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (tea.Model, tea.Cmd) {
 	if !core.ValidName(domainName) || !core.ValidName(m.creation.name) {
-		m.statusMsg = errorStyle.Render("invalid project or domain name")
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "invalid project or domain name"}
 		m.state = stateList
 		return m, nil
 	}
@@ -312,7 +314,7 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 		err = core.CheckDestination(location.Root, path)
 	}
 	if err != nil {
-		m.statusMsg = errorStyle.Render(ui.SafeBlock(err.Error()))
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: err.Error()}
 		m.state = stateList
 		return m, nil
 	}
@@ -331,7 +333,7 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 		}
 		projectPath, workDir, err := core.PrepareProject(location, vars.ProjectName, m.creation.template.CreatesProjectFolder)
 		if err != nil {
-			m.statusMsg = errorStyle.Render(ui.SafeBlock("create project: " + err.Error()))
+			m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "create project: " + err.Error()}
 			m.state = stateList
 			return m, nil
 		}
@@ -352,7 +354,7 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 		return m, nil
 	}
 	if err := tmpl.WriteDevDockMarkerFile(p.Path); err != nil {
-		m.statusMsg = dimStyle.Render(ui.SafeBlock(fmt.Sprintf("note: could not write .devdock marker: %v", err)))
+		m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: fmt.Sprintf("note: could not write .devdock marker: %v", err)}
 	}
 	m = m.rescan()
 	m.state = stateList
@@ -371,7 +373,7 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 func (m model) updatePTYExecution(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if _, ok := msg.(ptyInterruptMsg); ok {
 		m.state = statePickTemplate
-		m.statusMsg = dimStyle.Render("interrupted — choose a template")
+		m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: "interrupted — choose a template"}
 		return m, nil
 	}
 
@@ -383,7 +385,7 @@ func (m model) updatePTYExecution(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		if m.ptyScr.exitErr != nil {
-			m.statusMsg = errorStyle.Render(ui.SafeBlock(fmt.Sprintf("✗  Template setup failed: %v", m.ptyScr.exitErr)))
+			m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: fmt.Sprintf("✗  Template setup failed: %v", m.ptyScr.exitErr)}
 			m.state = stateList
 			return m, nil
 		}
@@ -398,7 +400,7 @@ func (m model) updatePTYExecution(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.saveState()
 		m.launch.project = p
 		m.launch.ready = true
-		m.statusMsg = successStyle.Render(ui.SafeBlock(fmt.Sprintf("✓  Project \"%s\" created successfully", p.Name)))
+		m.diagnostic = app.Diagnostic{Severity: app.Success, Summary: fmt.Sprintf("✓  Project \"%s\" created successfully", p.Name)}
 		return m, tea.Quit
 	}
 

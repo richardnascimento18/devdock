@@ -48,7 +48,7 @@ func TestEditorContextPropertyResizeIdentityAndSave(t *testing.T) {
 	e, _ = e.Update(altKey("3"))
 	e, _ = e.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
 	if e.layer != editorLayerList || e.revision != 1 {
-		t.Fatalf("save failed: %s", e.pe.statusMsg)
+		t.Fatalf("save failed: %s", e.pe.diagnostic.Summary)
 	}
 	found := false
 	for _, p := range e.presets {
@@ -69,7 +69,7 @@ func TestContextTemplateStepValidationAndReturn(t *testing.T) {
 	e, _ = e.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	e.te.editOutputInput.SetValue("../escape")
 	e, _ = e.Update(altKey("2"))
-	if e.te.layer != telStepEdit || e.te.statusMsg == "" {
+	if e.te.layer != telStepEdit || e.te.diagnostic.Summary == "" {
 		t.Fatal("invalid field accepted")
 	}
 	text := ansi.Strip(e.View())

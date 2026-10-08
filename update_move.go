@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/config"
@@ -18,7 +20,7 @@ func (m model) updateMovePickRoot(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if k.String() == "enter" {
 			if m.genericPicker.cursor < 0 || m.genericPicker.cursor >= len(m.cfg.ActiveRoots()) {
 				m.state = stateList
-				m.statusMsg = errorStyle.Render("no root selected")
+				m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no root selected"}
 				return m, nil
 			}
 			m.pendingRoot = m.cfg.ActiveRoots()[m.genericPicker.cursor]

@@ -80,7 +80,7 @@ func TestConciseScanWarningsKeepFullDetails(t *testing.T) {
 	problem := errors.Join(errors.New("inspect /mounted/one: invalid TOML"), errors.New("inspect /mounted/two: unavailable"))
 	next, _ := m.handleScanResult(scanResultMsg{id: m.scan.id, snapshot: app.Snapshot{Tree: m.navigation.tree, Projects: m.navigation.projects, Domains: m.navigation.domains, Err: problem}})
 	m = next.(model)
-	if m.scan.warningCount != 2 || !strings.Contains(ansi.Strip(m.statusMsg), "2 warnings") || strings.Contains(m.statusMsg, "/mounted/") {
+	if m.scan.warningCount != 2 || !strings.Contains(m.diagnostic.Summary, "2 warnings") || strings.Contains(m.diagnostic.Summary, "/mounted/") {
 		t.Fatal("verbose main warning")
 	}
 	m = dashboardKey(t, m, keyRune("!"))

@@ -1,8 +1,9 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -25,11 +26,11 @@ func (m model) handleDeleteDone(msg deleteDoneMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if msg.err != nil {
-		m.statusMsg = errorStyle.Render(ui.SafeBlock("delete incomplete: " + msg.err.Error()))
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "delete incomplete: " + msg.err.Error(), Cause: msg.err, Operation: "delete"}
 	} else {
 		m.uiState.RemovePath(msg.path)
 		if m.saveFilesystemState() {
-			m.statusMsg = successStyle.Render(ui.SafeBlock("Deleted " + msg.path))
+			m.diagnostic = app.Diagnostic{Severity: app.Success, Summary: "Deleted " + msg.path}
 		}
 	}
 	m.state = stateList
@@ -65,7 +66,7 @@ func (m model) handleTmuxSessions(msg tmuxSessionsMsg) (tea.Model, tea.Cmd) {
 	}
 	m.tmux.refreshing = false
 	if msg.err != nil {
-		m.statusMsg = errorStyle.Render(ui.SafeBlock(msg.err.Error()))
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: msg.err.Error()}
 	} else {
 		m.tmux.sessions = msg.sessions
 		m.tmux.cached = map[string]bool{}
@@ -86,6 +87,6 @@ func (m model) handleTmuxKilled(msg tmuxKilledMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.state = stateList
-	m.statusMsg = successStyle.Render(ui.SafeBlock(fmt.Sprintf("Session %q killed", m.confirmDelTmux.target())))
+	m.diagnostic = app.Diagnostic{Severity: app.Success, Summary: fmt.Sprintf("Session %q killed", m.confirmDelTmux.target())}
 	return m.refreshTmuxSessions(), nil
 }

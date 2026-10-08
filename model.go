@@ -93,7 +93,7 @@ type model struct {
 	moveTarget        core.Project
 	movePlacementOpts []movePlacementOption
 	deleteTarget      core.Project
-	statusMsg         string
+	diagnostic        app.Diagnostic
 }
 
 type movePlacementOption struct {
@@ -121,7 +121,7 @@ func newModelWithPreferences(projects []core.Project, cfg config.Config, presets
 		m.collapsedNodes = make(map[core.NodeKey]bool)
 	}
 	if cfg.IsGitHubConnected() {
-		m.statusMsg = dimStyle.Render("↻  loading GitHub repos...")
+		m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: "↻  loading GitHub repos..."}
 	}
 
 	delegate := projectDelegate{}
@@ -206,7 +206,7 @@ func (m *model) saveState() bool {
 		m.treeMode = m.uiState.TreeMode
 		m.activeTab = m.uiState.ActiveTab
 		*m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
-		m.statusMsg = errorStyle.Render(ui.SafeBlock("save state: " + err.Error()))
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "save state: " + err.Error(), Cause: err, Operation: "save-state"}
 		return false
 	}
 	m.committedState = m.uiState.Clone()

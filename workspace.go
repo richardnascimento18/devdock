@@ -2,8 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/charmbracelet/x/ansi"
-	"github.com/richardnascimento18/devdock/internal/ui"
+
 	"reflect"
 	"strings"
 
@@ -55,9 +54,9 @@ func (m model) handleScanResult(msg scanResultMsg) (tea.Model, tea.Cmd) {
 	if msg.snapshot.Err != nil {
 		m.scan.warnings = msg.snapshot.Err.Error()
 		m.scan.warningCount = warningCount(msg.snapshot.Err)
-		m.statusMsg = warningStyle.Render(ui.SafeBlock(fmt.Sprintf("⚠ Workspace scan completed with %d warnings · ! details", m.scan.warningCount)))
-	} else if m.scan.warnings == "" && m.scan.warningCount == 0 && strings.Contains(ansi.Strip(m.statusMsg), "Workspace scan completed with") {
-		m.statusMsg = ""
+		m.diagnostic = app.Diagnostic{Severity: app.Warning, Summary: fmt.Sprintf("⚠ Workspace scan completed with %d warnings · ! details", m.scan.warningCount), Cause: msg.snapshot.Err, Operation: "scan", Details: m.scan.warnings}
+	} else if m.scan.warnings == "" && m.scan.warningCount == 0 && strings.Contains(m.diagnostic.Summary, "Workspace scan completed with") {
+		m.diagnostic = app.Diagnostic{}
 	}
 	m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 	return m, nil

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -77,7 +79,7 @@ func (e editorScreen) Update(msg tea.Msg) (editorScreen, tea.Cmd) {
 				e.scroll = max(e.scroll-max(e.termH-7, 1), 0)
 			case "esc", "ctrl+c":
 				e.deleting = false
-				e.statusMsg = ""
+				e.diagnostic = app.Diagnostic{}
 			case "enter":
 				return e.commitDelete(), nil
 			}
@@ -132,7 +134,7 @@ func (e editorScreen) beginDelete() editorScreen {
 		}
 		name := e.presets[e.cursor].Name
 		if len(e.presets) <= 1 || e.cfg.DefaultPreset == name || e.cfg.DefaultPreset == "" && e.cursor == 0 {
-			e.statusMsg = warningStyle.Render("! Choose another default preset in Settings before removing this preset.")
+			e.diagnostic = app.Diagnostic{Severity: app.Warning, Summary: "! Choose another default preset in Settings before removing this preset."}
 			return e
 		}
 		e.deleteName = name
@@ -145,7 +147,7 @@ func (e editorScreen) beginDelete() editorScreen {
 		return e
 	}
 	e.deleting = true
-	e.statusMsg = ""
+	e.diagnostic = app.Diagnostic{}
 	return e
 }
 func (e editorScreen) commitDelete() editorScreen {
@@ -157,7 +159,7 @@ func (e editorScreen) commitDelete() editorScreen {
 		values := deepCopyPresets(e.presets)
 		values = append(values[:e.cursor], values[e.cursor+1:]...)
 		if err := e.preferences.Presets.Save(values); err != nil {
-			e.statusMsg = errorStyle.Render(ui.SafeBlock("! Save failed: " + err.Error()))
+			e.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "! Save failed: " + err.Error()}
 			return e
 		}
 		e.presets = values
@@ -169,7 +171,7 @@ func (e editorScreen) commitDelete() editorScreen {
 		values := deepCopyTemplates(e.tmpls)
 		values = append(values[:e.cursor], values[e.cursor+1:]...)
 		if err := e.preferences.Templates.Save(values); err != nil {
-			e.statusMsg = errorStyle.Render(ui.SafeBlock("! Save failed: " + err.Error()))
+			e.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "! Save failed: " + err.Error()}
 			return e
 		}
 		e.tmpls = values
@@ -177,6 +179,6 @@ func (e editorScreen) commitDelete() editorScreen {
 	e.deleting = false
 	e.revision++
 	e.clampCursor()
-	e.statusMsg = successStyle.Render(ui.SafeBlock("✓ Definition removed: " + e.deleteName))
+	e.diagnostic = app.Diagnostic{Severity: app.Success, Summary: "✓ Definition removed: " + e.deleteName}
 	return e
 }

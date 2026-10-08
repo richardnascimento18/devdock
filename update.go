@@ -1,9 +1,11 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"errors"
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/ui"
+
 	"strings"
 
 	"github.com/richardnascimento18/devdock/internal/core"
@@ -43,7 +45,7 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 				next.editorRootReturn = false
 				next.state = stateEditor
 				next.editorScr.cfg = next.cfg.Clone()
-				next.editorScr.statusMsg = next.statusMsg
+				next.editorScr.diagnostic = next.diagnostic
 			}
 			var commands []tea.Cmd
 			if cmd != nil {
@@ -67,7 +69,7 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		if m.state != statePTYExecution || flow.id != m.ptyScr.operationID {
 			if started, ok := flow.msg.(ptyStepStartMsg); ok {
 				if err := started.session.Close(); err != nil {
-					m.statusMsg = errorStyle.Render(ui.SafeBlock(err.Error()))
+					m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: err.Error()}
 				}
 			}
 			return m, nil
@@ -224,12 +226,12 @@ func (m model) handleGitHubReposLoaded(msg ReposLoadedMsg) (tea.Model, tea.Cmd) 
 	}
 	m.repositories.loading = false
 	if msg.Err != nil {
-		m.statusMsg = errorStyle.Render(ui.SafeBlock("✗  GitHub: " + msg.Err.Error()))
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  GitHub: " + msg.Err.Error()}
 		return m, nil
 	}
 	m.githubRepos = msg.Repos
 	m = m.rescan()
-	m.statusMsg = successStyle.Render(ui.SafeBlock(fmt.Sprintf("✓  GitHub: %d repos loaded", len(msg.Repos))))
+	m.diagnostic = app.Diagnostic{Severity: app.Success, Summary: fmt.Sprintf("✓  GitHub: %d repos loaded", len(msg.Repos))}
 	if m.state == stateGitHubAuth {
 		m.state = stateList
 	}
@@ -262,7 +264,7 @@ func (m model) handleGitHubRepoCreated(msg RepoCreatedMsg) (tea.Model, tea.Cmd) 
 		return m, nil
 	}
 	if msg.Err != nil {
-		m.statusMsg = errorStyle.Render(ui.SafeBlock("✗  GitHub repo creation failed: " + msg.Err.Error()))
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  GitHub repo creation failed: " + msg.Err.Error()}
 		m.state = stateList
 		return m, nil
 	}
@@ -277,7 +279,7 @@ func (m model) handleGitHubRepoCreated(msg RepoCreatedMsg) (tea.Model, tea.Cmd) 
 		}
 		projectPath, workDir, err := core.PrepareProject(m.currentLocation(), vars.ProjectName, m.creation.template.CreatesProjectFolder)
 		if err != nil {
-			m.statusMsg = errorStyle.Render(ui.SafeBlock("create project: " + err.Error()))
+			m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "create project: " + err.Error()}
 			m.state = stateList
 			return m, nil
 		}
@@ -294,12 +296,12 @@ func (m model) handleGitHubRepoCreated(msg RepoCreatedMsg) (tea.Model, tea.Cmd) 
 
 	p, err := core.CreateProject(m.currentLocation(), m.creation.name)
 	if err != nil {
-		m.statusMsg = errorStyle.Render(ui.SafeBlock("✗  project create error: " + err.Error()))
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  project create error: " + err.Error()}
 		m.state = stateList
 		return m, nil
 	}
 	if err := tmpl.WriteDevDockMarkerFile(p.Path); err != nil {
-		m.statusMsg = errorStyle.Render(ui.SafeBlock(err.Error()))
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: err.Error()}
 		m.state = stateList
 		return m, nil
 	}
@@ -314,7 +316,7 @@ func (m model) handleGitCloneDone(msg CloneDoneMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if msg.Err != nil {
-		m.statusMsg = errorStyle.Render(ui.SafeBlock("✗  clone failed: " + msg.Err.Error()))
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  clone failed: " + msg.Err.Error()}
 		m.state = stateList
 		return m, nil
 	}
@@ -339,7 +341,7 @@ func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd
 			m.saveFilesystemState()
 			m = m.rescan()
 		}
-		m.statusMsg = errorStyle.Render(ui.SafeBlock("✗  move failed: " + msg.err.Error()))
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  move failed: " + msg.err.Error()}
 		m.state = stateList
 		return m, nil
 	}
@@ -350,7 +352,7 @@ func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd
 		return m, nil
 	}
 	m = m.rescan()
-	m.statusMsg = successStyle.Render(ui.SafeBlock(fmt.Sprintf("✓  moved \"%s\"", msg.newProject.Name)))
+	m.diagnostic = app.Diagnostic{Severity: app.Success, Summary: fmt.Sprintf("✓  moved \"%s\"", msg.newProject.Name)}
 	m.state = stateList
 	return m, nil
 }
@@ -437,7 +439,7 @@ func (m model) updateEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyMsg); ok {
 		if k.String() == "enter" && m.editorScr.layer == editorLayerList && !m.editorScr.deleting && m.editorScr.tab == editorTabSettings && m.editorScr.cursor > 0 {
 			m.editorRootReturn = true
-			m.statusMsg = ""
+			m.diagnostic = app.Diagnostic{}
 			if m.editorScr.cursor == 1 {
 				return m.startAddRoot()
 			}
@@ -519,7 +521,7 @@ func (m model) handleGitLinked(msg gitLinkedMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if msg.err != nil {
-		m.statusMsg = errorStyle.Render(ui.SafeBlock("git setup failed: " + msg.err.Error()))
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "git setup failed: " + msg.err.Error()}
 		m.state = stateList
 		return m.rescan(), nil
 	}

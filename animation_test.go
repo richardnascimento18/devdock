@@ -178,10 +178,10 @@ func TestNarrowEditorHintsAndLongDefinitionPaging(t *testing.T) {
 func TestStatusDetailsRecoverFullError(t *testing.T) {
 	m := renderFixture()
 	m.termW, m.termH = 40, 15
-	m.statusMsg = "! Failed: " + strings.Repeat("/日本語-é", 200) + "/END-OF-PATH"
+	m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "! Failed: " + strings.Repeat("/日本語-é", 200) + "/END-OF-PATH"}
 	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'!'}})
 	m = next.(model)
-	if m.state != stateStatusDetails || m.statusDetails != m.statusMsg {
+	if m.state != stateStatusDetails || m.statusDetails != m.diagnostic.Summary {
 		t.Fatal("status details lost original")
 	}
 	for i := 0; i < 300; i++ {

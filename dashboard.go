@@ -83,14 +83,14 @@ func (m model) viewList(w, h int) string {
 			body = m.viewProjects(l.Projects, l.BodyHeight)
 		}
 	}
-	status := m.statusMsg
+	status := diagnosticView(m.diagnostic)
 	if m.activityLabel() != "" {
 		status = m.activityView()
 	}
 	if len(m.selected) > 0 {
 		status = m.selectionStatus()
-		if m.statusMsg != "" {
-			status += " · " + m.statusMsg
+		if diagnosticView(m.diagnostic) != "" {
+			status += " · " + diagnosticView(m.diagnostic)
 		}
 	}
 	if status == "" {

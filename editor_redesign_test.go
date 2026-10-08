@@ -58,7 +58,7 @@ func TestEditorCollectionRemovalAndDefaultGuard(t *testing.T) {
 			if kind == "preset" {
 				e.cfg.DefaultPreset = e.presets[0].Name
 				e, _ = e.Update(keyRune("d"))
-				if e.deleting || !strings.Contains(e.statusMsg, "default") {
+				if e.deleting || !strings.Contains(e.diagnostic.Summary, "default") {
 					t.Fatal("default deletion allowed")
 				}
 				e.cursor = 1
@@ -99,7 +99,7 @@ func TestEditorCollectionRemovalWriteFailureRetainsDefinition(t *testing.T) {
 	e.cursor = 1
 	e = e.beginDelete()
 	e = e.commitDelete()
-	if !e.deleting || len(e.presets) != len(ps) || e.revision != 0 || e.statusMsg == "" {
+	if !e.deleting || len(e.presets) != len(ps) || e.revision != 0 || e.diagnostic.Summary == "" {
 		t.Fatal("failed write removed live definition")
 	}
 }
@@ -111,7 +111,7 @@ func TestTemplateOutputAndQuoteValidationNearField(t *testing.T) {
 	}
 	te.editOutputInput.SetValue("../escape")
 	te, _ = te.commitStepEdit()
-	if te.layer != telStepEdit || te.statusMsg == "" || te.steps[0].output != "result.txt" {
+	if te.layer != telStepEdit || te.diagnostic.Summary == "" || te.steps[0].output != "result.txt" {
 		t.Fatal("invalid output accepted")
 	}
 	te.editOutputInput.SetValue("nested/result.txt")

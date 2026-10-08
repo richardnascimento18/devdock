@@ -36,7 +36,7 @@ func TestInjectedConfigFailureKeepsEditorDraft(t *testing.T) {
 	e.layer = editorLayerConfig
 	e.ce = newConfigurationEditor("example")
 	nextEditor, _ := e.updateConfigurationEditor(tea.KeyMsg{Type: tea.KeyCtrlS})
-	if nextEditor.cfg.DefaultPreset != "" || nextEditor.layer != editorLayerConfig || nextEditor.ce.defaultPreset.Value() != "example" || nextEditor.ce.statusMsg == "" {
+	if nextEditor.cfg.DefaultPreset != "" || nextEditor.layer != editorLayerConfig || nextEditor.ce.defaultPreset.Value() != "example" || nextEditor.ce.diagnostic.Summary == "" {
 		t.Fatal("failed config lost draft or changed active values")
 	}
 }

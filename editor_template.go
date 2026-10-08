@@ -1,10 +1,12 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
-	"github.com/richardnascimento18/devdock/internal/ui"
+
 	"path/filepath"
 	"strings"
 )
@@ -60,8 +62,8 @@ type templateEditor struct {
 	// j/k/navigation only work when typing=false.
 	typing bool
 
-	statusMsg string
-	result    editorResult
+	diagnostic app.Diagnostic
+	result     editorResult
 }
 
 var builtinActions = []string{"touch", "mkdir", "rm"}
@@ -169,7 +171,7 @@ func (te templateEditor) updateStepList(msg tea.Msg) (templateEditor, tea.Cmd) {
 		te.descInput.Blur()
 		te.layer = telMetaEdit
 	case "enter":
-		te.statusMsg = ""
+		te.diagnostic = app.Diagnostic{}
 		if te.cursor < len(te.steps) {
 			te.editIdx = te.cursor
 			te.openStepEdit(te.steps[te.cursor])
@@ -356,7 +358,7 @@ func (te templateEditor) commitStepEdit() (templateEditor, tea.Cmd) {
 	if te.editTypeCursor == 0 {
 		run := strings.TrimSpace(te.editRunInput.Value())
 		if run == "" {
-			te.statusMsg = errorStyle.Render("✗  command cannot be empty")
+			te.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  command cannot be empty"}
 			return te, nil
 		}
 		sd.stepType = "command"
@@ -368,11 +370,11 @@ func (te templateEditor) commitStepEdit() (templateEditor, tea.Cmd) {
 	} else {
 		path := strings.TrimSpace(te.editPathInput.Value())
 		if path == "" {
-			te.statusMsg = errorStyle.Render("✗  path cannot be empty")
+			te.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  path cannot be empty"}
 			return te, nil
 		}
 		if filepath.IsAbs(filepath.FromSlash(path)) || strings.HasPrefix(path, "..") {
-			te.statusMsg = errorStyle.Render("✗  path must be relative and cannot traverse upward")
+			te.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  path must be relative and cannot traverse upward"}
 			return te, nil
 		}
 		sd.stepType = "builtin"
@@ -385,11 +387,11 @@ func (te templateEditor) commitStepEdit() (templateEditor, tea.Cmd) {
 	sd.isPost = te.editIsPost
 	candidate := tmpl.Template{Name: "draft", Steps: []tmpl.TemplateStep{{Type: sd.stepType, Run: sd.run, Action: sd.action, Path: sd.path, Output: sd.output, Shell: sd.shell}}}
 	if errs := tmpl.ValidateFile(tmpl.TemplateFile{Templates: []tmpl.Template{candidate}}); len(errs) > 0 {
-		te.statusMsg = errorStyle.Render(ui.SafeBlock("! " + errs[0]))
+		te.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "! " + errs[0]}
 		return te, nil
 	}
 	te.steps[te.editIdx] = sd
-	te.statusMsg = ""
+	te.diagnostic = app.Diagnostic{}
 	te.layer = telStepList
 	return te, nil
 }

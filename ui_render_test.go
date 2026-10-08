@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -72,7 +74,7 @@ func fixtureScreens() map[string]model {
 		m.inputScr = newInputScreen("Delete project", "/workspace/"+strings.Repeat("very-long-group/", 10)+"billing-api", "esc cancel")
 	})
 	add("error", func(m *model) {
-		m.statusMsg = errorStyle.Render("! Refresh failed: root unavailable. Press r to retry.")
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "! Refresh failed: root unavailable. Press r to retry."}
 	})
 	add("loading", func(m *model) { m.state = stateCloningRepo; m.spinnerScr = newSpinnerScreen("Cloning repository…") })
 	add("oauth", func(m *model) {
@@ -179,7 +181,7 @@ func fixtureScreens() map[string]model {
 		m.editorScr = newEditorScreen(m.presets, m.templates, 120, 40)
 		m.editorScr.layer = editorLayerConfig
 		m.editorScr.ce = newConfigurationEditor("unknown")
-		m.editorScr.ce.statusMsg = errorStyle.Render("! Choose an existing preset or leave blank.")
+		m.editorScr.ce.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "! Choose an existing preset or leave blank."}
 	})
 	add("definition-confirmation", func(m *model) {
 		m.state = stateEditor
@@ -461,7 +463,7 @@ func pass3fFixtures(add func(string, func(*model))) {
 	add("scan-warning-concise", func(m *model) {
 		m.scan.warningCount = 2
 		m.scan.warnings = "inspect /workspace/work/one: invalid .devdock marker\ninspect /workspace/work/two: unknown .devdock type"
-		m.statusMsg = warningStyle.Render("⚠ Workspace scan completed with 2 warnings · ! details")
+		m.diagnostic = app.Diagnostic{Severity: app.Warning, Summary: "⚠ Workspace scan completed with 2 warnings · ! details"}
 	})
 	add("preset-picker", func(m *model) {
 		m.state = statePickPreset

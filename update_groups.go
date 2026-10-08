@@ -1,8 +1,10 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/ui"
+
 	"strings"
 
 	"github.com/richardnascimento18/devdock/internal/core"
@@ -14,7 +16,7 @@ func (m model) startCreateGroup() (tea.Model, tea.Cmd) {
 	m.groupFlow = groupWorkflow{}
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 0 {
-		m.statusMsg = errorStyle.Render("no roots configured")
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no roots configured"}
 		return m, nil
 	}
 	// Determine which root/domain to use from context
@@ -32,7 +34,7 @@ func (m model) openDomainPickerForGroup() (tea.Model, tea.Cmd) {
 	domains := m.navigation.domains[m.pendingRoot]
 	if len(domains) == 0 {
 		m.state = stateList
-		m.statusMsg = errorStyle.Render("no domains in this root — create a domain first (N)")
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no domains in this root — create a domain first (N)"}
 		return m, nil
 	}
 	opts := make([]string, len(domains))
@@ -86,7 +88,7 @@ func (m model) updateCreateGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pendingDomain = ""
 			m = m.rescan()
 			m.state = stateList
-			m.statusMsg = successStyle.Render(ui.SafeBlock(fmt.Sprintf("✓  group \"%s\" created", name)))
+			m.diagnostic = app.Diagnostic{Severity: app.Success, Summary: fmt.Sprintf("✓  group \"%s\" created", name)}
 			return m, nil
 		}
 	}
@@ -104,7 +106,7 @@ func (m model) startDeleteGroup() (tea.Model, tea.Cmd) {
 	m.groupFlow = groupWorkflow{}
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 0 {
-		m.statusMsg = errorStyle.Render("no roots configured")
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no roots configured"}
 		return m, nil
 	}
 	if len(roots) == 1 {
@@ -130,7 +132,7 @@ func (m model) openGroupPickerForDelete() (tea.Model, tea.Cmd) {
 		}
 	}
 	if len(groups) == 0 {
-		m.statusMsg = errorStyle.Render("no groups found in this root")
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no groups found in this root"}
 		m.state = stateList
 		return m, nil
 	}

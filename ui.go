@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/richardnascimento18/devdock/internal/detect"
 	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
 )
@@ -41,7 +40,7 @@ func RenderTitle() string { return titleStyle.Render("DevDock") }
 func RenderLanguageTags(langs []string) string {
 	var parts []string
 	for _, label := range langs {
-		parts = append(parts, ui.Foreground(theme.Info).Render(ui.SafeBlock(detect.Tech(label).Badge)))
+		parts = append(parts, ui.Foreground(theme.Info).Render(ui.SafeBlock(ui.Tech(label).Badge)))
 	}
 	return strings.Join(parts, " · ")
 }

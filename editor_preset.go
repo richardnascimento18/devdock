@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"fmt"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -49,8 +51,8 @@ type presetEditor struct {
 	// j/k/navigation only work when typing=false.
 	typing bool
 
-	statusMsg string
-	result    editorResult
+	diagnostic app.Diagnostic
+	result     editorResult
 }
 
 func newPresetEditor(p preset.Preset, isNew bool) presetEditor {
@@ -176,7 +178,7 @@ func (pe presetEditor) updateWindowList(msg tea.Msg) (presetEditor, tea.Cmd) {
 	case "d", "x":
 		if pe.cursor < len(pe.windows) {
 			if len(pe.windows) <= 1 {
-				pe.statusMsg = errorStyle.Render("✗  a preset must have at least 1 window")
+				pe.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  a preset must have at least 1 window"}
 			} else {
 				pe.layer = pelConfirmDelete
 			}
@@ -263,7 +265,7 @@ func (pe presetEditor) updateWindowEdit(msg tea.Msg) (presetEditor, tea.Cmd) {
 			// Save name/command and go back.
 			name := strings.TrimSpace(pe.editNameInp.Value())
 			if name == "" {
-				pe.statusMsg = errorStyle.Render("✗  window name cannot be empty")
+				pe.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  window name cannot be empty"}
 				return pe, nil
 			}
 			pe.windows[pe.editIdx].name = name
@@ -272,7 +274,7 @@ func (pe presetEditor) updateWindowEdit(msg tea.Msg) (presetEditor, tea.Cmd) {
 				pe.windows[pe.editIdx].layout = nil
 			}
 			pe.layer = pelWindowList
-			pe.statusMsg = ""
+			pe.diagnostic = app.Diagnostic{}
 		}
 	case "e":
 		if pe.editFocus == 2 && pe.editHasSplit && pe.windows[pe.editIdx].layout != nil {

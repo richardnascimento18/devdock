@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"errors"
 	"fmt"
 	"github.com/richardnascimento18/devdock/internal/ui"
@@ -81,7 +83,7 @@ func (m model) scopeIdentity() string {
 }
 func (m model) bulkFavorites() model {
 	if m.hiddenSelection() > 0 {
-		m.statusMsg = warningStyle.Render(ui.SafeBlock("! " + m.selectionStatus()))
+		m.diagnostic = app.Diagnostic{Severity: app.Warning, Summary: "! " + m.selectionStatus()}
 		return m
 	}
 	projects := m.selectedProjects()
@@ -105,7 +107,7 @@ func (m model) bulkFavorites() model {
 		}
 	}
 	if m.saveState() {
-		m.statusMsg = successStyle.Render(ui.SafeBlock(fmt.Sprintf("✓ Updated favorites for %d projects", len(projects))))
+		m.diagnostic = app.Diagnostic{Severity: app.Success, Summary: fmt.Sprintf("✓ Updated favorites for %d projects", len(projects))}
 		m = m.applySearch()
 	}
 	return m
@@ -183,7 +185,7 @@ func executeBulk(rows []bulkMoveRow, plan func(core.Project, core.Location, stri
 }
 func (m model) startBulkMove() model {
 	if m.hiddenSelection() > 0 {
-		m.statusMsg = warningStyle.Render(ui.SafeBlock("! " + m.selectionStatus()))
+		m.diagnostic = app.Diagnostic{Severity: app.Warning, Summary: "! " + m.selectionStatus()}
 		return m
 	}
 	m.bulk = bulkWorkflow{projects: m.selectedProjects()}
