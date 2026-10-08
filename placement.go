@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/core"
 )
 
@@ -96,16 +96,13 @@ func (m model) updatePlacement(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(m.bulk.projects) > 0 {
 			return m.beginBulkPreflight(loc)
 		}
-		plan, err := core.PlanMove(m.moveTarget, loc, filepath.Base(m.moveTarget.Path))
-		if err != nil {
-			m.genericPicker.err = fmt.Sprintf("%s: %v", plan.Status, err)
-			return m, nil
-		}
+		m.operationID++
+		id, project, filesystem, ctx := m.operationID, m.moveTarget, m.moveFilesystem, m.context()
 		m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Moving %q...", m.moveTarget.Name))
 		m.state = stateMovingProject
 		return m, func() tea.Msg {
-			p, err := m.moveFilesystem.Execute(plan)
-			return moveProjectDoneMsg{newProject: p, err: err}
+			r := app.Move(ctx, project, loc, core.PlanMove, filesystem.Execute)
+			return moveProjectDoneMsg{id: id, newProject: r.Project, err: r.Err, rejected: !r.Planned, status: r.Plan.Status}
 		}
 	}
 	return m, nil

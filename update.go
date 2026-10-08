@@ -19,8 +19,11 @@ import (
 // ---------------------------------------------------------------------------
 
 type moveProjectDoneMsg struct {
+	id         uint64
 	newProject core.Project
 	err        error
+	rejected   bool
+	status     core.MoveStatus
 }
 
 // ---------------------------------------------------------------------------
@@ -223,7 +226,12 @@ func (m model) handleGitCloneDone(msg CloneDoneMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd) {
-	if m.state != stateMovingProject {
+	if m.state != stateMovingProject || msg.id != m.operationID {
+		return m, nil
+	}
+	if msg.rejected {
+		m.state = stateMovePickPlacement
+		m.genericPicker.err = fmt.Sprintf("%s: %v", msg.status, msg.err)
 		return m, nil
 	}
 	if msg.err != nil {

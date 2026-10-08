@@ -1,11 +1,39 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/core"
 	"path/filepath"
+
+	"github.com/richardnascimento18/devdock/internal/core"
 )
+
+type MoveResult struct {
+	Project core.Project
+	Plan    core.MovePlan
+	Planned bool
+	Err     error
+}
+
+// Move owns planning and execution; callers render a rejected plan differently
+// from an execution failure. Execute revalidates the filesystem at mutation time.
+func Move(ctx context.Context, project core.Project, destination core.Location, plan func(core.Project, core.Location, string) (core.MovePlan, error), execute func(core.MovePlan) (core.Project, error)) MoveResult {
+	result := MoveResult{}
+	if result.Err = ctx.Err(); result.Err != nil {
+		return result
+	}
+	result.Plan, result.Err = plan(project, destination, filepath.Base(project.Path))
+	if result.Err != nil {
+		return result
+	}
+	result.Planned = true
+	if result.Err = ctx.Err(); result.Err != nil {
+		return result
+	}
+	result.Project, result.Err = execute(result.Plan)
+	return result
+}
 
 type MoveRow struct {
 	Plan    core.MovePlan
