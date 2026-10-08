@@ -1,7 +1,0 @@
-{
-  "approval_date": "2026-10-06",
-  "candidate_sha": "c77ba7a66e4585b24af7c61315f884a0b6e7d517",
-  "feature_pr": 35,
-  "approval": "I approve this Pass 3F candidate for merge/promotion. My manual testing is acceptable, including the real-machine behavior and current UI. Continue from the acceptance checkpoint exactly as specified: merge PR #35 into staging only after confirming its existing green checks, verify staging push CI, promote staging \u2192 production through the protected PR, publish and verify v1.1.0-beta.11, reconcile production back into staging, update the Pass 3F validation/report with my approval, package the final review evidence, and STOP before Pass 4. Do not make additional UI changes unless required by a regression discovered during the release cycle.",
-  "scope": "Owner accepted the candidate as a whole, including real-machine behavior and current UI; no separately itemized results or terminal captures were supplied."
-}

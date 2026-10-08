@@ -1,8 +1,0 @@
-goos: linux
-goarch: amd64
-pkg: github.com/richardnascimento18/devdock
-cpu: AMD Ryzen 7 5700G with Radeon Graphics
-BenchmarkFoundationRender/1000-16         	    4482	    256852 ns/op	   76006 B/op	    1035 allocs/op
-BenchmarkFoundationRender/5000-16         	    4339	    261721 ns/op	   76210 B/op	    1035 allocs/op
-PASS
-ok  	github.com/richardnascimento18/devdock	2.358s

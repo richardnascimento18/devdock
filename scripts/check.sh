@@ -13,6 +13,7 @@ diff -u "$module_snapshot/go.mod" go.mod
 diff -u "$module_snapshot/go.sum" go.sum
 go mod verify
 python3 -m unittest discover -s scripts -p 'test_*.py'
+python3 scripts/privacy.py --tracked
 actionlint
 python3 scripts/version.py "$(cat VERSION)"
 go test ./...

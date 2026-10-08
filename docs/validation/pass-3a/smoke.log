@@ -1,3 +1,0 @@
-PASS: Settings tab default-preset edit and persistence
-PASS: isolated TUI startup, project rendering, flat view, root switching, favorite toggle, editor, OAuth screen, cancellation, shutdown
-Captured terminal bytes: 54575

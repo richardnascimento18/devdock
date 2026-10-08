@@ -2,7 +2,7 @@
 
 ## Scope and package ownership
 
-Pass 1 stabilizes the current model and interface. Recursive hierarchy redesign, bulk selection, new responsive panes, visual themes, and major features require later approved passes.
+DevDock manages recursive development workspaces. Preserve public workflows, persisted compatibility, and foreground-only terminal styling. Architecture work must improve ownership or testability without expanding product scope.
 
 - The root package owns Bubble Tea presentation and typed workflows. External work returns commands/messages with operation identities; Update must not perform network/process work or rescan the workspace synchronously.
 - `internal/core` owns workspace validation, discovery, creation, deletion, and collision-safe moves.
@@ -105,3 +105,20 @@ Builtin template paths use rooted filesystem handles and must be strict descenda
 Persistence uses a same-directory temporary file, fsync, close, and atomic rename. Validation/persistence failures leave active editor/config preferences unchanged. State-save failures remain visible after TUI shutdown. Directory fsync is not promised; atomicity does not guarantee survival of the latest rename after sudden power loss. Workspace mutations and metadata persistence cannot be one filesystem transaction; failures are reported and later scans reconcile missing paths.
 
 Root permission or scan failures return partial results with errors. Cancelled OAuth/PTY flows use contexts and operation identities; stale messages cannot mutate the new screen. GitHub error bodies are not echoed, protecting tokens from accidental logging.
+
+## Local evidence and public privacy
+
+Keep execution reports, complete logs, benchmarks, environment information and
+review artifacts under ignored `/.devdock-work/` (validation, reports, logs,
+review, artifacts). Never force-add it. Keep `/docs/` for lasting user/contributor
+documentation; keep README about public use, not pass acceptance or execution.
+
+Stage explicit files and run `python3 scripts/privacy.py --staged` before each
+commit. It reports locations and categories, never matched values. Review
+findings rather than suppressing them. Generic examples and product fixtures
+remain appropriate. Scan the full tracked tree with `--tracked` in CI.
+
+Use `scripts/package-source.sh` for committed source archives. It packages one
+explicit commit with `git archive`, excluding local refs, reflogs, `.git`, dirty
+files and ignored evidence. Do not bundle `--all` or archive a raw checkout for
+public review. Historical commit identities are retained; do not rewrite them.
