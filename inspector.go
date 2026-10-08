@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/tmux"
 	"github.com/richardnascimento18/devdock/internal/ui"
-	"strings"
-	"time"
 )
 
 func projectFromItem(it list.Item) (core.Project, bool) {

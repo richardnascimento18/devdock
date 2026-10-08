@@ -1,15 +1,14 @@
 package main
 
 import (
-	"github.com/richardnascimento18/devdock/internal/app"
-
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/ui"
 	"sort"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/core"
+	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
 // Selection is ephemeral and keyed by canonical project path, never row index.

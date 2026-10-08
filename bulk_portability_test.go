@@ -1,12 +1,12 @@
 package main
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/richardnascimento18/devdock/internal/app"
 	"os"
 	"syscall"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/core"
 )
 

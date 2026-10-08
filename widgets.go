@@ -3,9 +3,8 @@ package main
 import (
 	"strings"
 
-	"github.com/richardnascimento18/devdock/internal/preset"
-
 	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/preset"
 	"github.com/richardnascimento18/devdock/internal/ui"
 )
 

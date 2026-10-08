@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+
 	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"

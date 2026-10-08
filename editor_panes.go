@@ -1,15 +1,14 @@
 package main
 
 import (
-	"github.com/richardnascimento18/devdock/internal/app"
-
 	"fmt"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/richardnascimento18/devdock/internal/preset"
-
 	"strconv"
 	"strings"
+
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
+	"github.com/richardnascimento18/devdock/internal/preset"
 )
 
 // For UX clarity we represent the split as a flat list of leaf panes, each

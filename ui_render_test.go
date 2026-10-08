@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/richardnascimento18/devdock/internal/app"
-
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -19,6 +17,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/preset"

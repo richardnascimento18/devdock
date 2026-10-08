@@ -1,16 +1,15 @@
 package main
 
 import (
-	"github.com/richardnascimento18/devdock/internal/app"
-
 	"fmt"
+	"path/filepath"
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/preset"
-
-	"path/filepath"
-	"strings"
 )
 
 func (m model) updateNewProjectName(msg tea.Msg) (tea.Model, tea.Cmd) {

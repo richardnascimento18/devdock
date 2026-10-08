@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/richardnascimento18/devdock/internal/app"
-
 	"fmt"
+
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 )
 

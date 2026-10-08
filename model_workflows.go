@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/core"

@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/app"
-	"github.com/richardnascimento18/devdock/internal/ui"
 	"io"
 	"os"
 	"os/signal"
@@ -13,13 +11,14 @@ import (
 	"strings"
 	"syscall"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	uistate "github.com/richardnascimento18/devdock/internal/state"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
 	"github.com/richardnascimento18/devdock/internal/tmux"
-
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
 func main() {

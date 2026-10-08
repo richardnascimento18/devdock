@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/app"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"

@@ -1,9 +1,10 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/richardnascimento18/devdock/internal/ui"
-	"strings"
 )
 
 var theme = ui.Default

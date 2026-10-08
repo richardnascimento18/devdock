@@ -1,8 +1,6 @@
 package main
 
-import (
-	"github.com/richardnascimento18/devdock/internal/ui"
-)
+import "github.com/richardnascimento18/devdock/internal/ui"
 
 func (m model) View() string {
 	if ui.Measure(m.termW, m.termH).Mode == ui.Tiny {

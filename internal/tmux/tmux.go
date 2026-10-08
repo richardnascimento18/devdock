@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/process"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/preset"
+	"github.com/richardnascimento18/devdock/internal/process"
 )
 
 var ErrNoSession = errors.New("no tmux session")

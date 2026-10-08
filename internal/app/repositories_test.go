@@ -2,13 +2,13 @@ package app
 
 import (
 	"context"
-	gh "github.com/richardnascimento18/devdock/internal/github"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 
 	"github.com/richardnascimento18/devdock/internal/core"
+	gh "github.com/richardnascimento18/devdock/internal/github"
 )
 
 func TestLocalCloneAtDeepLocationAndCollision(t *testing.T) {

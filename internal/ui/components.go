@@ -2,9 +2,10 @@ package ui
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
-	"strings"
 )
 
 // Fit bounds output using terminal cell widths, preserving ANSI and graphemes.

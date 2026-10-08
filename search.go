@@ -1,11 +1,12 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/ui"
 	"github.com/sahilm/fuzzy"
-	"strings"
 )
 
 func (m model) applySearch() model {

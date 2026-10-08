@@ -1,10 +1,11 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/richardnascimento18/devdock/internal/ui"
-	"strings"
 )
 
 func (m model) settingsFlowVisible() bool {

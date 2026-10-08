@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"strings"
+
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -9,8 +12,6 @@ import (
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/tmux"
 	"github.com/richardnascimento18/devdock/internal/ui"
-	"io"
-	"strings"
 )
 
 type projectDelegate struct {

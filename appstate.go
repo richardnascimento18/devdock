@@ -1,8 +1,6 @@
 package main
 
-import (
-	"github.com/richardnascimento18/devdock/internal/core"
-)
+import "github.com/richardnascimento18/devdock/internal/core"
 
 // appState identifies which screen/flow is currently active.
 type appState int

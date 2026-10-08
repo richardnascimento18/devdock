@@ -2,9 +2,9 @@ package main
 
 import (
 	"errors"
-	tea "github.com/charmbracelet/bubbletea"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/state"
 	"github.com/richardnascimento18/devdock/internal/testutil"

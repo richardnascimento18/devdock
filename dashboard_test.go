@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/ansi"
-	"github.com/richardnascimento18/devdock/internal/core"
-	"github.com/richardnascimento18/devdock/internal/ui"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/core"
+	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
 func keyRune(value string) tea.KeyMsg { return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(value)} }

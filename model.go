@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/app"
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
 	gh "github.com/richardnascimento18/devdock/internal/github"
@@ -15,10 +18,6 @@ import (
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
 	"github.com/richardnascimento18/devdock/internal/tmux"
 	"github.com/richardnascimento18/devdock/internal/ui"
-
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 type model struct {

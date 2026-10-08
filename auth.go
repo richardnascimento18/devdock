@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+
 	tea "github.com/charmbracelet/bubbletea"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 )

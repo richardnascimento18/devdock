@@ -1,16 +1,14 @@
 package main
 
 import (
-	"github.com/richardnascimento18/devdock/internal/app"
-
 	"fmt"
-	tea "github.com/charmbracelet/bubbletea"
-
-	"github.com/richardnascimento18/devdock/internal/core"
-
 	"os"
 	"path/filepath"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
+	"github.com/richardnascimento18/devdock/internal/core"
 )
 
 func (m model) updateDeleteProject(msg tea.Msg) (tea.Model, tea.Cmd) {

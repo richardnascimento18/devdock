@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -10,6 +9,7 @@ import (
 	"github.com/richardnascimento18/devdock/internal/core"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/state"
+	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
 type item struct {

@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/richardnascimento18/devdock/internal/tmux"
 	"path/filepath"
+
+	"github.com/richardnascimento18/devdock/internal/tmux"
 )
 
 func (m model) sessionItem(name string) tmuxSessionItem {

@@ -3,18 +3,18 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/app"
-	"github.com/richardnascimento18/devdock/internal/pty"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
+	"github.com/richardnascimento18/devdock/internal/pty"
 	"github.com/richardnascimento18/devdock/internal/state"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
 )

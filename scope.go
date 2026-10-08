@@ -1,10 +1,9 @@
 package main
 
 import (
-	"github.com/richardnascimento18/devdock/internal/app"
-
 	"strings"
 
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/ui"

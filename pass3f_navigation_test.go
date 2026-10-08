@@ -2,12 +2,12 @@ package main
 
 import (
 	"errors"
-	"github.com/richardnascimento18/devdock/internal/app"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/tmux"
 	"github.com/richardnascimento18/devdock/internal/ui"
 )

@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/charmbracelet/x/ansi"
-	"github.com/richardnascimento18/devdock/internal/core"
 	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
 	"github.com/richardnascimento18/devdock/internal/ui"

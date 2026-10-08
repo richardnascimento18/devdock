@@ -1,14 +1,13 @@
 package main
 
 import (
-	"github.com/richardnascimento18/devdock/internal/app"
+	"path/filepath"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
-
-	"path/filepath"
-	"strings"
 )
 
 type templateEditorLayer int

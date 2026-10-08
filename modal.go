@@ -1,9 +1,10 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/x/ansi"
 	"github.com/richardnascimento18/devdock/internal/ui"
-	"strings"
 )
 
 type modalScreen struct{ scroll int }

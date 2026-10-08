@@ -3,10 +3,11 @@ package git
 import (
 	"context"
 	"errors"
-	"github.com/richardnascimento18/devdock/internal/testutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/richardnascimento18/devdock/internal/testutil"
 )
 
 func TestParseRemote(t *testing.T) {

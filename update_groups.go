@@ -1,13 +1,11 @@
 package main
 
 import (
-	"github.com/richardnascimento18/devdock/internal/app"
-
 	"strings"
 
-	"github.com/richardnascimento18/devdock/internal/core"
-
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
+	"github.com/richardnascimento18/devdock/internal/core"
 )
 
 func (m model) startCreateGroup() (tea.Model, tea.Cmd) {

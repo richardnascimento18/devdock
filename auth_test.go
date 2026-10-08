@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
+	"testing"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	gh "github.com/richardnascimento18/devdock/internal/github"
-	"testing"
 )
 
 type fakeAuth struct {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/process"
 
 	"github.com/richardnascimento18/devdock/internal/git"
+	"github.com/richardnascimento18/devdock/internal/process"
 	"github.com/richardnascimento18/devdock/internal/pty"
 	"github.com/richardnascimento18/devdock/internal/template"
 )

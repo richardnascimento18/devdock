@@ -1,16 +1,14 @@
 package main
 
 import (
-	"github.com/richardnascimento18/devdock/internal/app"
-
 	"fmt"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
-
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {

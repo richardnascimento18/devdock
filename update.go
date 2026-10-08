@@ -1,17 +1,14 @@
 package main
 
 import (
-	"github.com/richardnascimento18/devdock/internal/app"
-
 	"errors"
 	"fmt"
-
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/preset"
-
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // ---------------------------------------------------------------------------

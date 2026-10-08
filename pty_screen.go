@@ -8,16 +8,14 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/richardnascimento18/devdock/internal/app"
-
-	"github.com/richardnascimento18/devdock/internal/pty"
-	tmpl "github.com/richardnascimento18/devdock/internal/template"
-	"github.com/richardnascimento18/devdock/internal/terminal"
-
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/app"
+	"github.com/richardnascimento18/devdock/internal/pty"
+	tmpl "github.com/richardnascimento18/devdock/internal/template"
+	"github.com/richardnascimento18/devdock/internal/terminal"
 	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
@@ -83,7 +81,6 @@ type ptyScreen struct {
 	vscreen terminal.Screen
 
 	session       *pty.Session
-	workDir       string
 	width         int
 	height        int
 	completed     bool

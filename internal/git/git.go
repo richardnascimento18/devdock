@@ -3,13 +3,14 @@ package git
 import (
 	"context"
 	"fmt"
-	"github.com/richardnascimento18/devdock/internal/core"
-	"github.com/richardnascimento18/devdock/internal/process"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/richardnascimento18/devdock/internal/core"
+	"github.com/richardnascimento18/devdock/internal/process"
 )
 
 func CloneRepo(cloneURL, destPath string) error {
