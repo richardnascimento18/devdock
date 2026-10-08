@@ -21,9 +21,9 @@ type editorForm struct {
 
 func fieldLabel(label string, focused bool) string {
 	if focused {
-		return activeStyle.Render(ui.SafeBlock("> " + label))
+		return activeStyle.Render(ui.SafeText("> " + label))
 	}
-	return dimStyle.Render(ui.SafeBlock("  " + label))
+	return dimStyle.Render(ui.SafeText("  " + label))
 }
 func inputView(input textinput.Model, width int) string {
 	input.Width = max(width-2, 1)

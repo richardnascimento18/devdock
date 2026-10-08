@@ -104,7 +104,7 @@ func (e editorScreen) contextForm(detailWidth int) editorForm {
 			form.blocks = append(form.blocks, promptStyle.Render("Selected window")+"\n"+ui.SafeText(win.name), promptStyle.Render("Command")+"\n"+ui.SafeBlock(command))
 		}
 	} else if draft.layer == editorLayerTemplate && draft.te.layer == telStepList {
-		form.blocks = []string{selectedStyle.Render(ui.SafeBlock(draft.te.nameInput.Value())), dimStyle.Render(ui.SafeBlock(draft.te.descInput.Value()))}
+		form.blocks = []string{selectedStyle.Render(ui.SafeText(draft.te.nameInput.Value())), dimStyle.Render(ui.SafeBlock(draft.te.descInput.Value()))}
 		if draft.te.cursor < len(draft.te.steps) {
 			step := draft.te.steps[draft.te.cursor]
 			form.blocks = append(form.blocks, promptStyle.Render("Selected step")+"\n"+stepLabel(step))
@@ -169,7 +169,7 @@ func (e editorScreen) viewContextEditor() string {
 	}(), max(rows-2, 1))
 	if middle == 0 && e.tab != editorTabSettings && (e.layer == editorLayerList || e.layer == editorLayerPreset && e.pe.layer == pelWindowList || e.layer == editorLayerTemplate && e.te.layer == telStepList) {
 		_, components = draft.componentDetails(detail, max(min(rows/3, 5), 1))
-		lines = append(strings.Split(promptStyle.Render(ui.SafeBlock(componentTitle))+"\n"+components+"\n", "\n"), lines...)
+		lines = append(strings.Split(promptStyle.Render(ui.SafeText(componentTitle))+"\n"+components+"\n", "\n"), lines...)
 	}
 	bodyRows := max(rows-1, 1)
 	status := ""

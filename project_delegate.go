@@ -58,7 +58,7 @@ func (d projectDelegate) Render(w io.Writer, m list.Model, index int, it list.It
 		if p.GitHubRepo != "" {
 			repo = "⑂ GitHub"
 		}
-		tags = append(tags, ui.Foreground(theme.Git).Render(ui.SafeBlock(repo)))
+		tags = append(tags, ui.Foreground(theme.Git).Render(ui.SafeText(repo)))
 		if d.sessions[tmux.SessionName(p)] {
 			tags = append(tags, ui.Foreground(theme.Tmux).Render("● tmux"))
 		}
@@ -69,12 +69,12 @@ func (d projectDelegate) Render(w io.Writer, m list.Model, index int, it list.It
 		if width >= 50 {
 			gap = strings.Repeat(" ", max(budget-ansi.StringWidth(metadata), 0)) + gap
 		}
-		detail = metadata + gap + dimStyle.Render(ui.SafeBlock(projectLocationAtWidth(p, locationWidth, d.duplicates[p.Path])))
+		detail = metadata + gap + dimStyle.Render(ui.SafeText(projectLocationAtWidth(p, locationWidth, d.duplicates[p.Path])))
 	} else if session, ok := it.(tmuxSessionItem); ok {
 		title = ui.SafeText(session.displayName())
 		detail = ui.Foreground(theme.Tmux).Render("● active")
 		if session.location != "" {
-			detail += "   " + dimStyle.Render(ui.SafeBlock(session.location))
+			detail += "   " + dimStyle.Render(ui.SafeText(session.location))
 		}
 	} else if entry, ok := it.(interface{ Title() string }); ok {
 		title = ansi.Strip(entry.Title())
@@ -89,7 +89,7 @@ func (d projectDelegate) Render(w io.Writer, m list.Model, index int, it list.It
 			style = selectedStyle
 		}
 	}
-	fmt.Fprint(w, ansi.Truncate(prefix+style.Render(ui.SafeBlock(ansi.Truncate(title, max(m.Width()-2-ansi.StringWidth(decorations), 1), "…")))+decorations, m.Width(), "…"))
+	fmt.Fprint(w, ansi.Truncate(prefix+style.Render(ui.SafeText(ansi.Truncate(title, max(m.Width()-2-ansi.StringWidth(decorations), 1), "…")))+decorations, m.Width(), "…"))
 	if detail != "" {
 		fmt.Fprint(w, "\n"+ansi.Truncate("  "+detail, m.Width(), "…"))
 	} else {

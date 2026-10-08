@@ -81,9 +81,9 @@ func (y yesNoScreen) content(termW, termH int) modalContent {
 	var inner strings.Builder
 	for i, opt := range []string{"  Yes", "  No"} {
 		if i == y.cursor {
-			inner.WriteString(activeStyle.Render(ui.SafeBlock(opt)) + "\n")
+			inner.WriteString(activeStyle.Render(ui.SafeText(opt)) + "\n")
 		} else {
-			inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render(ui.SafeBlock(opt)) + "\n")
+			inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render(ui.SafeText(opt)) + "\n")
 		}
 	}
 	if y.err != "" {
@@ -121,11 +121,11 @@ type githubAuthScreen struct {
 func (g githubAuthScreen) content(termW, termH int) modalContent {
 	var inner strings.Builder
 	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render("1. Open this URL in your browser:") + "\n")
-	inner.WriteString("   " + lipgloss.NewStyle().Foreground(theme.Info).Underline(true).Render(ui.SafeBlock(g.verificationURI)) + "\n\n")
+	inner.WriteString("   " + lipgloss.NewStyle().Foreground(theme.Info).Underline(true).Render(ui.SafeText(g.verificationURI)) + "\n\n")
 	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render("2. Enter this one-time code:") + "\n")
 	inner.WriteString("   " + lipgloss.NewStyle().
 		Bold(true).Foreground(theme.Favorite).Padding(0, 2).
-		Render(ui.SafeBlock(ui.SafeText(g.userCode))) + "\n\n")
+		Render(ui.SafeText(g.userCode)) + "\n\n")
 	if g.done {
 		inner.WriteString(successStyle.Render("✓  Authorized! Loading your repositories..."))
 	} else {
@@ -179,9 +179,9 @@ func (g genericPickerScreen) content(termW, termH int) modalContent {
 		o = identity + o
 		switch {
 		case g.disabled[g.options[i]]:
-			line = dimStyle.Render(ui.SafeBlock("  "+o)) + dimStyle.Render(" (already exists)")
+			line = dimStyle.Render(ui.SafeText("  "+o)) + dimStyle.Render(" (already exists)")
 		case i == g.cursor:
-			line = activeStyle.Render(ui.SafeBlock("▶ " + o))
+			line = activeStyle.Render(ui.SafeText("▶ " + o))
 		default:
 			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render(ui.SafeBlock("  " + o))
 		}
@@ -191,7 +191,7 @@ func (g genericPickerScreen) content(termW, termH int) modalContent {
 		inner.WriteString("\n" + dimStyle.Render("Selected location:") + "\n" + ui.SafeText(g.options[g.cursor]) + "\n")
 	}
 	if len(g.options) > rows {
-		inner.WriteString(dimStyle.Render(ui.SafeBlock(fmt.Sprintf("%d/%d", g.cursor+1, len(g.options)))) + "\n")
+		inner.WriteString(dimStyle.Render(ui.SafeText(fmt.Sprintf("%d/%d", g.cursor+1, len(g.options)))) + "\n")
 	}
 	if g.err != "" {
 		inner.WriteString("\n" + errorStyle.Render(ui.SafeBlock("✗  "+g.err)))
@@ -250,7 +250,7 @@ func (p presetPickerScreen) content(termW, termH int) modalContent {
 		if budget > 40 {
 			budget -= 12
 		}
-		line := nameStyle.Render(ui.SafeBlock(arrow)) + nameStyle.Render(ui.SafeBlock(ansi.Truncate(ui.SafeText(ps.Name), budget, "…"))) + dimStyle.Render(ui.SafeBlock(marker))
+		line := nameStyle.Render(ui.SafeBlock(arrow)) + nameStyle.Render(ansi.Truncate(ui.SafeText(ps.Name), budget, "…")) + dimStyle.Render(ui.SafeBlock(marker))
 		var windows []string
 		for _, win := range ps.Windows {
 			label := win.Name
@@ -259,7 +259,7 @@ func (p presetPickerScreen) content(termW, termH int) modalContent {
 			}
 			windows = append(windows, label)
 		}
-		line += dimStyle.Render(ui.SafeBlock("  [" + strings.Join(windows, " · ") + "]"))
+		line += dimStyle.Render(ui.SafeText("  [" + strings.Join(windows, " · ") + "]"))
 		inner.WriteString(ansi.Truncate(line, ui.ModalInnerWidth(termW), "…") + "\n")
 	}
 	if len(p.presets) > 0 {
@@ -308,9 +308,9 @@ func (t templatePickerScreen) content(termW, termH int) modalContent {
 		desc := dimStyle.Render(ui.SafeBlock("  " + tmpl.Description))
 		var line string
 		if idx == t.cursor {
-			line = activeStyle.Render(ui.SafeBlock("▶  "+tmpl.Name)) + desc
+			line = activeStyle.Render(ui.SafeText("▶  "+tmpl.Name)) + desc
 		} else {
-			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render(ui.SafeBlock("   "+tmpl.Name)) + desc
+			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render(ui.SafeText("   "+tmpl.Name)) + desc
 		}
 		inner.WriteString(ansi.Truncate(line, ui.ModalInnerWidth(termW), "…") + "\n")
 	}
@@ -375,11 +375,11 @@ func (s confirmDeleteDomainScreen) Update(msg tea.Msg) (confirmDeleteDomainScree
 func (s confirmDeleteDomainScreen) content(termW, termH int) modalContent {
 	s.input.Width = max(ui.ModalInnerWidth(termW)-2, 1)
 	var inner strings.Builder
-	inner.WriteString(errorStyle.Render(ui.SafeBlock(fmt.Sprintf(
+	inner.WriteString(errorStyle.Render(ui.SafeText(fmt.Sprintf(
 		"ALL projects inside \"%s\" will be permanently deleted.", s.domainName,
 	))) + "\n\n")
 	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render(
-		ui.SafeBlock(fmt.Sprintf("Type \"%s\" to confirm:", s.domainName)),
+		ui.SafeText(fmt.Sprintf("Type \"%s\" to confirm:", s.domainName)),
 	) + "\n\n")
 	inner.WriteString(ui.InputView(s.input))
 	if s.err != "" {
@@ -428,11 +428,11 @@ func (s confirmDeleteTmuxScreen) target() string {
 func (s confirmDeleteTmuxScreen) content(termW, termH int) modalContent {
 	s.input.Width = max(ui.ModalInnerWidth(termW)-2, 1)
 	var inner strings.Builder
-	inner.WriteString(warningStyle.Render(ui.SafeBlock(fmt.Sprintf(
+	inner.WriteString(warningStyle.Render(ui.SafeText(fmt.Sprintf(
 		"Kill tmux session \"%s\"? All windows and panes will be lost.", s.target(),
 	))) + "\n\n")
 	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render(
-		ui.SafeBlock(fmt.Sprintf("Type \"%s\" to confirm:", s.target())),
+		ui.SafeText(fmt.Sprintf("Type \"%s\" to confirm:", s.target())),
 	) + "\n\n")
 	inner.WriteString(ui.InputView(s.input))
 	if s.err != "" {

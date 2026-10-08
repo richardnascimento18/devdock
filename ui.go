@@ -41,7 +41,7 @@ func RenderTitle() string { return titleStyle.Render("DevDock") }
 func RenderLanguageTags(langs []string) string {
 	var parts []string
 	for _, label := range langs {
-		parts = append(parts, ui.Foreground(theme.Info).Render(ui.SafeBlock(ui.Tech(label).Badge)))
+		parts = append(parts, ui.Foreground(theme.Info).Render(ui.SafeText(ui.Tech(label).Badge)))
 	}
 	return strings.Join(parts, " · ")
 }
@@ -50,7 +50,7 @@ func RenderGroupBreadcrumb(path []string) string {
 	if len(path) == 0 {
 		return ""
 	}
-	return dimStyle.Render(ui.SafeBlock(" " + compactBreadcrumb(path) + " › "))
+	return dimStyle.Render(ui.SafeText(" " + compactBreadcrumb(path) + " › "))
 }
 
 func compactBreadcrumb(path []string) string {

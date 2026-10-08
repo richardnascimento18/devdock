@@ -70,3 +70,21 @@ func TestHostileAuxiliaryDisplays(t *testing.T) {
 	pty.ingestPTYData([]byte(payload))
 	assertSafeDisplay(t, pty.View())
 }
+
+func TestExternalSingleLineLabelsEncodeNewlines(t *testing.T) {
+	name := "example\nspoofed-row\r\t"
+	project := core.Project{Name: name, Location: core.Location{Root: "/workspace", Domain: name}}
+	for _, value := range []string{
+		(item{project: project}).Title(),
+		(favoriteItem{project: project}).Title(),
+		(githubItem{repo: gh.Repo{Name: name}}).Title(),
+		(tmuxSessionItem{name: name}).Title(),
+		(groupItem{name: name, location: project.Location}).Title(),
+		ui.Activity(name, 1, false),
+	} {
+		assertSafeDisplay(t, value)
+		if strings.Contains(value, "\n") {
+			t.Fatal("external label injected a row")
+		}
+	}
+}

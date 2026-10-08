@@ -55,7 +55,7 @@ func (m model) currentLocationLabel() string {
 func (m model) inspectorLines(width int) []string {
 	var lines []string
 	add := func(label, value string) {
-		lines = append(lines, promptStyle.Render(ui.SafeBlock(label)))
+		lines = append(lines, promptStyle.Render(ui.SafeText(label)))
 		lines = append(lines, strings.Split(ansi.Hardwrap(value, max(width-2, 1), true), "\n")...)
 		lines = append(lines, "")
 	}
@@ -77,21 +77,21 @@ func (m model) inspectorLines(width int) []string {
 			add("GitHub", ui.SafeText(x.repo.FullName))
 			add("Actions", "enter clone repository")
 		case tmuxSessionItem:
-			add("Tmux", ui.Foreground(theme.Tmux).Render(ui.SafeBlock(x.displayName()+" · active")))
+			add("Tmux", ui.Foreground(theme.Tmux).Render(ui.SafeText(x.displayName()+" · active")))
 			add("Location", ui.SafeText(x.location))
-			add("Technical session", dimStyle.Render(ui.SafeBlock(x.name)))
+			add("Technical session", dimStyle.Render(ui.SafeText(x.name)))
 			add("Actions", "enter attach · x kill with confirmation")
 		default:
 			lines = append(lines, dimStyle.Render("Select a project to inspect.\nctrl+p opens available actions."))
 		}
 		return lines
 	}
-	lines = append(lines, selectedStyle.Render(ui.SafeBlock(p.Name)))
+	lines = append(lines, selectedStyle.Render(ui.SafeText(p.Name)))
 	if len(p.Languages) > 0 {
 		lines = append(lines, RenderLanguageTags(p.Languages))
 	}
 	lines = append(lines, "")
-	add("Location", dimStyle.Render(ui.SafeBlock(p.Location.Breadcrumb()+"\n"+p.Path)))
+	add("Location", dimStyle.Render(ui.SafeText(p.Location.Breadcrumb())+"\n"+ui.SafeText(p.Path)))
 	repo := "⌂ Local project"
 	if p.LocalGit {
 		repo = "⑂ Local Git repository"
@@ -99,7 +99,7 @@ func (m model) inspectorLines(width int) []string {
 	if p.GitHubRepo != "" {
 		repo = "⑂ GitHub · " + p.GitHubRepo
 	}
-	add("Git", ui.Foreground(theme.Git).Render(ui.SafeBlock(repo)))
+	add("Git", ui.Foreground(theme.Git).Render(ui.SafeText(repo)))
 	session := "Not checked · visit tmux tab"
 	if m.tmux.cached != nil {
 		session = "No cached session"
@@ -107,7 +107,7 @@ func (m model) inspectorLines(width int) []string {
 			session = "● " + p.Name + " · active (cached)"
 		}
 	}
-	add("Tmux", ui.Foreground(theme.Tmux).Render(ui.SafeBlock(session))+"\n"+dimStyle.Render(ui.SafeBlock("Preset · "+m.presetSel.SelectedName())))
+	add("Tmux", ui.Foreground(theme.Tmux).Render(ui.SafeText(session))+"\n"+dimStyle.Render(ui.SafeText("Preset · "+m.presetSel.SelectedName())))
 	favorite := "☆ Not a favorite"
 	if m.uiState.Favorites[p.Path] {
 		favorite = "★ Favorite"

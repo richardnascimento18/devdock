@@ -164,9 +164,9 @@ func (m model) viewWorkspace(width, height int) string {
 				style = selectedStyle.Underline(true)
 			}
 		}
-		suffix := dimStyle.Render(ui.SafeBlock(fmt.Sprintf(" %d", count)))
+		suffix := dimStyle.Render(ui.SafeText(fmt.Sprintf(" %d", count)))
 		budget := max(width-ansi.StringWidth(prefix+guide+glyph+" "+suffix), 1)
-		line := prefix + dimStyle.Render(ui.SafeBlock(guide)) + style.Render(ui.SafeBlock(glyph+" ")) + style.Render(ui.SafeBlock(ansi.Truncate(label, budget, "…"))) + suffix
+		line := prefix + dimStyle.Render(ui.SafeText(guide)) + style.Render(ui.SafeText(glyph+" ")) + style.Render(ui.SafeText(ansi.Truncate(label, budget, "…"))) + suffix
 		lines = append(lines, ui.Fit(line, width, 1))
 	}
 	if len(m.navigation.rows) == 1 {
