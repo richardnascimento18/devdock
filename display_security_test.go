@@ -10,6 +10,7 @@ import (
 	"github.com/richardnascimento18/devdock/internal/preset"
 	"github.com/richardnascimento18/devdock/internal/state"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
+	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
 func assertSafeDisplay(t *testing.T, output string) {
@@ -40,6 +41,11 @@ func TestHostileDisplayDoesNotChangeWorkspaceIdentity(t *testing.T) {
 
 func TestHostileAuxiliaryDisplays(t *testing.T) {
 	payload := "value\x1b]52;c;clipboard\a\x1b]8;;https://example.invalid\x1b\\\u202e"
+	for _, reduced := range []bool{false, true} {
+		for _, frame := range []int{0, 1, 16} {
+			assertSafeDisplay(t, ui.Activity(payload, frame, reduced))
+		}
+	}
 	e := newEditorScreen([]preset.Preset{{Name: payload, Windows: []preset.Window{{Name: payload, Command: payload}}}}, []tmpl.Template{{Name: payload, Description: payload}}, 120, 40)
 	for _, width := range []int{120, 80, 40} {
 		e.termW = width
