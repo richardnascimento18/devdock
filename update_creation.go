@@ -336,8 +336,9 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 			return m, nil
 		}
 		vars.ProjectPath = projectPath
-		m.ptyScr = newPTYScreen(m.termW, m.termH, m.pendingTemplate, projectPath, vars,
+		m.ptyScr = newPTYScreenContext(m.context(), m.termW, m.termH, m.pendingTemplate, projectPath, vars,
 			m.pendingTemplate.Steps, workDir, m.pendingGHRepo)
+		m.ptyScr.scaffold.Git = m.workspaces.Git
 		m.operationID++
 		m.ptyScr.operationID = m.operationID
 		m.state = statePTYExecution
@@ -386,7 +387,7 @@ func (m model) updatePTYExecution(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state = stateList
 			return m, nil
 		}
-		projectPath := m.ptyScr.projectPath
+		projectPath := m.ptyScr.scaffold.ProjectPath
 		p := core.Project{Location: m.currentLocation(), Name: filepath.Base(projectPath),
 			Path: projectPath,
 		}

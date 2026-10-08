@@ -8,7 +8,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/richardnascimento18/devdock/internal/git"
+	"github.com/richardnascimento18/devdock/internal/app"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/pty"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
@@ -92,30 +92,21 @@ type ptyScreen struct {
 	interrupted   bool
 	exitErr       error
 
-	tmpl           *tmpl.Template
-	projectPath    string
-	currentStepIdx int
-	allSteps       []tmpl.TemplateStep
-	vars           tmpl.Vars
-	isPostSteps    bool
-	githubRepo     gh.Repo
+	tmpl     *tmpl.Template
+	scaffold app.Scaffold
 }
 
-func newPTYScreen(w, h int, t *tmpl.Template, projectPath string, vars tmpl.Vars, steps []tmpl.TemplateStep, workDir string, ghRepo gh.Repo) ptyScreen {
-	ctx, cancel := context.WithCancel(context.Background())
+func newPTYScreenContext(parent context.Context, w, h int, t *tmpl.Template, projectPath string, vars tmpl.Vars, steps []tmpl.TemplateStep, workDir string, ghRepo gh.Repo) ptyScreen {
+	ctx, cancel := context.WithCancel(parent)
 	vp := viewport.New(vpW(w), vpH(h))
 	vp.Style = lipgloss.NewStyle()
 	ps := ptyScreen{
 		context: ctx, cancel: cancel,
-		viewport:    vp,
-		workDir:     workDir,
-		width:       w,
-		height:      h,
-		tmpl:        t,
-		projectPath: projectPath,
-		allSteps:    steps,
-		vars:        vars,
-		githubRepo:  ghRepo,
+		viewport: vp,
+		width:    w,
+		height:   h,
+		tmpl:     t,
+		scaffold: app.NewScaffold(t, projectPath, vars, steps, workDir, ghRepo.CloneURL),
 	}
 	ps.addLine("Starting template setup...", lineSystem)
 	return ps
@@ -364,68 +355,27 @@ func (p ptyScreen) Update(msg tea.Msg) (ptyScreen, tea.Cmd) {
 
 func (p *ptyScreen) startNextStep() (cmd tea.Cmd) {
 	defer func() { cmd = p.wrap(cmd) }()
-	if !p.isPostSteps && p.currentStepIdx >= len(p.allSteps) {
-		if p.tmpl != nil && len(p.tmpl.PostSteps) > 0 {
-			p.isPostSteps = true
-			p.currentStepIdx = 0
-			p.allSteps = p.tmpl.PostSteps
-			p.workDir = p.projectPath
-			p.addLine("Running post-setup steps...", lineSystem)
-		}
+	step, ok, err := p.scaffold.Execution.Next()
+	if err != nil {
+		return func() tea.Msg { return pty.ExitMsg{Err: err} }
 	}
-	if p.currentStepIdx >= len(p.allSteps) {
-		projectPath, repo, ctx := p.projectPath, p.githubRepo, p.context
-		p.githubRepo = gh.Repo{}
-		return func() tea.Msg {
-			if err := tmpl.WriteDevDockMarkerFile(projectPath); err != nil {
-				return ptyDoneMsg{err: fmt.Errorf("write project marker: %w", err)}
-			}
-			if repo.FullName != "" {
-				return ptyDoneMsg{err: git.NewClient().Init(ctx, projectPath, repo.CloneURL)}
-			}
-			return ptyDoneMsg{}
-		}
+	scaffold, ctx := p.scaffold, p.context
+	if !ok {
+		return func() tea.Msg { return ptyDoneMsg{err: scaffold.Finish(ctx)} }
 	}
-	step := p.allSteps[p.currentStepIdx]
-	p.currentStepIdx++
-	vars, workDir, ctx := p.vars, p.workDir, p.context
-	switch step.Type {
-	case "builtin":
-		return func() tea.Msg {
-			if err := ctx.Err(); err != nil {
-				return pty.ExitMsg{Err: err}
-			}
-			if err := tmpl.ExecuteBuiltin(step.Action, tmpl.ExpandVars(step.Path, vars), vars.ProjectPath); err != nil {
-				return pty.ExitMsg{Err: err}
-			}
-			return ptyBuiltinCompleteMsg{text: fmt.Sprintf("%s %s", step.Action, step.Path)}
-		}
-	case "command":
-		args, err := tmpl.CommandArgs(step, vars)
+	if step.PostStarted {
+		p.addLine("Running post-setup steps...", lineSystem)
+	}
+	rows, cols := uint16(vpH(p.height)), uint16(vpW(p.width))
+	return func() tea.Msg {
+		result, err := scaffold.Execute(ctx, step, rows, cols)
 		if err != nil {
-			return func() tea.Msg { return pty.ExitMsg{Err: err} }
+			return pty.ExitMsg{Err: err}
 		}
-		if step.Output != "" {
-			return func() tea.Msg {
-				if err := tmpl.ExecuteStepsContext(ctx, []tmpl.TemplateStep{step}, workDir, vars, false); err != nil {
-					return pty.ExitMsg{Err: err}
-				}
-				return ptyBuiltinCompleteMsg{text: step.Run + " → " + step.Output}
-			}
+		if result.Session != nil {
+			return ptyStepStartMsg{session: result.Session, cmdStr: result.Text}
 		}
-		width, height := p.width, p.height
-		return func() tea.Msg {
-			session, err := pty.NewSessionContext(ctx, args, workDir)
-			if err != nil {
-				return pty.ExitMsg{Err: fmt.Errorf("start command %q: %w", step.Run, err)}
-			}
-			if err := session.Resize(uint16(vpH(height)), uint16(vpW(width))); err != nil {
-				return pty.ExitMsg{Err: errors.Join(err, session.Close())}
-			}
-			return ptyStepStartMsg{session: session, cmdStr: tmpl.ExpandVars(step.Run, vars)}
-		}
-	default:
-		return func() tea.Msg { return pty.ExitMsg{Err: fmt.Errorf("unknown step type %q", step.Type)} }
+		return ptyBuiltinCompleteMsg{text: result.Text}
 	}
 }
 
@@ -442,13 +392,11 @@ func (p ptyScreen) View() string {
 	footer := "Opening workspace…"
 	if !p.completed {
 		label := "Running…"
-		if len(p.allSteps) > 0 {
-			total := len(p.allSteps)
-			if p.tmpl != nil && !p.isPostSteps {
-				total = len(p.tmpl.Steps)
-			}
-			label = fmt.Sprintf("Step %d/%d", min(max(p.currentStepIdx, 1), total), total)
+		index, total, _ := p.scaffold.Execution.Progress()
+		if total > 0 {
+			label = fmt.Sprintf("Step %d/%d", min(max(index, 1), total), total)
 		}
+
 		progress = ui.Activity(label, p.motionFrame, p.reducedMotion)
 		footer = "Type to send input · ctrl+c interrupt"
 		if p.width < 40 {

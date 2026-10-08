@@ -53,7 +53,7 @@ func run(ctx context.Context) error {
 	}
 
 	if err := os.MkdirAll(paths.Directory, 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: could not create config dir: %v\n", err)
+		fmt.Fprintf(os.Stderr, "warning: could not create config dir: %s\n", ui.SafeBlock(err.Error()))
 	}
 
 	presets, presetErr := (preset.Store{Directory: paths.Directory}).Load()
@@ -81,6 +81,7 @@ func run(ctx context.Context) error {
 
 	m := newModelWithPreferences(nil, cfg, presets, templates, uiSt, preferences)
 	m.appContext = ctx
+	m.tmuxClient = tmux.NewClientContext(ctx, "")
 	m.startupCmd = m.scanCommand()
 	m.motion.pending = !m.motion.reduced
 	m.motion.generation++
@@ -113,12 +114,12 @@ func run(ctx context.Context) error {
 	// Launch the workspace AFTER the TUI exits so the alt-screen is torn down
 	// and tmux can attach cleanly.
 	if fm.pendingLaunchReady {
-		if err := tmux.LaunchWorkspace(fm.pendingLaunch, fm.pendingLaunchPreset); err != nil {
+		if err := fm.tmuxClient.LaunchWorkspace(fm.pendingLaunch, fm.pendingLaunchPreset); err != nil {
 			return err
 		}
 	}
 	if fm.pendingTmuxAttach != "" {
-		if err := tmux.AttachSession(fm.pendingTmuxAttach); err != nil {
+		if err := fm.tmuxClient.AttachSession(fm.pendingTmuxAttach); err != nil {
 			return err
 		}
 	}

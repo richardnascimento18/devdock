@@ -259,6 +259,6 @@ func BenchmarkDeepTreeAndSelection(b *testing.B) {
 func staticPTYFixture(m *model) {
 	m.state = statePTYExecution
 	m.ptyScr = newPTYScreen(m.termW, m.termH, nil, "/workspace/work/backend/billing", tmpl.Vars{}, []tmpl.TemplateStep{{Type: "command", Run: "echo done"}}, "/workspace/work/backend/billing", gh.Repo{})
-	m.ptyScr.currentStepIdx = 1
+	m.ptyScr.scaffold.Execution.Next()
 	m.ptyScr.viewport.SetContent("$ printf 日本語 é 👩‍💻\nPreparing workspace…")
 }

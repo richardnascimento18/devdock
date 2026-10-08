@@ -57,6 +57,14 @@ func NewSessionContext(ctx context.Context, args []string, workDir string) (*Ses
 	s := &Session{cmd: cmd, ptmx: ptmx, events: make(chan Event, 16), waited: make(chan struct{}), closed: make(chan struct{})}
 	go func() { s.waitErr = cmd.Wait(); close(s.waited) }()
 	go s.readOutput()
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = s.Close()
+		case <-s.closed:
+		case <-s.waited:
+		}
+	}()
 	return s, nil
 }
 

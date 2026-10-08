@@ -9,7 +9,6 @@ import (
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
-	"github.com/richardnascimento18/devdock/internal/tmux"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -283,9 +282,10 @@ func (m model) handleGitHubRepoCreated(msg RepoCreatedMsg) (tea.Model, tea.Cmd) 
 			return m, nil
 		}
 		vars.ProjectPath = projectPath
-		m.ptyScr = newPTYScreen(m.termW, m.termH, m.pendingTemplate, projectPath, vars,
+		m.ptyScr = newPTYScreenContext(m.context(), m.termW, m.termH, m.pendingTemplate, projectPath, vars,
 			m.pendingTemplate.Steps, workDir, msg.Repo)
 		m.pendingLaunchPreset = m.pendingPreset
+		m.ptyScr.scaffold.Git = m.workspaces.Git
 		m.operationID++
 		m.ptyScr.operationID = m.operationID
 		m.state = statePTYExecution
@@ -497,7 +497,7 @@ func (m model) updateDeleteTmuxSession(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			name := m.confirmDelTmux.sessionName
 			m.tmuxDeleting = true
-			return m, func() tea.Msg { return tmuxKilledMsg{name: name, err: tmux.KillSession(name)} }
+			return m, func() tea.Msg { return tmuxKilledMsg{name: name, err: m.tmuxClient.KillSession(name)} }
 		}
 	}
 	var cmd tea.Cmd

@@ -5,7 +5,6 @@ import (
 	"github.com/richardnascimento18/devdock/internal/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/richardnascimento18/devdock/internal/tmux"
 )
 
 type deleteDoneMsg struct {
@@ -56,7 +55,7 @@ func (m *model) tmuxRefreshCommand() tea.Cmd {
 	m.tmuxRefreshID++
 	id := m.tmuxRefreshID
 	return func() tea.Msg {
-		sessions, err := tmux.ListSessions()
+		sessions, err := m.tmuxClient.ListSessions()
 		return tmuxSessionsMsg{id: id, sessions: sessions, err: err}
 	}
 }

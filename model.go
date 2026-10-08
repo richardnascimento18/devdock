@@ -23,6 +23,7 @@ import (
 )
 
 type model struct {
+	tmuxClient             tmux.Client
 	workspaces             app.Workspaces
 	appContext             context.Context
 	preferences            app.Preferences
@@ -144,6 +145,7 @@ func newModelWithPreferences(projects []core.Project, cfg config.Config, presets
 	roots := cfg.ActiveRoots()
 
 	m := model{
+		tmuxClient:     tmux.NewClient(),
 		workspaces:     app.NewWorkspaces(),
 		preferences:    preferences,
 		focus:          ui.Projects,
@@ -232,7 +234,7 @@ func (m model) Init() tea.Cmd {
 	if m.activeTab == TabTmux {
 		id := m.tmuxRefreshID
 		commands = append(commands, func() tea.Msg {
-			sessions, err := tmux.ListSessions()
+			sessions, err := m.tmuxClient.ListSessions()
 			return tmuxSessionsMsg{id: id, sessions: sessions, err: err}
 		})
 	}

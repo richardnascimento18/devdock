@@ -25,3 +25,7 @@ func newEditorScreen(presets []preset.Preset, templates []template.Template, w, 
 func scanWorkspace(roots []string, repos []gh.Repo) app.Snapshot {
 	return app.NewWorkspaces().Refresh(context.Background(), roots, repos)
 }
+
+func newPTYScreen(w, h int, t *template.Template, path string, vars template.Vars, steps []template.TemplateStep, workDir string, repo gh.Repo) ptyScreen {
+	return newPTYScreenContext(context.Background(), w, h, t, path, vars, steps, workDir, repo)
+}

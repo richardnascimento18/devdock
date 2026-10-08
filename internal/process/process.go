@@ -22,18 +22,18 @@ func Command(ctx context.Context, directory, executable string, args ...string) 
 // (which may include credentials); presentation separately encodes controls.
 func Output(ctx context.Context, directory, executable string, args ...string) ([]byte, error) {
 	cmd := Command(ctx, directory, executable, args...)
-	output := &tailBuffer{}
+	output := &Capture{}
 	cmd.Stdout, cmd.Stderr = output, output
 	err := cmd.Run()
 	return output.data, err
 }
 
-type tailBuffer struct {
+type Capture struct {
 	mu   sync.Mutex
 	data []byte
 }
 
-func (b *tailBuffer) Write(data []byte) (int, error) {
+func (b *Capture) Write(data []byte) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	n := len(data)
@@ -47,4 +47,10 @@ func (b *tailBuffer) Write(data []byte) (int, error) {
 		b.data = append(b.data, data...)
 	}
 	return n, nil
+}
+
+func (b *Capture) Bytes() []byte {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return append([]byte(nil), b.data...)
 }

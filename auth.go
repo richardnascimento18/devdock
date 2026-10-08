@@ -24,7 +24,7 @@ func (m model) startGitHubAuth() (tea.Model, tea.Cmd) {
 		return m, m.fetchRepos()
 	}
 	m.cancelAuth()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(m.context())
 	m.authCancel = cancel
 	m.authContext = ctx
 	if m.authClient == nil {

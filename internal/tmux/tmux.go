@@ -1,10 +1,11 @@
 package tmux
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"github.com/richardnascimento18/devdock/internal/process"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -16,28 +17,32 @@ import (
 var ErrNoSession = errors.New("no tmux session")
 
 type Runner interface {
-	Run(...string) error
-	Output(...string) (string, error)
+	Run(context.Context, ...string) error
+	Output(context.Context, ...string) (string, error)
 }
-type Client struct{ Runner Runner }
+type Client struct {
+	Runner  Runner
+	Context context.Context
+	Socket  string
+}
 type processRunner struct{}
 
-func (processRunner) Run(args ...string) error {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		return fmt.Errorf("tmux is required: %w", err)
-	}
-	cmd := exec.Command("tmux", args...)
+func (processRunner) Run(ctx context.Context, args ...string) error {
+
+	cmd := process.Command(ctx, "", "tmux", args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
-func (processRunner) Output(args ...string) (string, error) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		return "", fmt.Errorf("tmux is required: %w", err)
+func (processRunner) Output(ctx context.Context, args ...string) (string, error) {
+
+	out, err := process.Output(ctx, "", "tmux", args...)
+	command := args[0]
+	if command == "-S" && len(args) > 2 {
+		command = args[2]
 	}
-	out, err := exec.Command("tmux", args...).CombinedOutput()
-	if err != nil && len(args) > 0 && (args[0] == "has-session" || args[0] == "list-sessions") {
+	if err != nil && (command == "has-session" || command == "list-sessions") {
 		message := string(out)
 		if strings.Contains(message, "can't find session") || strings.Contains(message, "no server running") || strings.Contains(message, "No such file or directory") {
 			return "", ErrNoSession
@@ -45,15 +50,30 @@ func (processRunner) Output(args ...string) (string, error) {
 	}
 	return string(out), err
 }
-func NewClient() Client { return Client{Runner: processRunner{}} }
+func NewClient() Client { return NewClientContext(context.Background(), "") }
+func NewClientContext(ctx context.Context, socket string) Client {
+	return Client{Runner: processRunner{}, Context: ctx, Socket: socket}
+}
+func (c Client) context() context.Context {
+	if c.Context == nil {
+		return context.Background()
+	}
+	return c.Context
+}
+func (c Client) target(args []string) []string {
+	if c.Socket != "" {
+		return append([]string{"-S", c.Socket}, args...)
+	}
+	return args
+}
 func (c Client) run(args ...string) error {
-	if err := c.Runner.Run(args...); err != nil {
+	if err := c.Runner.Run(c.context(), c.target(args)...); err != nil {
 		return fmt.Errorf("tmux %s: %w", args[0], err)
 	}
 	return nil
 }
 func (c Client) output(args ...string) (string, error) {
-	out, err := c.Runner.Output(args...)
+	out, err := c.Runner.Output(c.context(), c.target(args)...)
 	if err != nil {
 		return "", fmt.Errorf("tmux %s: %w", args[0], err)
 	}
@@ -180,7 +200,8 @@ func (c Client) AttachSession(name string) error {
 	}
 	return c.run(action, "-t", "="+name)
 }
-func KillSession(name string) error { return NewClient().run("kill-session", "-t", "="+name) }
+func KillSession(name string) error            { return NewClient().KillSession(name) }
+func (c Client) KillSession(name string) error { return c.run("kill-session", "-t", "="+name) }
 
 // SessionName is location based; marker display names cannot alias sessions.
 func SessionName(p core.Project) string {
