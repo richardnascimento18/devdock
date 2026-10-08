@@ -4,6 +4,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
+	"github.com/richardnascimento18/devdock/internal/ui"
 	"path/filepath"
 	"strings"
 )
@@ -384,7 +385,7 @@ func (te templateEditor) commitStepEdit() (templateEditor, tea.Cmd) {
 	sd.isPost = te.editIsPost
 	candidate := tmpl.Template{Name: "draft", Steps: []tmpl.TemplateStep{{Type: sd.stepType, Run: sd.run, Action: sd.action, Path: sd.path, Output: sd.output, Shell: sd.shell}}}
 	if errs := tmpl.ValidateFile(tmpl.TemplateFile{Templates: []tmpl.Template{candidate}}); len(errs) > 0 {
-		te.statusMsg = errorStyle.Render("! " + errs[0])
+		te.statusMsg = errorStyle.Render(ui.SafeBlock("! " + errs[0]))
 		return te, nil
 	}
 	te.steps[te.editIdx] = sd

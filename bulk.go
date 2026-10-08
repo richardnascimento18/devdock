@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/richardnascimento18/devdock/internal/ui"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -80,7 +81,7 @@ func (m model) scopeIdentity() string {
 }
 func (m model) bulkFavorites() model {
 	if m.hiddenSelection() > 0 {
-		m.statusMsg = warningStyle.Render("! " + m.selectionStatus())
+		m.statusMsg = warningStyle.Render(ui.SafeBlock("! " + m.selectionStatus()))
 		return m
 	}
 	projects := m.selectedProjects()
@@ -104,7 +105,7 @@ func (m model) bulkFavorites() model {
 		}
 	}
 	if m.saveState() {
-		m.statusMsg = successStyle.Render(fmt.Sprintf("✓ Updated favorites for %d projects", len(projects)))
+		m.statusMsg = successStyle.Render(ui.SafeBlock(fmt.Sprintf("✓ Updated favorites for %d projects", len(projects))))
 		m = m.applySearch()
 	}
 	return m
@@ -182,7 +183,7 @@ func executeBulk(rows []bulkMoveRow, plan func(core.Project, core.Location, stri
 }
 func (m model) startBulkMove() model {
 	if m.hiddenSelection() > 0 {
-		m.statusMsg = warningStyle.Render("! " + m.selectionStatus())
+		m.statusMsg = warningStyle.Render(ui.SafeBlock("! " + m.selectionStatus()))
 		return m
 	}
 	m.bulk = bulkWorkflow{projects: m.selectedProjects()}
@@ -272,7 +273,7 @@ func (m model) handleBulkDone(msg bulkDoneMsg) (tea.Model, tea.Cmd) {
 func (m model) bulkModal() modalContent {
 	title := fmt.Sprintf("Move %d selected projects", len(m.bulk.projects))
 	hint := "enter move all · esc cancel"
-	lines := []string{"Destination: " + m.bulk.destination.Path(), "", "Every source and destination is checked before moving.", "Filesystem moves are separate operations; failures may be partial.", ""}
+	lines := []string{"Destination: " + ui.SafeText(m.bulk.destination.Path()), "", "Every source and destination is checked before moving.", "Filesystem moves are separate operations; failures may be partial.", ""}
 	if m.state == stateBulkResult {
 		title = "Bulk move results"
 		hint = "enter done · esc back"
@@ -305,10 +306,10 @@ func (m model) bulkModal() modalContent {
 		if r.err != nil {
 			label = "! " + r.err.Error()
 		}
-		lines = append(lines, "", r.plan.Source.Name, "From: "+r.plan.Source.Path, "To:   "+r.plan.Path, label)
+		lines = append(lines, "", ui.SafeText(r.plan.Source.Name), "From: "+ui.SafeText(r.plan.Source.Path), "To:   "+ui.SafeText(r.plan.Path), ui.SafeBlock(label))
 	}
 	if m.bulk.persistenceError != "" {
-		lines = append(lines, "", warningStyle.Render("! "+m.bulk.persistenceError))
+		lines = append(lines, "", warningStyle.Render(ui.SafeBlock("! "+m.bulk.persistenceError)))
 	}
 	return modalContent{title, strings.Join(lines, "\n"), hint}
 }

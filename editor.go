@@ -13,6 +13,7 @@ package main
 // ESC / ctrl+c returns to the previous layer without saving.
 
 import (
+	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -212,7 +213,7 @@ func (e editorScreen) updatePresetEditor(msg tea.Msg) (editorScreen, tea.Cmd) {
 				if e.pe.splitEditor.editing {
 					size, err := parsePaneSize(e.pe.splitEditor.sizeInput.Value())
 					if err != nil {
-						e.pe.statusMsg = errorStyle.Render(err.Error())
+						e.pe.statusMsg = errorStyle.Render(ui.SafeBlock(err.Error()))
 						e.pe.result = editorResultNone
 						return e, nil
 					}
@@ -227,7 +228,7 @@ func (e editorScreen) updatePresetEditor(msg tea.Msg) (editorScreen, tea.Cmd) {
 		proposed := deepCopyPresets(e.presets)
 		if errMsg := preset.ValidatePreset(p); errMsg != "" {
 			e.pe.result = editorResultNone
-			e.pe.statusMsg = errorStyle.Render("✗  " + errMsg)
+			e.pe.statusMsg = errorStyle.Render(ui.SafeBlock("✗  " + errMsg))
 			return e, nil
 		}
 		// upsert
@@ -248,14 +249,14 @@ func (e editorScreen) updatePresetEditor(msg tea.Msg) (editorScreen, tea.Cmd) {
 		}
 		proposedConfig, err := savePresetProposal(e.cfg, proposed, oldName, p.Name)
 		if err != nil {
-			e.pe.statusMsg = errorStyle.Render("✗  save failed: " + err.Error())
+			e.pe.statusMsg = errorStyle.Render(ui.SafeBlock("✗  save failed: " + err.Error()))
 			e.pe.result = editorResultNone
 			return e, nil
 		} else {
 			e.presets = proposed
 			e.cfg = proposedConfig
 			e.revision++
-			e.statusMsg = successStyle.Render("✓  preset \"" + p.Name + "\" saved")
+			e.statusMsg = successStyle.Render(ui.SafeBlock("✓  preset \"" + p.Name + "\" saved"))
 		}
 		e.pe.result = editorResultNone
 		e.layer = editorLayerList
@@ -292,7 +293,7 @@ func (e editorScreen) updateTemplateEditor(msg tea.Msg) (editorScreen, tea.Cmd) 
 		errs := tmpl.ValidateFile(tmpl.TemplateFile{Templates: []tmpl.Template{t}})
 		if len(errs) > 0 {
 			e.te.result = editorResultNone
-			e.te.statusMsg = errorStyle.Render("✗  " + errs[0])
+			e.te.statusMsg = errorStyle.Render(ui.SafeBlock("✗  " + errs[0]))
 			return e, nil
 		}
 		found := false
@@ -307,13 +308,13 @@ func (e editorScreen) updateTemplateEditor(msg tea.Msg) (editorScreen, tea.Cmd) 
 			proposed = append(proposed, t)
 		}
 		if err := tmpl.Save(config.Dir(), proposed); err != nil {
-			e.te.statusMsg = errorStyle.Render("✗  save failed: " + err.Error())
+			e.te.statusMsg = errorStyle.Render(ui.SafeBlock("✗  save failed: " + err.Error()))
 			e.te.result = editorResultNone
 			return e, nil
 		} else {
 			e.tmpls = proposed
 			e.revision++
-			e.statusMsg = successStyle.Render("✓  template \"" + t.Name + "\" saved")
+			e.statusMsg = successStyle.Render(ui.SafeBlock("✓  template \"" + t.Name + "\" saved"))
 		}
 		e.te.result = editorResultNone
 		e.layer = editorLayerList

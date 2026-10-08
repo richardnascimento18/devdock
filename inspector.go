@@ -54,14 +54,14 @@ func (m model) currentLocationLabel() string {
 func (m model) inspectorLines(width int) []string {
 	var lines []string
 	add := func(label, value string) {
-		lines = append(lines, promptStyle.Render(label))
+		lines = append(lines, promptStyle.Render(ui.SafeBlock(label)))
 		lines = append(lines, strings.Split(ansi.Hardwrap(value, max(width-2, 1), true), "\n")...)
 		lines = append(lines, "")
 	}
 	if m.focus == ui.Workspace && m.workspaceCursor > 0 && m.workspaceCursor < len(m.workspaceRows) {
 		n := m.workspaceRows[m.workspaceCursor].node
-		add("Workspace", n.Name+" · "+string(n.Kind))
-		add("Location", n.Path())
+		add("Workspace", ui.SafeText(n.Name)+" · "+string(n.Kind))
+		add("Location", ui.SafeText(n.Path()))
 		add("Projects", fmt.Sprint(n.ProjectCount))
 		add("Actions", "enter show projects\n←/→ collapse / expand\nG create group")
 		return lines
@@ -73,24 +73,24 @@ func (m model) inspectorLines(width int) []string {
 	if !ok {
 		switch x := m.list.SelectedItem().(type) {
 		case githubItem:
-			add("GitHub", x.repo.FullName)
+			add("GitHub", ui.SafeText(x.repo.FullName))
 			add("Actions", "enter clone repository")
 		case tmuxSessionItem:
-			add("Tmux", ui.Foreground(theme.Tmux).Render(x.displayName()+" · active"))
-			add("Location", x.location)
-			add("Technical session", dimStyle.Render(x.name))
+			add("Tmux", ui.Foreground(theme.Tmux).Render(ui.SafeBlock(x.displayName()+" · active")))
+			add("Location", ui.SafeText(x.location))
+			add("Technical session", dimStyle.Render(ui.SafeBlock(x.name)))
 			add("Actions", "enter attach · x kill with confirmation")
 		default:
 			lines = append(lines, dimStyle.Render("Select a project to inspect.\nctrl+p opens available actions."))
 		}
 		return lines
 	}
-	lines = append(lines, selectedStyle.Render(p.Name))
+	lines = append(lines, selectedStyle.Render(ui.SafeBlock(p.Name)))
 	if len(p.Languages) > 0 {
 		lines = append(lines, RenderLanguageTags(p.Languages))
 	}
 	lines = append(lines, "")
-	add("Location", dimStyle.Render(p.Location.Breadcrumb()+"\n"+p.Path))
+	add("Location", dimStyle.Render(ui.SafeBlock(p.Location.Breadcrumb()+"\n"+p.Path)))
 	repo := "⌂ Local project"
 	if p.LocalGit {
 		repo = "⑂ Local Git repository"
@@ -98,7 +98,7 @@ func (m model) inspectorLines(width int) []string {
 	if p.GitHubRepo != "" {
 		repo = "⑂ GitHub · " + p.GitHubRepo
 	}
-	add("Git", ui.Foreground(theme.Git).Render(repo))
+	add("Git", ui.Foreground(theme.Git).Render(ui.SafeBlock(repo)))
 	session := "Not checked · visit tmux tab"
 	if m.cachedTmux != nil {
 		session = "No cached session"
@@ -106,7 +106,7 @@ func (m model) inspectorLines(width int) []string {
 			session = "● " + p.Name + " · active (cached)"
 		}
 	}
-	add("Tmux", ui.Foreground(theme.Tmux).Render(session)+"\n"+dimStyle.Render("Preset · "+m.presetSel.SelectedName()))
+	add("Tmux", ui.Foreground(theme.Tmux).Render(ui.SafeBlock(session))+"\n"+dimStyle.Render(ui.SafeBlock("Preset · "+m.presetSel.SelectedName())))
 	favorite := "☆ Not a favorite"
 	if m.uiState.Favorites[p.Path] {
 		favorite = "★ Favorite"

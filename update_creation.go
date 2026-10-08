@@ -8,6 +8,7 @@ import (
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
+	"github.com/richardnascimento18/devdock/internal/ui"
 	"path/filepath"
 	"strings"
 )
@@ -312,7 +313,7 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 		err = core.CheckDestination(location.Root, path)
 	}
 	if err != nil {
-		m.statusMsg = errorStyle.Render(err.Error())
+		m.statusMsg = errorStyle.Render(ui.SafeBlock(err.Error()))
 		m.state = stateList
 		return m, nil
 	}
@@ -331,7 +332,7 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 		}
 		projectPath, workDir, err := core.PrepareProject(location, vars.ProjectName, m.pendingTemplate.CreatesProjectFolder)
 		if err != nil {
-			m.statusMsg = errorStyle.Render("create project: " + err.Error())
+			m.statusMsg = errorStyle.Render(ui.SafeBlock("create project: " + err.Error()))
 			m.state = stateList
 			return m, nil
 		}
@@ -351,7 +352,7 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 		return m, nil
 	}
 	if err := tmpl.WriteDevDockMarkerFile(p.Path); err != nil {
-		m.statusMsg = dimStyle.Render(fmt.Sprintf("note: could not write .devdock marker: %v", err))
+		m.statusMsg = dimStyle.Render(ui.SafeBlock(fmt.Sprintf("note: could not write .devdock marker: %v", err)))
 	}
 	m = m.rescan()
 	m.state = stateList
@@ -382,7 +383,7 @@ func (m model) updatePTYExecution(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		if m.ptyScr.exitErr != nil {
-			m.statusMsg = errorStyle.Render(fmt.Sprintf("✗  Template setup failed: %v", m.ptyScr.exitErr))
+			m.statusMsg = errorStyle.Render(ui.SafeBlock(fmt.Sprintf("✗  Template setup failed: %v", m.ptyScr.exitErr)))
 			m.state = stateList
 			return m, nil
 		}
@@ -397,7 +398,7 @@ func (m model) updatePTYExecution(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.saveState()
 		m.pendingLaunch = p
 		m.pendingLaunchReady = true
-		m.statusMsg = successStyle.Render(fmt.Sprintf("✓  Project \"%s\" created successfully", p.Name))
+		m.statusMsg = successStyle.Render(ui.SafeBlock(fmt.Sprintf("✓  Project \"%s\" created successfully", p.Name)))
 		return m, tea.Quit
 	}
 

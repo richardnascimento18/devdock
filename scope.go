@@ -96,7 +96,7 @@ func (m model) chooseScope(key string) model {
 	}
 	loc, err := core.ParseNodeKey(core.NodeKey(key))
 	if err != nil {
-		m.statusMsg = errorStyle.Render("Scope unavailable: " + err.Error())
+		m.statusMsg = errorStyle.Render(ui.SafeBlock("Scope unavailable: " + err.Error()))
 		return m
 	}
 	return m.switchScope(&loc)

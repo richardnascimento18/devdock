@@ -128,29 +128,29 @@ func (p paletteScreen) View(width, height int) string {
 	p.input.Width = max(min(width-10, 66), 1)
 	rows := max(height-10, 1)
 	start := min(max(p.cursor-rows/2, 0), max(len(p.visible)-rows, 0))
-	lines := []string{p.input.View(), ""}
+	lines := []string{ui.InputView(p.input), ""}
 	if len(p.visible) == 0 {
 		lines = append(lines, dimStyle.Render("No matching actions. Try another query."))
 	}
 	for i := start; i < min(start+rows, len(p.visible)); i++ {
 		a := p.actions[p.visible[i]]
-		label := a.label
+		label := ui.SafeText(a.label)
 		if a.reason != "" {
-			label += " · " + a.reason
+			label += " · " + ui.SafeText(a.reason)
 		} else if len(a.key) < 8 {
-			label += "  [" + a.key + "]"
+			label += "  [" + ui.SafeText(a.key) + "]"
 		}
 		prefix := "  "
 		if i == p.cursor {
 			prefix = "> "
-			label = activeStyle.Render(label)
+			label = activeStyle.Render(ui.SafeBlock(label))
 		}
 		lines = append(lines, ansi.Truncate(prefix+label, max(min(width-8, 68), 1), "…"))
 	}
 	if len(p.visible) > 0 {
 		a := p.actions[p.visible[p.cursor]]
 		if a.reason != "" {
-			lines = append(lines, "", warningStyle.Render("! "+a.reason))
+			lines = append(lines, "", warningStyle.Render(ui.SafeBlock("! "+a.reason)))
 		}
 	}
 	return ui.Modal("Commands", strings.Join(lines, "\n"), "↑/↓ choose · enter run · esc cancel", width, height)

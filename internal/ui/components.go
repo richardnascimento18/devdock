@@ -24,7 +24,7 @@ func Fit(content string, width, height int) string {
 }
 
 func Header(context string, width int) string {
-	return Fit(Foreground(Default.Accent).Bold(true).Render("DevDock")+"  "+Foreground(Default.Muted).Render(context), width, 1)
+	return Fit(Foreground(Default.Accent).Bold(true).Render("DevDock")+"  "+Foreground(Default.Muted).Render(SafeText(context)), width, 1)
 }
 
 func Footer(hint, status string, width int) string {
@@ -41,7 +41,7 @@ func PaneTitle(name string, focused bool, width int) string {
 		style = Foreground(Default.BorderFocused).Bold(true)
 		prefix = "> "
 	}
-	return Fit(style.Render(prefix+name), width, 1)
+	return Fit(style.Render(prefix+SafeText(name)), width, 1)
 }
 
 func TooSmall(width, height int) string {
@@ -106,7 +106,7 @@ func ModalAt(title, body, hint string, width, height, offset int) string {
 	lines, hint, rows, inner := modalLayout(body, hint, width, height)
 	offset = min(max(offset, 0), max(len(lines)-rows, 0))
 	lines = lines[offset:min(offset+rows, len(lines))]
-	title = ansi.Truncate(title, max(inner-2, 1), "…")
+	title = ansi.Truncate(SafeText(title), max(inner-2, 1), "…")
 	panel := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).
 		BorderForeground(Default.BorderFocused).Padding(0, 1).Width(inner + 2).
 		Render(PaneTitle(title, true, inner) + "\n" + strings.Join(lines, "\n") + "\n" + Foreground(Default.Muted).Render(hint))

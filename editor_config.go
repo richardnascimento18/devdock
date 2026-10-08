@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -48,13 +49,13 @@ func (e editorScreen) updateConfigurationEditor(msg tea.Msg) (editorScreen, tea.
 					found = found || p.Name == proposed.DefaultPreset
 				}
 				if !found {
-					e.ce.statusMsg = errorStyle.Render(fmt.Sprintf("unknown preset %q; choose an existing preset or leave blank", proposed.DefaultPreset))
+					e.ce.statusMsg = errorStyle.Render(ui.SafeBlock(fmt.Sprintf("unknown preset %q; choose an existing preset or leave blank", proposed.DefaultPreset)))
 					return e, nil
 				}
 			}
 			committed, changed, err := config.Commit(e.cfg, proposed)
 			if err != nil {
-				e.ce.statusMsg = errorStyle.Render("save failed: " + err.Error())
+				e.ce.statusMsg = errorStyle.Render(ui.SafeBlock("save failed: " + err.Error()))
 				return e, nil
 			}
 			e.cfg = committed

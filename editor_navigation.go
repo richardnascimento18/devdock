@@ -159,7 +159,7 @@ func (e editorScreen) commitDelete() editorScreen {
 		values := deepCopyPresets(e.presets)
 		values = append(values[:e.cursor], values[e.cursor+1:]...)
 		if err := preset.Save(config.Dir(), values); err != nil {
-			e.statusMsg = errorStyle.Render("! Save failed: " + err.Error())
+			e.statusMsg = errorStyle.Render(ui.SafeBlock("! Save failed: " + err.Error()))
 			return e
 		}
 		e.presets = values
@@ -171,7 +171,7 @@ func (e editorScreen) commitDelete() editorScreen {
 		values := deepCopyTemplates(e.tmpls)
 		values = append(values[:e.cursor], values[e.cursor+1:]...)
 		if err := tmpl.Save(config.Dir(), values); err != nil {
-			e.statusMsg = errorStyle.Render("! Save failed: " + err.Error())
+			e.statusMsg = errorStyle.Render(ui.SafeBlock("! Save failed: " + err.Error()))
 			return e
 		}
 		e.tmpls = values
@@ -179,6 +179,6 @@ func (e editorScreen) commitDelete() editorScreen {
 	e.deleting = false
 	e.revision++
 	e.clampCursor()
-	e.statusMsg = successStyle.Render("✓ Definition removed: " + e.deleteName)
+	e.statusMsg = successStyle.Render(ui.SafeBlock("✓ Definition removed: " + e.deleteName))
 	return e
 }

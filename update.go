@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
 
 	"github.com/richardnascimento18/devdock/internal/config"
@@ -69,7 +70,7 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		if m.state != statePTYExecution || flow.id != m.ptyScr.operationID {
 			if started, ok := flow.msg.(ptyStepStartMsg); ok {
 				if err := started.session.Close(); err != nil {
-					m.statusMsg = errorStyle.Render(err.Error())
+					m.statusMsg = errorStyle.Render(ui.SafeBlock(err.Error()))
 				}
 			}
 			return m, nil
@@ -226,12 +227,12 @@ func (m model) handleGitHubReposLoaded(msg gh.ReposLoadedMsg) (tea.Model, tea.Cm
 	}
 	m.repoLoading = false
 	if msg.Err != nil {
-		m.statusMsg = errorStyle.Render("✗  GitHub: " + msg.Err.Error())
+		m.statusMsg = errorStyle.Render(ui.SafeBlock("✗  GitHub: " + msg.Err.Error()))
 		return m, nil
 	}
 	m.githubRepos = msg.Repos
 	m = m.rescan()
-	m.statusMsg = successStyle.Render(fmt.Sprintf("✓  GitHub: %d repos loaded", len(msg.Repos)))
+	m.statusMsg = successStyle.Render(ui.SafeBlock(fmt.Sprintf("✓  GitHub: %d repos loaded", len(msg.Repos))))
 	if m.state == stateGitHubAuth {
 		m.state = stateList
 	}
@@ -264,7 +265,7 @@ func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cm
 		return m, nil
 	}
 	if msg.Err != nil {
-		m.statusMsg = errorStyle.Render("✗  GitHub repo creation failed: " + msg.Err.Error())
+		m.statusMsg = errorStyle.Render(ui.SafeBlock("✗  GitHub repo creation failed: " + msg.Err.Error()))
 		m.state = stateList
 		return m, nil
 	}
@@ -279,7 +280,7 @@ func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cm
 		}
 		projectPath, workDir, err := core.PrepareProject(m.currentLocation(), vars.ProjectName, m.pendingTemplate.CreatesProjectFolder)
 		if err != nil {
-			m.statusMsg = errorStyle.Render("create project: " + err.Error())
+			m.statusMsg = errorStyle.Render(ui.SafeBlock("create project: " + err.Error()))
 			m.state = stateList
 			return m, nil
 		}
@@ -295,12 +296,12 @@ func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cm
 
 	p, err := core.CreateProject(m.currentLocation(), m.pendingProjectName)
 	if err != nil {
-		m.statusMsg = errorStyle.Render("✗  project create error: " + err.Error())
+		m.statusMsg = errorStyle.Render(ui.SafeBlock("✗  project create error: " + err.Error()))
 		m.state = stateList
 		return m, nil
 	}
 	if err := tmpl.WriteDevDockMarkerFile(p.Path); err != nil {
-		m.statusMsg = errorStyle.Render(err.Error())
+		m.statusMsg = errorStyle.Render(ui.SafeBlock(err.Error()))
 		m.state = stateList
 		return m, nil
 	}
@@ -313,7 +314,7 @@ func (m model) handleGitCloneDone(msg gh.CloneDoneMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if msg.Err != nil {
-		m.statusMsg = errorStyle.Render("✗  clone failed: " + msg.Err.Error())
+		m.statusMsg = errorStyle.Render(ui.SafeBlock("✗  clone failed: " + msg.Err.Error()))
 		m.state = stateList
 		return m, nil
 	}
@@ -338,7 +339,7 @@ func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd
 			m.saveFilesystemState()
 			m = m.rescan()
 		}
-		m.statusMsg = errorStyle.Render("✗  move failed: " + msg.err.Error())
+		m.statusMsg = errorStyle.Render(ui.SafeBlock("✗  move failed: " + msg.err.Error()))
 		m.state = stateList
 		return m, nil
 	}
@@ -349,7 +350,7 @@ func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd
 		return m, nil
 	}
 	m = m.rescan()
-	m.statusMsg = successStyle.Render(fmt.Sprintf("✓  moved \"%s\"", msg.newProject.Name))
+	m.statusMsg = successStyle.Render(ui.SafeBlock(fmt.Sprintf("✓  moved \"%s\"", msg.newProject.Name)))
 	m.state = stateList
 	return m, nil
 }
@@ -518,7 +519,7 @@ func (m model) handleGitLinked(msg gitLinkedMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if msg.err != nil {
-		m.statusMsg = errorStyle.Render("git setup failed: " + msg.err.Error())
+		m.statusMsg = errorStyle.Render(ui.SafeBlock("git setup failed: " + msg.err.Error()))
 		m.state = stateList
 		return m.rescan(), nil
 	}

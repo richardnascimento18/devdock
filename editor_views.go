@@ -21,13 +21,13 @@ type editorForm struct {
 
 func fieldLabel(label string, focused bool) string {
 	if focused {
-		return activeStyle.Render("> " + label)
+		return activeStyle.Render(ui.SafeBlock("> " + label))
 	}
-	return dimStyle.Render("  " + label)
+	return dimStyle.Render(ui.SafeBlock("  " + label))
 }
 func inputView(input textinput.Model, width int) string {
 	input.Width = max(width-2, 1)
-	return input.View()
+	return ui.InputView(input)
 }
 func editorFormView(form editorForm, width, height, scroll int, manual bool) string {
 	title := form.title
@@ -114,7 +114,7 @@ func editorChoices(labels []string, cursor, rows, width int) string {
 	start := min(max(cursor-rows/2, 0), max(len(labels)-rows, 0))
 	var lines []string
 	if start > 0 {
-		lines = append(lines, dimStyle.Render(fmt.Sprintf("↑ %d earlier", start)))
+		lines = append(lines, dimStyle.Render(ui.SafeBlock(fmt.Sprintf("↑ %d earlier", start))))
 	}
 	for i := start; i < min(start+rows, len(labels)); i++ {
 		lines = append(lines, ui.Fit(fieldLabel(labels[i], i == cursor), width, 1))
@@ -162,7 +162,7 @@ func (e editorScreen) form() editorForm {
 	}
 	var names []string
 	for _, p := range e.presets {
-		names = append(names, p.Name)
+		names = append(names, ui.SafeText(p.Name))
 	}
 	return editorForm{title: "Default preset", blocks: []string{fieldLabel("Default preset", true) + "\n" + inputView(e.ce.defaultPreset, ui.ModalInnerWidth(e.termW)), "Available: " + strings.Join(names, ", ") + "\nBlank uses the first preset."}, hint: "i / enter edit · ctrl+s save · esc back", message: e.ce.statusMsg, dirty: e.dirty()}
 }
@@ -217,7 +217,7 @@ func (pe presetEditor) form(w, h int) editorForm {
 		f.hint += " · ctrl+s save all"
 	case pelConfirmDelete:
 		f.title = "Remove window"
-		f.blocks = []string{pe.windows[pe.cursor].name}
+		f.blocks = []string{ui.SafeText(pe.windows[pe.cursor].name)}
 		f.hint = "enter remove · esc cancel"
 	default:
 		if pe.isNew {
@@ -235,7 +235,7 @@ func (pe presetEditor) form(w, h int) editorForm {
 		f.blocks = []string{fieldLabel("Preset name", pe.typing) + "\n" + inputView(pe.nameInput, width), "Windows\n" + editorChoices(labels, pe.cursor, max(h-13, 1), width)}
 		if pe.cursor < len(pe.windows) {
 			win := pe.windows[pe.cursor]
-			f.blocks = append(f.blocks, "Selected: "+win.name+"\n"+win.command)
+			f.blocks = append(f.blocks, "Selected: "+ui.SafeText(win.name)+"\n"+ui.SafeBlock(win.command))
 		}
 	}
 	if pe.typing || pe.layer == pelWindowSplit && pe.splitEditor.typing {
@@ -269,9 +269,9 @@ func (sp splitPaneEditor) form(w, h int) editorForm {
 }
 func stepLabel(sd stepDraft) string {
 	if sd.stepType == "builtin" {
-		return "[builtin] " + sd.action + " " + sd.path
+		return "[builtin] " + ui.SafeText(sd.action) + " " + ui.SafeText(sd.path)
 	}
-	return "[command] " + ansi.Truncate(sd.run, 55, "…")
+	return "[command] " + ansi.Truncate(ui.SafeText(sd.run), 55, "…")
 }
 func (te templateEditor) form(w, h int) editorForm {
 	width := ui.ModalInnerWidth(w)
@@ -344,7 +344,7 @@ func (e editorScreen) collectionDetails() ([]string, string) {
 			value = "first preset"
 		}
 		labels = []string{"Default preset · " + value, "Add root", "Remove root"}
-		preview = "Configured roots:\n" + strings.Join(e.cfg.ActiveRoots(), "\n")
+		preview = "Configured roots:\n" + safeRoots(e.cfg.ActiveRoots())
 		if len(e.cfg.ActiveRoots()) == 0 {
 			preview = "No roots configured.\nChoose Add root to begin."
 		}
@@ -360,14 +360,14 @@ func (e editorScreen) collectionDetails() ([]string, string) {
 		preview = "Create a preset to arrange tmux windows and pane commands."
 		if selected < len(e.presets) {
 			p := e.presets[selected]
-			preview = p.Name + "\n" + fmt.Sprintf("%d windows", len(p.Windows))
+			preview = ui.SafeText(p.Name) + "\n" + fmt.Sprintf("%d windows", len(p.Windows))
 			for _, win := range p.Windows {
-				preview += "\n\n" + win.Name
+				preview += "\n\n" + ui.SafeText(win.Name)
 				if win.Layout != nil {
 					preview += " · split layout"
 				}
 				if win.Command != "" {
-					preview += "\n" + win.Command
+					preview += "\n" + ui.SafeBlock(win.Command)
 				}
 			}
 		}
@@ -379,7 +379,7 @@ func (e editorScreen) collectionDetails() ([]string, string) {
 		preview = "Create a template with command or filesystem steps."
 		if selected < len(e.tmpls) {
 			t := e.tmpls[selected]
-			preview = t.Name + "\n" + t.Description + fmt.Sprintf("\n\n%d steps · %d post-steps", len(t.Steps), len(t.PostSteps))
+			preview = ui.SafeText(t.Name) + "\n" + ui.SafeBlock(t.Description) + fmt.Sprintf("\n\n%d steps · %d post-steps", len(t.Steps), len(t.PostSteps))
 			for _, s := range t.Steps {
 				preview += "\n" + stepLabel(stepDraftFromTemplate(s, false))
 			}
@@ -389,5 +389,5 @@ func (e editorScreen) collectionDetails() ([]string, string) {
 }
 
 func (e editorScreen) definitionBody() string {
-	return e.deleteName + "\n\nRemove this definition from DevDock configuration.\n" + e.statusMsg
+	return ui.SafeText(e.deleteName) + "\n\nRemove this definition from DevDock configuration.\n" + e.statusMsg
 }

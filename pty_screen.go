@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
@@ -204,7 +205,7 @@ func (p *ptyScreen) buildViewportContent(extraPending string) string {
 	var sb strings.Builder
 
 	renderCommitted := func(l logLine) {
-		ts := tsStyle.Render(l.ts.Format("2006-01-02 15:04:05"))
+		ts := tsStyle.Render(ui.SafeBlock(l.ts.Format("2006-01-02 15:04:05")))
 		sep := sepStyle.Render(" -- ")
 		var msgStyle lipgloss.Style
 		switch l.kind {
@@ -222,9 +223,9 @@ func (p *ptyScreen) buildViewportContent(extraPending string) string {
 		wrapped := hardWrap(l.text, msgW)
 		for i, wl := range strings.Split(wrapped, "\n") {
 			if i == 0 {
-				sb.WriteString(ts + sep + msgStyle.Render(wl) + "\n")
+				sb.WriteString(ts + sep + msgStyle.Render(ui.SafeBlock(wl)) + "\n")
 			} else {
-				sb.WriteString(strings.Repeat(" ", tsWidth+sepWidth) + msgStyle.Render(wl) + "\n")
+				sb.WriteString(strings.Repeat(" ", tsWidth+sepWidth) + msgStyle.Render(ui.SafeBlock(wl)) + "\n")
 			}
 		}
 	}
@@ -234,7 +235,7 @@ func (p *ptyScreen) buildViewportContent(extraPending string) string {
 	}
 
 	// Replace the live block rendering section with:
-	ts := tsStyle.Render(time.Now().Format("2006-01-02 15:04:05"))
+	ts := tsStyle.Render(ui.SafeBlock(time.Now().Format("2006-01-02 15:04:05")))
 	sep := sepStyle.Render(" -- ")
 
 	firstLive := true
@@ -246,10 +247,10 @@ func (p *ptyScreen) buildViewportContent(extraPending string) string {
 		parts := strings.Split(wrapped, "\n")
 		for j, wl := range parts {
 			if firstLive && j == 0 {
-				sb.WriteString(ts + sep + liveStyle.Render(wl) + "\n")
+				sb.WriteString(ts + sep + liveStyle.Render(ui.SafeBlock(wl)) + "\n")
 				firstLive = false
 			} else {
-				sb.WriteString(strings.Repeat(" ", tsWidth+sepWidth) + liveStyle.Render(wl) + "\n")
+				sb.WriteString(strings.Repeat(" ", tsWidth+sepWidth) + liveStyle.Render(ui.SafeBlock(wl)) + "\n")
 			}
 		}
 	}
@@ -263,29 +264,10 @@ func (p *ptyScreen) refreshViewport() {
 }
 
 func hardWrap(s string, maxWidth int) string {
-	if maxWidth <= 0 || len(s) <= maxWidth {
-		return s
+	if maxWidth <= 0 {
+		return ui.SafeBlock(s)
 	}
-	var sb strings.Builder
-	for len(s) > 0 {
-		if len(s) <= maxWidth {
-			sb.WriteString(s)
-			break
-		}
-		cut := maxWidth
-		for cut > 0 && s[cut-1] != ' ' {
-			cut--
-		}
-		if cut == 0 {
-			cut = maxWidth
-		}
-		sb.WriteString(s[:cut])
-		s = strings.TrimLeft(s[cut:], " ")
-		if len(s) > 0 {
-			sb.WriteByte('\n')
-		}
-	}
-	return sb.String()
+	return ansi.Hardwrap(ui.SafeBlock(s), maxWidth, true)
 }
 
 // ingestPTYData processes raw PTY bytes into committed lines and live block.
@@ -637,5 +619,5 @@ func (p ptyScreen) View() string {
 		}
 	}
 	terminal := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(theme.BorderFocused).Width(vpW(p.width)).Height(vpH(p.height)).Render(p.viewport.View())
-	return strings.Join([]string{ui.Header(title, p.width), ui.Fit(progress, p.width, 1), terminal, ui.Fit(dimStyle.Render(footer), p.width, 1)}, "\n")
+	return strings.Join([]string{ui.Header(title, p.width), ui.Fit(progress, p.width, 1), terminal, ui.Fit(dimStyle.Render(ui.SafeBlock(footer)), p.width, 1)}, "\n")
 }

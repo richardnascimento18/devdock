@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
 
 	"github.com/richardnascimento18/devdock/internal/core"
@@ -85,7 +86,7 @@ func (m model) updateCreateGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pendingDomain = ""
 			m = m.rescan()
 			m.state = stateList
-			m.statusMsg = successStyle.Render(fmt.Sprintf("✓  group \"%s\" created", name))
+			m.statusMsg = successStyle.Render(ui.SafeBlock(fmt.Sprintf("✓  group \"%s\" created", name)))
 			return m, nil
 		}
 	}

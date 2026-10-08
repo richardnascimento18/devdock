@@ -43,21 +43,21 @@ func (m model) viewList(w, h int) string {
 	}
 	header := ui.Header(context+" · preset "+m.presetSel.SelectedName(), w)
 	if m.showBrandMark() {
-		header = titleStyle.Render(asciiTitle) + "\n" + header
+		header = titleStyle.Render(ui.SafeBlock(asciiTitle)) + "\n" + header
 	}
 	var tabs []string
 	for i, name := range tabNames {
 		if i == m.activeTab {
-			tabs = append(tabs, activeStyle.Render(name))
+			tabs = append(tabs, activeStyle.Render(ui.SafeBlock(name)))
 		} else {
-			tabs = append(tabs, dimStyle.Render(name))
+			tabs = append(tabs, dimStyle.Render(ui.SafeBlock(name)))
 		}
 	}
 	collectionLine := strings.Join(tabs, "  ·  ")
 	if w < 60 {
-		collectionLine = activeStyle.Render(tabNames[m.activeTab]) + dimStyle.Render("  [ / ] switch")
+		collectionLine = activeStyle.Render(ui.SafeBlock(tabNames[m.activeTab])) + dimStyle.Render("  [ / ] switch")
 	}
-	collectionLine += "  " + dimStyle.Render(fmt.Sprintf("%d projects", len(m.list.Items())))
+	collectionLine += "  " + dimStyle.Render(ui.SafeBlock(fmt.Sprintf("%d projects", len(m.list.Items()))))
 	var body string
 	switch {
 	case l.Mode == ui.Narrow || l.Mode == ui.Medium && m.focus == ui.Inspector || !m.treeMode && m.focus == ui.Workspace:
@@ -94,7 +94,7 @@ func (m model) viewList(w, h int) string {
 		}
 	}
 	if status == "" {
-		status = dimStyle.Render(m.currentLocationLabel())
+		status = dimStyle.Render(ui.SafeBlock(m.currentLocationLabel()))
 	}
 	return strings.Join([]string{header, ui.Fit(collectionLine, w, 1), "", body, ui.Footer(m.dashboardHint(w), status, w)}, "\n")
 }
@@ -129,9 +129,9 @@ func (m model) viewProjects(width, height int) string {
 	var content string
 	switch {
 	case m.searching:
-		title = ui.Fit(m.searchInput.View(), width, 1)
+		title = ui.Fit(ui.InputView(m.searchInput), width, 1)
 	case m.isFiltered:
-		title = ui.Fit(title+dimStyle.Render(" / "+m.lastFilter), width, 1)
+		title = ui.Fit(title+dimStyle.Render(ui.SafeBlock(" / "+m.lastFilter)), width, 1)
 	}
 	if len(m.list.Items()) > 0 {
 		content = m.list.View()

@@ -137,3 +137,16 @@ in 1.26.9 and 1.27.2 on 2026-10-08; Go maintains the latest two series. Reassess
 patch pins and floors when upstream publishes security updates; do not infer
 safety from the language directive or a historical scan. `govulncheck` must use
 current advisory data; a failed network/database fetch is not a clean scan.
+
+## Untrusted terminal text
+
+Use `ui.SafeText` for external single-line labels and `ui.SafeBlock` for plain
+diagnostic/command paragraphs, before applying trusted styles or ANSI clipping.
+C0 controls become visible control pictures, C1 and bidi controls become visible
+code-point labels, malformed UTF-8 becomes U+FFFD. Only SafeBlock permits LF.
+Ordinary wide characters, combining accents and emoji remain; consecutive marks
+are capped at 16 and each display value at 4096 input runes. Identities, paths,
+editable values and persisted data remain original. `ui.InputView` renders a
+detached input copy. `ui.Fit` clips styled output by grapheme/display width.
+Do not sanitize already styled composition or permit SGR/OSC from external data.
+PTY controls are interpreted locally and never forwarded to the user's terminal.

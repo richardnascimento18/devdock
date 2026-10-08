@@ -87,7 +87,7 @@ func (e editorScreen) contextForm(detailWidth int) editorForm {
 	if draft.layer == editorLayerList {
 		_, preview := draft.collectionDetails()
 		if draft.tab == editorTabSettings {
-			preview = promptStyle.Render("Configured roots:") + "\n" + strings.Join(draft.cfg.ActiveRoots(), "\n")
+			preview = promptStyle.Render("Configured roots:") + "\n" + safeRoots(draft.cfg.ActiveRoots())
 		}
 		return editorForm{title: "Details", blocks: []string{preview}}
 	}
@@ -101,15 +101,15 @@ func (e editorScreen) contextForm(detailWidth int) editorForm {
 			if command == "" {
 				command = "shell"
 			}
-			form.blocks = append(form.blocks, promptStyle.Render("Selected window")+"\n"+win.name, promptStyle.Render("Command")+"\n"+command)
+			form.blocks = append(form.blocks, promptStyle.Render("Selected window")+"\n"+ui.SafeText(win.name), promptStyle.Render("Command")+"\n"+ui.SafeBlock(command))
 		}
 	} else if draft.layer == editorLayerTemplate && draft.te.layer == telStepList {
-		form.blocks = []string{selectedStyle.Render(draft.te.nameInput.Value()), dimStyle.Render(draft.te.descInput.Value())}
+		form.blocks = []string{selectedStyle.Render(ui.SafeBlock(draft.te.nameInput.Value())), dimStyle.Render(ui.SafeBlock(draft.te.descInput.Value()))}
 		if draft.te.cursor < len(draft.te.steps) {
 			step := draft.te.steps[draft.te.cursor]
 			form.blocks = append(form.blocks, promptStyle.Render("Selected step")+"\n"+stepLabel(step))
 			if step.output != "" {
-				form.blocks = append(form.blocks, "Output · "+step.output)
+				form.blocks = append(form.blocks, "Output · "+ui.SafeText(step.output))
 			}
 		}
 	}
@@ -169,7 +169,7 @@ func (e editorScreen) viewContextEditor() string {
 	}(), max(rows-2, 1))
 	if middle == 0 && e.tab != editorTabSettings && (e.layer == editorLayerList || e.layer == editorLayerPreset && e.pe.layer == pelWindowList || e.layer == editorLayerTemplate && e.te.layer == telStepList) {
 		_, components = draft.componentDetails(detail, max(min(rows/3, 5), 1))
-		lines = append(strings.Split(promptStyle.Render(componentTitle)+"\n"+components+"\n", "\n"), lines...)
+		lines = append(strings.Split(promptStyle.Render(ui.SafeBlock(componentTitle))+"\n"+components+"\n", "\n"), lines...)
 	}
 	bodyRows := max(rows-1, 1)
 	status := ""
@@ -263,4 +263,12 @@ func (e editorScreen) contextNavigation(key tea.KeyMsg) (editorScreen, bool) {
 		return e, true
 	}
 	return e, false
+}
+
+func safeRoots(roots []string) string {
+	display := make([]string, len(roots))
+	for i, root := range roots {
+		display[i] = ui.SafeText(root)
+	}
+	return strings.Join(display, "\n")
 }

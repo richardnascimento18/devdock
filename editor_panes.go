@@ -5,6 +5,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/preset"
+	"github.com/richardnascimento18/devdock/internal/ui"
 	"strconv"
 	"strings"
 )
@@ -189,7 +190,7 @@ func (sp splitPaneEditor) updateEdit(msg tea.Msg) (splitPaneEditor, tea.Cmd) {
 		sp.panes[sp.editIdx].command = strings.TrimSpace(sp.cmdInput.Value())
 		sz, err := parsePaneSize(sp.sizeInput.Value())
 		if err != nil {
-			sp.statusMsg = errorStyle.Render(err.Error())
+			sp.statusMsg = errorStyle.Render(ui.SafeBlock(err.Error()))
 			return sp, nil
 		}
 		sp.panes[sp.editIdx].size = sz

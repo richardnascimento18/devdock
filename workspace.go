@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/ui"
 	"reflect"
 	"strings"
 
@@ -72,7 +73,7 @@ func (m model) handleScanResult(msg scanResultMsg) (tea.Model, tea.Cmd) {
 	if msg.snapshot.err != nil {
 		m.scanWarnings = msg.snapshot.err.Error()
 		m.scanWarningCount = warningCount(msg.snapshot.err)
-		m.statusMsg = warningStyle.Render(fmt.Sprintf("⚠ Workspace scan completed with %d warnings · ! details", m.scanWarningCount))
+		m.statusMsg = warningStyle.Render(ui.SafeBlock(fmt.Sprintf("⚠ Workspace scan completed with %d warnings · ! details", m.scanWarningCount)))
 	} else if m.scanWarnings == "" && m.scanWarningCount == 0 && strings.Contains(ansi.Strip(m.statusMsg), "Workspace scan completed with") {
 		m.statusMsg = ""
 	}

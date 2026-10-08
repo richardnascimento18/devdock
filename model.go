@@ -249,7 +249,7 @@ func (m *model) saveState() bool {
 		m.treeMode = m.uiState.TreeMode
 		m.activeTab = m.uiState.ActiveTab
 		*m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
-		m.statusMsg = errorStyle.Render("save state: " + err.Error())
+		m.statusMsg = errorStyle.Render(ui.SafeBlock("save state: " + err.Error()))
 		return false
 	}
 	m.committedState = m.uiState.Clone()

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/richardnascimento18/devdock/internal/ui"
 
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
@@ -109,7 +110,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				proposed := m.cfg.Clone()
 				proposed.DefaultPreset = proposedSel.SelectedName()
 				if err := config.Save(proposed); err != nil {
-					m.statusMsg = errorStyle.Render("save config: " + err.Error())
+					m.statusMsg = errorStyle.Render(ui.SafeBlock("save config: " + err.Error()))
 					return m, nil
 				}
 				m.cfg = proposed
@@ -125,7 +126,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.treeMode {
 					mode = "tree"
 				}
-				m.statusMsg = dimStyle.Render("view: " + mode)
+				m.statusMsg = dimStyle.Render(ui.SafeBlock("view: " + mode))
 				m.saveState()
 				return m, nil
 			}
