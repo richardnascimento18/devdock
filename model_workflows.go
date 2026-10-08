@@ -29,6 +29,7 @@ type navigationState struct {
 }
 
 type creationState struct {
+	returnState  appState
 	name         string
 	preset       preset.Preset
 	template     *tmpl.Template

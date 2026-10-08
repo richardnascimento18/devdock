@@ -2,6 +2,7 @@ package main
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"os"
 	"syscall"
 	"testing"
@@ -20,17 +21,17 @@ func TestBulkMovesThroughPortableFilesystem(t *testing.T) {
 		projects = append(projects, p)
 	}
 	destination := core.Location{Root: root, Domain: "to"}
-	rows := preflightBulk(projects, destination, core.PlanMove)
+	rows := app.PreflightMoves(projects, destination, core.PlanMove)
 	mover := core.Mover{NoReplace: func(string, string) error { return syscall.EINVAL }}
-	results, executed := executeBulk(rows, core.PlanMove, mover.Execute)
+	results, executed := app.ExecuteMoves(rows, core.PlanMove, mover.Execute)
 	if !executed {
 		t.Fatal("bulk not executed")
 	}
 	for i, row := range results {
-		if row.err != nil || row.project.Path == "" {
+		if row.Err != nil || row.Project.Path == "" {
 			t.Fatalf("row: %+v", row)
 		}
-		if _, err := os.Stat(row.project.Path); err != nil {
+		if _, err := os.Stat(row.Project.Path); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := os.Stat(projects[i].Path); !os.IsNotExist(err) {

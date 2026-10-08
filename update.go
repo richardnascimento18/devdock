@@ -10,7 +10,6 @@ import (
 
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/preset"
-	tmpl "github.com/richardnascimento18/devdock/internal/template"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -109,6 +108,12 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case scopeDoneMsg:
+		return m.handleScopeDone(msg)
+	case createPreflightMsg:
+		return m.handleCreatePreflight(msg)
+	case createDoneMsg:
+		return m.handleCreateDone(msg)
 	case deleteDoneMsg:
 		return m.handleDeleteDone(msg)
 	case tmuxSessionsMsg:
@@ -125,8 +130,6 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		return m.handleGitHubAuthDone(msg)
 	case RepoCreatedMsg:
 		return m.handleGitHubRepoCreated(msg)
-	case gitLinkedMsg:
-		return m.handleGitLinked(msg)
 	case CloneDoneMsg:
 		return m.handleGitCloneDone(msg)
 	case bulkPreflightMsg:
@@ -139,81 +142,7 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		return m.handleAnimationTick(msg)
 	}
 
-	switch m.state {
-	case stateNewProjectName:
-		return m.updateNewProjectName(msg)
-	case statePickRoot:
-		return m.updatePickRoot(msg)
-	case statePickDomain:
-		return m.updateDomainPicker(msg)
-	case stateNewDomainName:
-		return m.updateNewDomainName(msg)
-	case stateCreateDomainOnly:
-		return m.updateCreateDomainOnly(msg)
-	case statePickRootForDomain:
-		return m.updatePickRootForDomain(msg)
-	case statePickPreset:
-		return m.updatePickPreset(msg)
-	case stateAskCreateGitHub:
-		return m.updateAskCreateGitHub(msg)
-	case stateAskRepoPrivacy:
-		return m.updateAskRepoPrivacy(msg)
-	case stateBulkPreflight:
-		if key, ok := msg.(tea.KeyMsg); ok && key.String() == "esc" {
-			m.state = stateList
-			m.bulk = bulkWorkflow{}
-		}
-		return m, nil
-	case stateBulkMoving, stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
-		return m, nil
-	case statePickTemplate:
-		return m.updatePickTemplate(msg)
-	case statePTYExecution:
-		return m.updatePTYExecution(msg)
-	case stateDeleteProject:
-		return m.updateDeleteProject(msg)
-	case stateDeleteDomain:
-		return m.updateDeleteDomain(msg)
-	case stateAddRoot:
-		return m.updateAddRoot(msg)
-	case stateRemoveRoot:
-		return m.updateRemoveRoot(msg)
-	case stateGitHubAuth:
-		return m.updateGitHubAuth(msg)
-	case statePickRootForClone:
-		return m.updatePickRootForClone(msg)
-	case statePickDomainForClone:
-		return m.updatePickDomainForClone(msg)
-	case stateMovePickRoot:
-		return m.updateMovePickRoot(msg)
-	case stateMovePickDomain:
-		return m.updateMovePickDomain(msg)
-	case stateMovePickPlacement:
-		return m.updatePlacement(msg)
-	case stateStatusDetails:
-		if key, ok := msg.(tea.KeyMsg); ok && (key.String() == "esc" || key.String() == "enter") {
-			m.state = stateList
-		}
-		return m, nil
-	case stateBulkConfirm, stateBulkResult:
-		return m.updateBulk(msg)
-	case stateHelp:
-		return m.updateHelp(msg)
-	case statePalette:
-		return m.updatePalette(msg)
-	case stateCreateGroup:
-		return m.updateCreateGroup(msg)
-	case stateConfirmDeleteGroup:
-		return m.updateConfirmDeleteGroup(msg)
-	case stateDeleteGroup:
-		return m.updateDeleteGroup(msg)
-	case stateEditor:
-		return m.updateEditor(msg)
-	case stateDeleteTmuxSession:
-		return m.updateDeleteTmuxSession(msg)
-	default:
-		return m.updateList(msg)
-	}
+	return m.routeInput(msg)
 }
 
 // ---------------------------------------------------------------------------
@@ -271,44 +200,7 @@ func (m model) handleGitHubRepoCreated(msg RepoCreatedMsg) (tea.Model, tea.Cmd) 
 
 	m.creation.repo = msg.Repo
 
-	if m.creation.template != nil {
-		vars := tmpl.Vars{
-			ProjectName: m.creation.name,
-			Domain:      m.pendingDomain,
-			Root:        m.pendingRoot,
-		}
-		projectPath, workDir, err := core.PrepareProject(m.currentLocation(), vars.ProjectName, m.creation.template.CreatesProjectFolder)
-		if err != nil {
-			m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "create project: " + err.Error()}
-			m.state = stateList
-			return m, nil
-		}
-		vars.ProjectPath = projectPath
-		m.ptyScr = newPTYScreenContext(m.context(), m.termW, m.termH, m.creation.template, projectPath, vars,
-			m.creation.template.Steps, workDir, msg.Repo)
-		m.launch.preset = m.creation.preset
-		m.ptyScr.scaffold.Git = m.workspaces.Git
-		m.operationID++
-		m.ptyScr.operationID = m.operationID
-		m.state = statePTYExecution
-		return m, m.ptyScr.startNextStep()
-	}
-
-	p, err := core.CreateProject(m.currentLocation(), m.creation.name)
-	if err != nil {
-		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  project create error: " + err.Error()}
-		m.state = stateList
-		return m, nil
-	}
-	if err := tmpl.WriteDevDockMarkerFile(p.Path); err != nil {
-		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: err.Error()}
-		m.state = stateList
-		return m, nil
-	}
-	p.GitHubRepo = msg.Repo.FullName
-	return m, func() tea.Msg {
-		return gitLinkedMsg{project: p, err: m.workspaces.Git.Init(m.context(), p.Path, msg.Repo.CloneURL)}
-	}
+	return m.beginLocalCreation()
 }
 
 func (m model) handleGitCloneDone(msg CloneDoneMsg) (tea.Model, tea.Cmd) {
@@ -507,28 +399,4 @@ func (m model) updateDeleteTmuxSession(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) loading() bool {
-	return m.state == stateBulkPreflight || m.state == stateBulkMoving || m.state == stateCreatingGitHub || m.state == stateCloningRepo || m.state == stateMovingProject || m.state == stateDeletingWorkspace
-}
-
-type gitLinkedMsg struct {
-	project core.Project
-	err     error
-}
-
-func (m model) handleGitLinked(msg gitLinkedMsg) (tea.Model, tea.Cmd) {
-	if m.state != stateCreatingGitHub {
-		return m, nil
-	}
-	if msg.err != nil {
-		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "git setup failed: " + msg.err.Error()}
-		m.state = stateList
-		return m.rescan(), nil
-	}
-	m.uiState.AddRecent(msg.project)
-	m.saveState()
-	m.launch.project = msg.project
-	m.launch.ready = true
-	m.launch.preset = m.creation.preset
-	return m, tea.Quit
-}
+func (m model) loading() bool { return m.state.kind() == routeOperation }

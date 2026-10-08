@@ -3,8 +3,6 @@ package main
 import (
 	"github.com/richardnascimento18/devdock/internal/app"
 
-	"fmt"
-
 	"strings"
 
 	"github.com/richardnascimento18/devdock/internal/core"
@@ -80,16 +78,7 @@ func (m model) updateCreateGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputScr.err = "name cannot be empty"
 				return m, nil
 			}
-			if err := m.navigation.tree.CreateGroups(m.groupFlow.parent, strings.Split(name, "/")); err != nil {
-				m.inputScr.err = err.Error()
-				return m, nil
-			}
-
-			m.pendingDomain = ""
-			m = m.rescan()
-			m.state = stateList
-			m.diagnostic = app.Diagnostic{Severity: app.Success, Summary: fmt.Sprintf("✓  group \"%s\" created", name)}
-			return m, nil
+			return m.beginScopeMutation(mutationGroup, name)
 		}
 	}
 

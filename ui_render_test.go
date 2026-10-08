@@ -197,7 +197,7 @@ func fixtureScreens() map[string]model {
 		m.state = stateBulkConfirm
 		m.bulk = bulkWorkflow{projects: []core.Project{m.navigation.projects[0], m.navigation.projects[2]}, destination: core.Location{Root: "/workspace/work", Domain: "destination"}}
 		for _, p := range m.bulk.projects {
-			m.bulk.rows = append(m.bulk.rows, bulkMoveRow{plan: core.MovePlan{Source: p, Destination: m.bulk.destination, Path: m.bulk.destination.Path() + "/" + p.Name}})
+			m.bulk.rows = append(m.bulk.rows, bulkMoveRow{Plan: core.MovePlan{Source: p, Destination: m.bulk.destination, Path: m.bulk.destination.Path() + "/" + p.Name}})
 		}
 	})
 	add("confirmation", func(m *model) {

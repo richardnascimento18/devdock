@@ -47,7 +47,11 @@ func TestArbitraryDepthDestinationPickerAndCreation(t *testing.T) {
 	if m.state != statePickPreset || m.currentLocation().Key() != loc.Key() {
 		t.Fatal("lost deep selection")
 	}
-	next, _ = m.finishCreateProject(root, "apps", m.presets[0])
+	next, cmd := m.finishCreateProject(root, "apps", m.presets[0])
+	m = next.(model)
+	next, cmd = m.handleCreatePreflight(cmd().(createPreflightMsg))
+	m = next.(model)
+	next, _ = m.handleCreateDone(cmd().(createDoneMsg))
 	m = next.(model)
 	if m.launch.project.Path != filepath.Join(loc.Path(), "api") || !m.launch.ready {
 		t.Fatalf("create %+v", m.launch.project)
@@ -60,7 +64,7 @@ func TestArbitraryDepthDestinationPickerAndCreation(t *testing.T) {
 	m.creation.repo = gh.Repo{Name: "repo", CloneURL: "unused"}
 	m = m.openPlacement(root, "apps", placeClone)
 	m.genericPicker.cursor = 35
-	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = next.(model)
 	if m.state != stateCloningRepo || cmd == nil || m.currentLocation().Key() != loc.Key() {
 		t.Fatal("clone lost ancestry")

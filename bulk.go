@@ -3,10 +3,8 @@ package main
 import (
 	"github.com/richardnascimento18/devdock/internal/app"
 
-	"errors"
 	"fmt"
 	"github.com/richardnascimento18/devdock/internal/ui"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -113,11 +111,7 @@ func (m model) bulkFavorites() model {
 	return m
 }
 
-type bulkMoveRow struct {
-	plan    core.MovePlan
-	project core.Project
-	err     error
-}
+type bulkMoveRow = app.MoveRow
 type bulkWorkflow struct {
 	id               uint64
 	projects         []core.Project
@@ -136,53 +130,6 @@ type bulkDoneMsg struct {
 	executed bool
 }
 
-// Build every plan before any mutation, including collisions within the batch.
-func preflightBulk(projects []core.Project, destination core.Location, plan func(core.Project, core.Location, string) (core.MovePlan, error)) []bulkMoveRow {
-	rows := make([]bulkMoveRow, len(projects))
-	paths := map[string][]int{}
-	for i, p := range projects {
-		rows[i].plan, rows[i].err = plan(p, destination, filepath.Base(p.Path))
-		if rows[i].plan.Path != "" {
-			paths[rows[i].plan.Path] = append(paths[rows[i].plan.Path], i)
-		}
-	}
-	for path, indices := range paths {
-		if len(indices) > 1 {
-			for _, i := range indices {
-				rows[i].err = errors.Join(rows[i].err, fmt.Errorf("multiple selections target %s", path))
-			}
-		}
-	}
-	return rows
-}
-func bulkValid(rows []bulkMoveRow) bool {
-	if len(rows) == 0 {
-		return false
-	}
-	for _, r := range rows {
-		if r.err != nil {
-			return false
-		}
-	}
-	return true
-}
-func executeBulk(rows []bulkMoveRow, plan func(core.Project, core.Location, string) (core.MovePlan, error), move func(core.MovePlan) (core.Project, error)) ([]bulkMoveRow, bool) {
-	if len(rows) == 0 {
-		return rows, false
-	}
-	projects := make([]core.Project, len(rows))
-	for i, r := range rows {
-		projects[i] = r.plan.Source
-	}
-	checked := preflightBulk(projects, rows[0].plan.Destination, plan)
-	if !bulkValid(checked) {
-		return checked, false
-	}
-	for i := range checked {
-		checked[i].project, checked[i].err = move(checked[i].plan)
-	}
-	return checked, true
-}
 func (m model) startBulkMove() model {
 	if m.hiddenSelection() > 0 {
 		m.diagnostic = app.Diagnostic{Severity: app.Warning, Summary: "! " + m.selectionStatus()}
@@ -213,7 +160,7 @@ func (m model) beginBulkPreflight(loc core.Location) (tea.Model, tea.Cmd) {
 	projects := append([]core.Project(nil), m.bulk.projects...)
 	m.state = stateBulkPreflight
 	m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Checking %d move destinations…", len(projects)))
-	return m, func() tea.Msg { return bulkPreflightMsg{id, preflightBulk(projects, loc, core.PlanMove)} }
+	return m, func() tea.Msg { return bulkPreflightMsg{id, app.PreflightMoves(projects, loc, core.PlanMove)} }
 }
 func (m model) handleBulkPreflight(msg bulkPreflightMsg) (tea.Model, tea.Cmd) {
 	if m.state != stateBulkPreflight || msg.id != m.bulk.id {
@@ -237,13 +184,13 @@ func (m model) updateBulk(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = stateList
 		return m, nil
 	}
-	if key.String() == "enter" && m.state == stateBulkConfirm && bulkValid(m.bulk.rows) {
+	if key.String() == "enter" && m.state == stateBulkConfirm && app.MovesValid(m.bulk.rows) {
 		m.state = stateBulkMoving
 		m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Moving %d selected projects…", len(m.bulk.rows)))
 		id := m.bulk.id
 		rows := append([]bulkMoveRow(nil), m.bulk.rows...)
 		return m, func() tea.Msg {
-			result, executed := executeBulk(rows, core.PlanMove, m.moveFilesystem.Execute)
+			result, executed := app.ExecuteMoves(rows, core.PlanMove, m.moveFilesystem.Execute)
 			return bulkDoneMsg{id, result, executed}
 		}
 	}
@@ -258,8 +205,8 @@ func (m model) handleBulkDone(msg bulkDoneMsg) (tea.Model, tea.Cmd) {
 	if msg.executed {
 		changed := false
 		for _, row := range msg.rows {
-			if row.project.Path != "" {
-				m.uiState.MoveProject(row.plan.Source.Path, row.project)
+			if row.Project.Path != "" {
+				m.uiState.MoveProject(row.Plan.Source.Path, row.Project)
 				changed = true
 			}
 		}
@@ -285,9 +232,9 @@ func (m model) bulkModal() modalContent {
 		} else {
 			success, partial, failed := 0, 0, 0
 			for _, r := range m.bulk.rows {
-				if r.err == nil {
+				if r.Err == nil {
 					success++
-				} else if r.project.Path != "" {
+				} else if r.Project.Path != "" {
 					partial++
 				} else {
 					failed++
@@ -296,7 +243,7 @@ func (m model) bulkModal() modalContent {
 			lines = append(lines, fmt.Sprintf("%d moved · %d cleanup warnings · %d failed", success, partial, failed), "Selection cleared; review failures before retrying.")
 		}
 	}
-	if m.state == stateBulkConfirm && !bulkValid(m.bulk.rows) {
+	if m.state == stateBulkConfirm && !app.MovesValid(m.bulk.rows) {
 		lines = append([]string{warningStyle.Render("! Resolve these conflicts. Nothing has moved."), ""}, lines...)
 		hint = "esc choose again"
 	}
@@ -305,10 +252,10 @@ func (m model) bulkModal() modalContent {
 		if m.state == stateBulkResult {
 			label = "✓ Moved"
 		}
-		if r.err != nil {
-			label = "! " + r.err.Error()
+		if r.Err != nil {
+			label = "! " + r.Err.Error()
 		}
-		lines = append(lines, "", ui.SafeText(r.plan.Source.Name), "From: "+ui.SafeText(r.plan.Source.Path), "To:   "+ui.SafeText(r.plan.Path), ui.SafeBlock(label))
+		lines = append(lines, "", ui.SafeText(r.Plan.Source.Name), "From: "+ui.SafeText(r.Plan.Source.Path), "To:   "+ui.SafeText(r.Plan.Path), ui.SafeBlock(label))
 	}
 	if m.bulk.persistenceError != "" {
 		lines = append(lines, "", warningStyle.Render(ui.SafeBlock("! "+m.bulk.persistenceError)))

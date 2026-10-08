@@ -112,12 +112,17 @@ func TestCloneNewDomainRetainsIntent(t *testing.T) {
 		t.Fatal("expected new domain input")
 	}
 	m.inputScr.input.SetValue("apps")
-	next, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = next.(model)
+	if m.state != stateChangingScope || cmd == nil {
+		t.Fatal("domain creation did not schedule filesystem work")
+	}
+	next, _ = m.Update(operationMessage(cmd))
 	m = next.(model)
 	if m.state != stateMovePickPlacement {
 		t.Fatal("missing clone placement")
 	}
-	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = next.(model)
 	if m.state != stateCloningRepo || cmd == nil {
 		t.Fatal("clone routed into creation")
@@ -228,6 +233,11 @@ func TestDomainCreationRefreshesSnapshot(t *testing.T) {
 			}
 			if m.motion.pending == reduced {
 				t.Fatal("clock does not respect motion mode")
+			}
+			next, cmd = m.Update(operationMessage(cmd))
+			m = next.(model)
+			if cmd == nil {
+				t.Fatal("completed domain creation did not schedule rescan")
 			}
 			next, _ = m.Update(operationMessage(cmd))
 			m = next.(model)

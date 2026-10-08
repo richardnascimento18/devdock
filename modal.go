@@ -12,15 +12,7 @@ type modalContent struct{ title, body, hint string }
 func (c modalContent) View(width, height, offset int) string {
 	return ui.ModalAt(c.title, c.body, c.hint, width, height, offset)
 }
-func (m model) flowModal() bool {
-	switch m.state {
-	case stateList, stateHelp, statePalette, stateEditor, statePTYExecution,
-		stateBulkPreflight, stateBulkMoving, stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
-		return false
-	default:
-		return true
-	}
-}
+func (m model) flowModal() bool { return m.state.kind() == routeOverlay }
 func (m model) currentModal() modalContent {
 	w, h := m.termW, m.termH
 	switch m.state {

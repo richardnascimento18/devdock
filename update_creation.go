@@ -8,7 +8,6 @@ import (
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/preset"
-	tmpl "github.com/richardnascimento18/devdock/internal/template"
 
 	"path/filepath"
 	"strings"
@@ -126,11 +125,7 @@ func (m model) updateNewDomainName(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.pendingDomain = name
 			if m.domainIntent == domainForClone {
-				if err := core.CreateDomain(m.pendingRoot, name); err != nil {
-					m.inputScr.err = err.Error()
-					return m, nil
-				}
-				return m.openPlacement(m.pendingRoot, name, placeClone), nil
+				return m.beginScopeMutation(mutationCloneDomain, name)
 			}
 			return m.openPlacement(m.pendingRoot, name, placeProject), nil
 		}
@@ -184,15 +179,10 @@ func (m model) updateCreateDomainOnly(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputScr.err = "name contains invalid characters (/ and \\ are not allowed)"
 				return m, nil
 			}
-			if err := core.CreateDomain(m.pendingRoot, name); err != nil {
-				m.inputScr.err = fmt.Sprintf("error: %v", err)
-				return m, nil
-			}
 			if m.domainIntent == domainForMove {
-				return m.openMovePlacementPicker(m.pendingRoot, name), nil
+				return m.beginScopeMutation(mutationMoveDomain, name)
 			}
-			m.state = stateList
-			return m.rescan(), nil
+			return m.beginScopeMutation(mutationDomain, name)
 		}
 	}
 	var cmd tea.Cmd
@@ -308,62 +298,8 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 		m.state = stateList
 		return m, nil
 	}
-	location := m.currentLocation()
-	path, err := location.ProjectPath(m.creation.name)
-	if err == nil {
-		err = core.CheckDestination(location.Root, path)
-	}
-	if err != nil {
-		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: err.Error()}
-		m.state = stateList
-		return m, nil
-	}
-
-	if m.creation.createGitHub && m.cfg.IsGitHubConnected() {
-		m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Creating GitHub repo \"%s\"...", m.creation.name))
-		m.state = stateCreatingGitHub
-		return m, cmdCreateRepo(m.context(), m.cfg.GitHubToken, m.creation.name, m.creation.private)
-	}
-
-	if m.creation.template != nil {
-		vars := tmpl.Vars{
-			ProjectName: m.creation.name,
-			Domain:      domainName,
-			Root:        root,
-		}
-		projectPath, workDir, err := core.PrepareProject(location, vars.ProjectName, m.creation.template.CreatesProjectFolder)
-		if err != nil {
-			m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "create project: " + err.Error()}
-			m.state = stateList
-			return m, nil
-		}
-		vars.ProjectPath = projectPath
-		m.ptyScr = newPTYScreenContext(m.context(), m.termW, m.termH, m.creation.template, projectPath, vars,
-			m.creation.template.Steps, workDir, m.creation.repo)
-		m.ptyScr.scaffold.Git = m.workspaces.Git
-		m.operationID++
-		m.ptyScr.operationID = m.operationID
-		m.state = statePTYExecution
-		m.launch.preset = ps
-		return m, m.ptyScr.startNextStep()
-	}
-
-	p, err := core.CreateProject(location, m.creation.name)
-	if err != nil {
-		m.inputScr.err = fmt.Sprintf("error: %v", err)
-		return m, nil
-	}
-	if err := tmpl.WriteDevDockMarkerFile(p.Path); err != nil {
-		m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: fmt.Sprintf("note: could not write .devdock marker: %v", err)}
-	}
-	m = m.rescan()
-	m.state = stateList
-	m.uiState.AddRecent(p)
-	m.saveState()
-	m.launch.project = p
-	m.launch.ready = true
-	m.launch.preset = ps
-	return m, tea.Quit
+	m.creation.preset = ps
+	return m.preflightCreation()
 }
 
 // ---------------------------------------------------------------------------

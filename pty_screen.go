@@ -9,7 +9,7 @@ import (
 	"unicode"
 
 	"github.com/richardnascimento18/devdock/internal/app"
-	gh "github.com/richardnascimento18/devdock/internal/github"
+
 	"github.com/richardnascimento18/devdock/internal/pty"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
 	"github.com/richardnascimento18/devdock/internal/terminal"
@@ -96,7 +96,7 @@ type ptyScreen struct {
 	scaffold app.Scaffold
 }
 
-func newPTYScreenContext(parent context.Context, w, h int, t *tmpl.Template, projectPath string, vars tmpl.Vars, steps []tmpl.TemplateStep, workDir string, ghRepo gh.Repo) ptyScreen {
+func newPTYScreenWithScaffold(parent context.Context, w, h int, t *tmpl.Template, scaffold app.Scaffold) ptyScreen {
 	ctx, cancel := context.WithCancel(parent)
 	vp := viewport.New(vpW(w), vpH(h))
 	vp.Style = lipgloss.NewStyle()
@@ -106,7 +106,7 @@ func newPTYScreenContext(parent context.Context, w, h int, t *tmpl.Template, pro
 		width:    w,
 		height:   h,
 		tmpl:     t,
-		scaffold: app.NewScaffold(t, projectPath, vars, steps, workDir, ghRepo.CloneURL),
+		scaffold: scaffold,
 	}
 	ps.addLine("Starting template setup...", lineSystem)
 	return ps

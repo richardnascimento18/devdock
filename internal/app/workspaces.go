@@ -8,18 +8,27 @@ import (
 	"github.com/richardnascimento18/devdock/internal/detect"
 	"github.com/richardnascimento18/devdock/internal/git"
 	gh "github.com/richardnascimento18/devdock/internal/github"
+	"github.com/richardnascimento18/devdock/internal/template"
 )
 
 // Workspaces coordinates discovery and local repository operations. Its effects
 // are explicit functions/clients, allowing failures without real external tools.
 type Workspaces struct {
-	Git     git.Client
-	Prepare func(core.Location, string, bool) (string, string, error)
-	Delete  func(string, string) error
+	Git           git.Client
+	Prepare       func(core.Location, string, bool) (string, string, error)
+	Delete        func(string, string) error
+	CreateProject func(core.Location, string) (core.Project, error)
+	WriteMarker   func(string) error
+	CreateDomain  func(string, string) error
+	CreateGroups  func(core.Workspace, core.Location, []string) error
 }
 
 func NewWorkspaces() Workspaces {
-	return Workspaces{Git: git.NewClient(), Prepare: core.PrepareProject, Delete: core.DeletePath}
+	return Workspaces{Git: git.NewClient(), Prepare: core.PrepareProject, Delete: core.DeletePath,
+		CreateProject: core.CreateProject, WriteMarker: template.WriteDevDockMarkerFile,
+		CreateDomain: core.CreateDomain, CreateGroups: func(tree core.Workspace, parent core.Location, names []string) error {
+			return tree.CreateGroups(parent, names)
+		}}
 }
 
 type Snapshot struct {
