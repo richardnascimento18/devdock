@@ -28,7 +28,17 @@ type Client struct {
 type processRunner struct{}
 
 func (processRunner) Run(ctx context.Context, args ...string) error {
-
+	command := args[0]
+	if command == "-S" && len(args) > 2 {
+		command = args[2]
+	}
+	if command != "attach-session" && command != "switch-client" {
+		output, err := process.Output(ctx, "", "tmux", args...)
+		if err != nil {
+			return fmt.Errorf("%w: %s", err, output)
+		}
+		return nil
+	}
 	cmd := process.Command(ctx, "", "tmux", args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -83,11 +93,51 @@ func (c Client) output(args ...string) (string, error) {
 func LaunchWorkspace(p core.Project, ps preset.Preset) error {
 	return NewClient().LaunchWorkspace(p, ps)
 }
-func (c Client) LaunchWorkspace(p core.Project, ps preset.Preset) error {
+
+type LaunchPlan struct {
+	Session, Path string
+	Windows       []preset.Window
+}
+
+// PlanWorkspace captures the preset without invoking tmux.
+func PlanWorkspace(p core.Project, ps preset.Preset) (LaunchPlan, error) {
 	if err := preset.ValidatePreset(ps); err != "" {
-		return fmt.Errorf("invalid preset: %s", err)
+		return LaunchPlan{}, fmt.Errorf("invalid preset: %s", err)
 	}
-	session := SessionName(p)
+	return LaunchPlan{Session: SessionName(p), Path: p.Path, Windows: preset.Clone([]preset.Preset{ps})[0].Windows}, nil
+}
+
+// LaunchError identifies resources created by this attempt. Existing sessions
+// are never marked owned or destroyed to compensate for a later failure.
+type LaunchError struct {
+	Session string
+	Created bool
+	Cause   error
+}
+
+func (e *LaunchError) Error() string {
+	return fmt.Sprintf("workspace session %q (created=%v): %v", e.Session, e.Created, e.Cause)
+}
+func (e *LaunchError) Unwrap() error { return e.Cause }
+
+func (c Client) LaunchWorkspace(p core.Project, ps preset.Preset) error {
+	plan, err := PlanWorkspace(p, ps)
+	if err != nil {
+		return err
+	}
+	return c.ExecuteLaunch(plan)
+}
+func (c Client) ExecuteLaunch(plan LaunchPlan) (result error) {
+	if len(plan.Windows) == 0 {
+		return fmt.Errorf("workspace plan has no windows")
+	}
+	created := false
+	defer func() {
+		if result != nil {
+			result = &LaunchError{Session: plan.Session, Created: created, Cause: result}
+		}
+	}()
+	session := plan.Session
 	_, err := c.output("has-session", "-t", "="+session)
 	if err == nil {
 		return c.AttachSession(session)
@@ -95,20 +145,21 @@ func (c Client) LaunchWorkspace(p core.Project, ps preset.Preset) error {
 	if !errors.Is(err, ErrNoSession) {
 		return err
 	}
-	first := ps.Windows[0]
-	pane, err := c.output("new-session", "-d", "-P", "-F", "#{pane_id}", "-s", session, "-n", sanitizeTmuxName(first.Name), "-c", p.Path)
+	first := plan.Windows[0]
+	pane, err := c.output("new-session", "-d", "-P", "-F", "#{pane_id}", "-s", session, "-n", sanitizeTmuxName(first.Name), "-c", plan.Path)
 	if err != nil {
 		return err
 	}
-	if err := c.buildWindow(first, pane, p.Path); err != nil {
+	created = true
+	if err := c.buildWindow(first, pane, plan.Path); err != nil {
 		return err
 	}
-	for _, w := range ps.Windows[1:] {
-		pane, err := c.output("new-window", "-P", "-F", "#{pane_id}", "-t", "="+session, "-n", sanitizeTmuxName(w.Name), "-c", p.Path)
+	for _, w := range plan.Windows[1:] {
+		pane, err := c.output("new-window", "-P", "-F", "#{pane_id}", "-t", "="+session, "-n", sanitizeTmuxName(w.Name), "-c", plan.Path)
 		if err != nil {
 			return err
 		}
-		if err := c.buildWindow(w, pane, p.Path); err != nil {
+		if err := c.buildWindow(w, pane, plan.Path); err != nil {
 			return err
 		}
 	}
