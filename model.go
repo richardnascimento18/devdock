@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"strings"
 	"time"
 
@@ -22,6 +23,8 @@ import (
 )
 
 type model struct {
+	appContext             context.Context
+	preferences            app.Preferences
 	selected               map[string]bool
 	bulk                   bulkWorkflow
 	bulkID                 uint64
@@ -136,10 +139,11 @@ type movePlacementOption struct {
 	location core.Location
 }
 
-func newModel(projects []core.Project, cfg config.Config, presets []preset.Preset, templates []tmpl.Template, uiSt uistate.UIState) model {
+func newModelWithPreferences(projects []core.Project, cfg config.Config, presets []preset.Preset, templates []tmpl.Template, uiSt uistate.UIState, preferences app.Preferences) model {
 	roots := cfg.ActiveRoots()
 
 	m := model{
+		preferences:    preferences,
 		focus:          ui.Projects,
 		motion:         animationClock{generation: 1, reduced: reducedMotion()},
 		repoLoading:    cfg.IsGitHubConnected(),
@@ -240,7 +244,7 @@ func (m *model) saveState() bool {
 	m.uiState.CollapsedNodes = m.collapsedNodes
 	m.uiState.TreeMode = m.treeMode
 	m.uiState.ActiveTab = m.activeTab
-	if err := uistate.Save(config.Dir(), m.uiState); err != nil {
+	if err := m.preferences.State.Save(m.uiState); err != nil {
 		m.persistenceErr = fmt.Errorf("save state: %w", err)
 		if !m.filesystemStatePending {
 			m.uiState = m.committedState.Clone()
@@ -386,4 +390,11 @@ func (m *model) refreshProjectDisambiguators() {
 	for _, p := range m.rawProjects {
 		m.duplicateLocations[p.Path] = names[p.Name+"\x00"+compactProjectLocation(p)] > 1
 	}
+}
+
+func (m model) context() context.Context {
+	if m.appContext == nil {
+		return context.Background()
+	}
+	return m.appContext
 }

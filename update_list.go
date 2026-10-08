@@ -109,7 +109,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				proposed := m.cfg.Clone()
 				proposed.DefaultPreset = proposedSel.SelectedName()
-				if err := config.Save(proposed); err != nil {
+				if err := m.preferences.Config.Save(proposed); err != nil {
 					m.statusMsg = errorStyle.Render(ui.SafeBlock("save config: " + err.Error()))
 					return m, nil
 				}
@@ -421,7 +421,7 @@ func (m model) startCloneFlow(repo gh.Repo) model {
 }
 
 func (m model) startEditor() (tea.Model, tea.Cmd) {
-	m.editorScr = newEditorScreen(m.presets, m.templates, m.termW, m.termH)
+	m.editorScr = newEditorScreenWithPreferences(m.presets, m.templates, m.termW, m.termH, m.preferences)
 	m.editorScr.cfg = m.cfg.Clone()
 	m.state = stateEditor
 	return m, nil

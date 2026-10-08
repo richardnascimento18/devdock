@@ -2,10 +2,16 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
+	"github.com/richardnascimento18/devdock/internal/app"
+	"github.com/richardnascimento18/devdock/internal/ui"
+	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/preset"
@@ -21,56 +27,68 @@ func main() {
 		fmt.Println(versionInfo())
 		return
 	}
-	cfg, err := config.Load()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := run(ctx); err != nil {
+		fmt.Fprintln(os.Stderr, ui.SafeBlock(err.Error()))
+		os.Exit(1)
+	}
+}
+
+func run(ctx context.Context) error {
+	paths, err := app.ResolvePaths()
+	if err != nil {
+		return err
+	}
+	preferences := app.NewPreferences(paths)
+	cfg, err := (config.Store{File: paths.Config}).Load()
 	if err != nil {
 		if !os.IsNotExist(err) {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return err
 		}
-		cfg = runSetup()
+		cfg, err = runSetup(paths, os.Stdin, os.Stdout)
+		if err != nil {
+			return err
+		}
 	}
 
-	if err := os.MkdirAll(config.Dir(), 0o755); err != nil {
+	if err := os.MkdirAll(paths.Directory, 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not create config dir: %v\n", err)
 	}
 
-	presets, presetErr := preset.Load(config.Dir())
+	presets, presetErr := (preset.Store{Directory: paths.Directory}).Load()
 	if presetErr != nil {
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "=== presets.json warning ===")
-		fmt.Fprintln(os.Stderr, presetErr.Error())
+		fmt.Fprintln(os.Stderr, ui.SafeBlock(presetErr.Error()))
 		fmt.Fprintln(os.Stderr, "============================")
 		fmt.Fprintln(os.Stderr, "")
 	}
 
-	templates, tmplErr := tmpl.Load(config.Dir())
+	templates, tmplErr := (tmpl.Store{Directory: paths.Directory}).Load()
 	if tmplErr != nil {
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "=== templates.json warning ===")
-		fmt.Fprintln(os.Stderr, tmplErr.Error())
+		fmt.Fprintln(os.Stderr, ui.SafeBlock(tmplErr.Error()))
 		fmt.Fprintln(os.Stderr, "==============================")
 		fmt.Fprintln(os.Stderr, "")
 	}
 
-	uiSt, stateErr := uistate.Load(config.Dir())
+	uiSt, stateErr := (uistate.Store{Directory: paths.Directory}).Load()
 	if stateErr != nil {
-		fmt.Fprintln(os.Stderr, stateErr)
+		fmt.Fprintln(os.Stderr, ui.SafeBlock(stateErr.Error()))
 	}
 
-	m := newModel(nil, cfg, presets, templates, uiSt)
+	m := newModelWithPreferences(nil, cfg, presets, templates, uiSt, preferences)
+	m.appContext = ctx
 	m.startupCmd = m.scanCommand()
 	m.motion.pending = !m.motion.reduced
 	m.motion.generation++
-	prog := tea.NewProgram(m, tea.WithAltScreen())
+	prog := tea.NewProgram(m, tea.WithAltScreen(), tea.WithContext(ctx))
 	finalModel, err := prog.Run()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
 	fm, ok := finalModel.(model)
 	if !ok {
-		return
+		return err
 	}
 
 	fm.cancelAuth()
@@ -78,72 +96,67 @@ func main() {
 		fm.ptyScr.cancel()
 	}
 	if fm.persistenceErr != nil {
-		fmt.Fprintln(os.Stderr, fm.persistenceErr)
+		fmt.Fprintln(os.Stderr, ui.SafeBlock(fm.persistenceErr.Error()))
 	}
 	if fm.ptyScr.session != nil {
 		if err := fm.ptyScr.session.Close(); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, ui.SafeBlock(err.Error()))
 		}
 	}
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
+		return err
+	}
+
 	// Launch the workspace AFTER the TUI exits so the alt-screen is torn down
 	// and tmux can attach cleanly.
 	if fm.pendingLaunchReady {
 		if err := tmux.LaunchWorkspace(fm.pendingLaunch, fm.pendingLaunchPreset); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return err
 		}
 	}
 	if fm.pendingTmuxAttach != "" {
 		if err := tmux.AttachSession(fm.pendingTmuxAttach); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return err
 		}
 	}
+	return nil
 }
 
 // runSetup is the first-run configuration wizard.
-func runSetup() config.Config {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("DevDock setup")
-	fmt.Println("Enter root directory for your projects:")
-	fmt.Print("> ")
+func runSetup(paths app.Paths, input io.Reader, output io.Writer) (config.Config, error) {
+	reader := bufio.NewReader(input)
+	fmt.Fprintln(output, "DevDock setup")
+	fmt.Fprintln(output, "Enter root directory for your projects:")
+	fmt.Fprint(output, "> ")
 	root, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to read input: %v\n", err)
-		os.Exit(1)
+		return config.Config{}, fmt.Errorf("failed to read input: %w", err)
 	}
 	root = strings.TrimSpace(root)
 
-	// Expand ~ since os.Stat does not understand shell shorthand.
 	if root == "~" {
-		home, herr := os.UserHomeDir()
-		if herr == nil {
-			root = home
-		}
+		root = paths.Home
 	} else if strings.HasPrefix(root, "~/") {
-		home, herr := os.UserHomeDir()
-		if herr == nil {
-			root = filepath.Join(home, root[2:])
-		}
+		root = filepath.Join(paths.Home, root[2:])
 	}
 
 	root, err = filepath.Abs(root)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return config.Config{}, err
 	}
 	info, serr := os.Stat(root)
 	if serr != nil || !info.IsDir() {
-		fmt.Fprintf(os.Stderr, "error: %q does not exist or is not a directory\n", root)
-		os.Exit(1)
+		return config.Config{}, fmt.Errorf("error: %q does not exist or is not a directory", root)
 	}
 
 	cfg := config.Config{Roots: []string{root}}
-	if err := config.Save(cfg); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	if err := (config.Store{File: paths.Config}).Save(cfg); err != nil {
+		return config.Config{}, err
 	}
 
-	fmt.Println("DevDock configured!")
-	return cfg
+	fmt.Fprintln(output, "DevDock configured!")
+	return cfg, nil
 }

@@ -4,9 +4,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/richardnascimento18/devdock/internal/config"
-	"github.com/richardnascimento18/devdock/internal/preset"
-	tmpl "github.com/richardnascimento18/devdock/internal/template"
+
 	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
 )
@@ -158,7 +156,7 @@ func (e editorScreen) commitDelete() editorScreen {
 		}
 		values := deepCopyPresets(e.presets)
 		values = append(values[:e.cursor], values[e.cursor+1:]...)
-		if err := preset.Save(config.Dir(), values); err != nil {
+		if err := e.preferences.Presets.Save(values); err != nil {
 			e.statusMsg = errorStyle.Render(ui.SafeBlock("! Save failed: " + err.Error()))
 			return e
 		}
@@ -170,7 +168,7 @@ func (e editorScreen) commitDelete() editorScreen {
 		}
 		values := deepCopyTemplates(e.tmpls)
 		values = append(values[:e.cursor], values[e.cursor+1:]...)
-		if err := tmpl.Save(config.Dir(), values); err != nil {
+		if err := e.preferences.Templates.Save(values); err != nil {
 			e.statusMsg = errorStyle.Render(ui.SafeBlock("! Save failed: " + err.Error()))
 			return e
 		}

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"testing"
@@ -52,7 +53,7 @@ func TestAuthStartsAsyncAndCancelledResultsAreIgnored(t *testing.T) {
 }
 func TestAuthPersistenceFailureKeepsActiveCredentials(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	m := model{state: stateGitHubAuth, authID: 1}
+	m := model{state: stateGitHubAuth, authID: 1, preferences: app.NewPreferences(app.PathsAt(t.TempDir()))}
 	// An invalid root makes proposed config validation fail deterministically.
 	m.cfg = config.Config{Roots: []string{"relative"}}
 	next, cmd := m.handleGitHubAuthDone(gh.AuthDoneMsg{ID: 1, Token: "token", Username: "user"})

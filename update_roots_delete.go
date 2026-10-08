@@ -1,12 +1,11 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/richardnascimento18/devdock/internal/config"
+
 	"github.com/richardnascimento18/devdock/internal/core"
-	uistate "github.com/richardnascimento18/devdock/internal/state"
+
 	"os"
 	"path/filepath"
 	"strings"
@@ -104,7 +103,7 @@ func (m model) updateAddRoot(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state = stateList
 			return m, nil
 		case "enter":
-			path := expandTilde(strings.TrimSpace(m.inputScr.input.Value()))
+			path := m.expandTilde(strings.TrimSpace(m.inputScr.input.Value()))
 			if path == "" {
 				m.inputScr.err = "path cannot be empty"
 				return m, nil
@@ -124,7 +123,7 @@ func (m model) updateAddRoot(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputScr.err = err.Error()
 				return m, nil
 			}
-			committed, changed, err := config.Commit(m.cfg, proposed)
+			committed, changed, err := m.preferences.CommitConfig(m.cfg, proposed)
 			if err != nil {
 				m.inputScr.err = fmt.Sprintf("error saving config: %v", err)
 				return m, nil
@@ -143,21 +142,18 @@ func (m model) updateAddRoot(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func expandTilde(path string) string {
+func (m model) expandTilde(path string) string {
+	home := m.preferences.Paths.Home
+	if home == "" {
+		return path
+	}
 	if path == "~" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return path
-		}
 		return home
 	}
 	if strings.HasPrefix(path, "~/") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return path
-		}
 		return filepath.Join(home, path[2:])
 	}
+
 	return path
 }
 
@@ -177,23 +173,12 @@ func (m model) updateRemoveRoot(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			root := m.cfg.ActiveRoots()[m.genericPicker.cursor]
-			proposed := m.cfg.Clone()
-			proposed.RemoveRoot(root)
-			proposedState := m.uiState.Clone()
-			proposedState.RemovePath(root)
-			if err := config.Save(proposed); err != nil {
-				m.genericPicker.err = fmt.Sprintf("error saving config: %v", err)
+			proposed, proposedState, err := m.preferences.RemoveRoot(m.cfg, m.uiState, root)
+			if err != nil {
+				m.genericPicker.err = err.Error()
 				return m, nil
 			}
-			if err := uistate.Save(config.Dir(), proposedState); err != nil {
-				// These are separate files: compensate before changing live state.
-				rollback := config.Save(m.cfg)
-				if rollback != nil {
-					rollback = fmt.Errorf("configuration rollback failed: %w", rollback)
-				}
-				m.genericPicker.err = errors.Join(fmt.Errorf("root state cleanup failed: %w", err), rollback).Error()
-				return m, nil
-			}
+
 			m.cfg = proposed
 			m.uiState = proposedState
 			m.collapsedNodes = proposedState.CollapsedNodes

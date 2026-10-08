@@ -6,7 +6,6 @@ import (
 	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
 
-	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
@@ -250,7 +249,7 @@ func (m model) handleGitHubAuthDone(msg gh.AuthDoneMsg) (tea.Model, tea.Cmd) {
 	proposed := m.cfg.Clone()
 	proposed.GitHubToken = msg.Token
 	proposed.GitHubUsername = msg.Username
-	if err := config.Save(proposed); err != nil {
+	if err := m.preferences.Config.Save(proposed); err != nil {
 		m.githubAuthScr.err = "save credentials: " + err.Error()
 		return m, nil
 	}

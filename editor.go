@@ -13,6 +13,7 @@ package main
 // ESC / ctrl+c returns to the previous layer without saving.
 
 import (
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
 
@@ -58,13 +59,14 @@ const (
 // ---------------------------------------------------------------------------
 
 type editorScreen struct {
-	cfg      config.Config
-	revision uint64
-	tab      int
-	cursor   int
-	layer    editorLayer
-	presets  []preset.Preset
-	tmpls    []tmpl.Template
+	preferences app.Preferences
+	cfg         config.Config
+	revision    uint64
+	tab         int
+	cursor      int
+	layer       editorLayer
+	presets     []preset.Preset
+	tmpls       []tmpl.Template
 
 	pe presetEditor
 	te templateEditor
@@ -81,13 +83,14 @@ type editorScreen struct {
 	termH         int
 }
 
-func newEditorScreen(presets []preset.Preset, templates []tmpl.Template, w, h int) editorScreen {
+func newEditorScreenWithPreferences(presets []preset.Preset, templates []tmpl.Template, w, h int, preferences app.Preferences) editorScreen {
 	return editorScreen{
-		tab:     editorTabPresets,
-		presets: deepCopyPresets(presets),
-		tmpls:   deepCopyTemplates(templates),
-		termW:   w,
-		termH:   h,
+		preferences: preferences,
+		tab:         editorTabPresets,
+		presets:     deepCopyPresets(presets),
+		tmpls:       deepCopyTemplates(templates),
+		termW:       w,
+		termH:       h,
 	}
 }
 
@@ -247,7 +250,7 @@ func (e editorScreen) updatePresetEditor(msg tea.Msg) (editorScreen, tea.Cmd) {
 		if e.pe.isNew {
 			oldName = ""
 		}
-		proposedConfig, err := savePresetProposal(e.cfg, proposed, oldName, p.Name)
+		proposedConfig, err := e.preferences.SavePresetProposal(e.cfg, proposed, oldName, p.Name)
 		if err != nil {
 			e.pe.statusMsg = errorStyle.Render(ui.SafeBlock("✗  save failed: " + err.Error()))
 			e.pe.result = editorResultNone
@@ -307,7 +310,7 @@ func (e editorScreen) updateTemplateEditor(msg tea.Msg) (editorScreen, tea.Cmd) 
 		if !found {
 			proposed = append(proposed, t)
 		}
-		if err := tmpl.Save(config.Dir(), proposed); err != nil {
+		if err := e.preferences.Templates.Save(proposed); err != nil {
 			e.te.statusMsg = errorStyle.Render(ui.SafeBlock("✗  save failed: " + err.Error()))
 			e.te.result = editorResultNone
 			return e, nil

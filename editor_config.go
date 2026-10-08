@@ -7,7 +7,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/richardnascimento18/devdock/internal/config"
 )
 
 type configurationEditor struct {
@@ -53,7 +52,7 @@ func (e editorScreen) updateConfigurationEditor(msg tea.Msg) (editorScreen, tea.
 					return e, nil
 				}
 			}
-			committed, changed, err := config.Commit(e.cfg, proposed)
+			committed, changed, err := e.preferences.CommitConfig(e.cfg, proposed)
 			if err != nil {
 				e.ce.statusMsg = errorStyle.Render(ui.SafeBlock("save failed: " + err.Error()))
 				return e, nil

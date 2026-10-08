@@ -33,7 +33,7 @@ func (e editorScreen) editorBreadcrumb() string {
 		}
 		return title
 	case editorLayerConfig:
-		return "Settings"
+
 	}
 	return editorTabNames[e.tab]
 }
