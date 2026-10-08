@@ -13,6 +13,12 @@ go mod tidy
 diff -u "$module_snapshot/go.mod" go.mod
 diff -u "$module_snapshot/go.sum" go.sum
 go mod verify
+cp tools/go.mod "$module_snapshot/tools.go.mod"
+cp tools/go.sum "$module_snapshot/tools.go.sum"
+go -C tools mod tidy
+diff -u "$module_snapshot/tools.go.mod" tools/go.mod
+diff -u "$module_snapshot/tools.go.sum" tools/go.sum
+go -C tools mod verify
 python3 -m unittest discover -s scripts -p 'test_*.py'
 python3 scripts/privacy.py --tracked
 actionlint
