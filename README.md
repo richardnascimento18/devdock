@@ -7,7 +7,7 @@ The workspace hierarchy is `Root → Domain → Project or Group`. Groups can co
 ## Requirements and installation
 
 - Linux amd64 or arm64. Linux-specific filesystem and PTY handling is intentional.
-- Go **1.26 or newer** for source builds; CI tests the latest patches of Go 1.26 and 1.27. The previous Go 1.21 claim was incorrect.
+- Go **1.26.9+ or 1.27.2+** within those supported series for source builds. See the [compiler policy](CONTRIBUTING.md#compiler-security-policy).
 - tmux for opening workspaces; Git for GitHub cloning/linking. Template commands and preset commands require their own tools, such as Node.js, Python, Cargo, nvim, or opencode.
 - Python 3 and Bash for development validation and release scripts.
 

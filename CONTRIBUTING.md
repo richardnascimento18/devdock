@@ -15,14 +15,14 @@ Keep changes incremental and protected by behavioral tests, especially for destr
 
 ## Local workflow
 
-Use Linux, Go 1.26+, Bash, Python 3, Git, and a C compiler for race testing. Dependency metadata and rooted filesystem APIs have a technical floor of Go 1.25; Go 1.26 is the deliberately supported minimum because the maintained toolchain pair is 1.26/1.27 and current analysis tools require 1.26. There is no claim of supported 1.25 builds. Use tmux to verify workspace attachment. Install pinned tools with `GOBIN=/tmp/devdock-tools make tools`; `GOBIN=/tmp/devdock-tools make check` adds that directory to PATH. Actions sets GOBIN to `$RUNNER_TEMP/devdock-tools` through GITHUB_ENV and adds it through GITHUB_PATH. Install ShellCheck locally for actionlint parity with hosted Ubuntu runners.
+Use Linux, a supported patched Go compiler, Bash, Python 3, Git, and a C compiler for race testing. Dependency metadata and rooted filesystem APIs have a technical floor of Go 1.25; Go 1.26 is the deliberately supported minimum because the maintained toolchain pair is 1.26/1.27 and current analysis tools require 1.26. There is no claim of supported 1.25 builds. Use tmux to verify workspace attachment. Install pinned tools with `GOBIN=/tmp/devdock-tools make tools`; `GOBIN=/tmp/devdock-tools make check` adds that directory to PATH. Actions sets GOBIN to `$RUNNER_TEMP/devdock-tools` through GITHUB_ENV and adds it through GITHUB_PATH. Install ShellCheck locally for actionlint parity with hosted Ubuntu runners.
 
 ```sh
 make fmt
 make check
 ```
 
-`make check` runs gofmt verification, `go mod tidy` consistency, `go mod verify`, version-script tests, actionlint, version validation, `go test ./...`, `go test -race ./...`, `go vet ./...`, `staticcheck ./...`, `govulncheck ./...`, and `go build ./...`. Vulnerability checking requires network access. CI runs the suite on Linux with the latest Go 1.26 and 1.27 patches and cross-builds both release architectures.
+`make check` runs gofmt verification, `go mod tidy` consistency, `go mod verify`, version-script tests, actionlint, version validation, `go test ./...`, `go test -race ./...`, `go vet ./...`, `staticcheck ./...`, `govulncheck ./...`, and `go build ./...`. Vulnerability checking requires network access. CI runs the suite on Linux with exact Go 1.26.9 and 1.27.2 and cross-builds both release architectures.
 
 Tests must use `t.TempDir()` and isolated configuration. Use fake HTTP/auth clients, tmux runners, and Git command runners rather than real services or your own filesystem. PTY tests intentionally run short local child commands. Do not disable checks, loosen validation, or discard tests to make a change pass.
 
@@ -122,3 +122,18 @@ Use `scripts/package-source.sh` for committed source archives. It packages one
 explicit commit with `git archive`, excluding local refs, reflogs, `.git`, dirty
 files and ignored evidence. Do not bundle `--all` or archive a raw checkout for
 public review. Historical commit identities are retained; do not rewrite them.
+
+## Compiler security policy
+
+The language/module compatibility floor remains `go 1.26.0`. Supported compilers
+are Go 1.26.9+ and 1.27.2+ within those maintained series; patch-zero builds are
+not supported. CI pins 1.26.9 and 1.27.2, and release builds pin 1.27.2. The
+`toolchain go1.27.2` directive recommends the default compiler but cannot prevent
+`GOTOOLCHAIN=local` or an explicit older compiler. Check/release scripts enforce
+the supported patched floor separately. Source builds should run that check too.
+
+Basis: [Go release history](https://go.dev/doc/devel/release) lists security fixes
+in 1.26.9 and 1.27.2 on 2026-10-08; Go maintains the latest two series. Reassess
+patch pins and floors when upstream publishes security updates; do not infer
+safety from the language directive or a historical scan. `govulncheck` must use
+current advisory data; a failed network/database fetch is not a clean scan.
