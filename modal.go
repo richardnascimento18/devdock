@@ -41,13 +41,13 @@ func (m model) currentModal() modalContent {
 	case stateAskCreateGitHub, stateAskRepoPrivacy:
 		return m.yesNoScr.content(w, h)
 	case stateGitHubAuth:
-		if m.githubAuthScr.err != "" {
-			return modalContent{"GitHub connection failed", "! " + ui.SafeBlock(m.githubAuthScr.err), "esc back"}
+		if m.auth.screen.err != "" {
+			return modalContent{"GitHub connection failed", "! " + ui.SafeBlock(m.auth.screen.err), "esc back"}
 		}
-		if m.githubAuthScr.verificationURI == "" || m.githubAuthScr.done {
+		if m.auth.screen.verificationURI == "" || m.auth.screen.done {
 			return modalContent{"Connect GitHub", m.activityView(), "esc cancel"}
 		}
-		return m.githubAuthScr.content(w, h)
+		return m.auth.screen.content(w, h)
 	case stateDeleteTmuxSession:
 		return m.confirmDelTmux.content(w, h)
 	case statePickRoot, statePickRootForDomain, stateRemoveRoot, statePickRootForClone,

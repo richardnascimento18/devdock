@@ -29,7 +29,7 @@ func projectFromItem(it list.Item) (core.Project, bool) {
 // canonical project when it still exists; stale recents remain openable only.
 func (m model) actionProject() (core.Project, bool) {
 	if recent, ok := m.list.SelectedItem().(recentItem); ok {
-		for _, p := range m.rawProjects {
+		for _, p := range m.navigation.projects {
 			if p.Path == recent.entry.Path {
 				return p, true
 			}
@@ -40,8 +40,8 @@ func (m model) actionProject() (core.Project, bool) {
 }
 
 func (m model) currentLocationLabel() string {
-	if m.focus == ui.Workspace && m.workspaceCursor > 0 && m.workspaceCursor < len(m.workspaceRows) {
-		return m.workspaceRows[m.workspaceCursor].node.Path()
+	if m.navigation.focus == ui.Workspace && m.navigation.cursor > 0 && m.navigation.cursor < len(m.navigation.rows) {
+		return m.navigation.rows[m.navigation.cursor].node.Path()
 	}
 	if p, ok := projectFromItem(m.list.SelectedItem()); ok {
 		return p.Path
@@ -58,8 +58,8 @@ func (m model) inspectorLines(width int) []string {
 		lines = append(lines, strings.Split(ansi.Hardwrap(value, max(width-2, 1), true), "\n")...)
 		lines = append(lines, "")
 	}
-	if m.focus == ui.Workspace && m.workspaceCursor > 0 && m.workspaceCursor < len(m.workspaceRows) {
-		n := m.workspaceRows[m.workspaceCursor].node
+	if m.navigation.focus == ui.Workspace && m.navigation.cursor > 0 && m.navigation.cursor < len(m.navigation.rows) {
+		n := m.navigation.rows[m.navigation.cursor].node
 		add("Workspace", ui.SafeText(n.Name)+" · "+string(n.Kind))
 		add("Location", ui.SafeText(n.Path()))
 		add("Projects", fmt.Sprint(n.ProjectCount))
@@ -100,9 +100,9 @@ func (m model) inspectorLines(width int) []string {
 	}
 	add("Git", ui.Foreground(theme.Git).Render(ui.SafeBlock(repo)))
 	session := "Not checked · visit tmux tab"
-	if m.cachedTmux != nil {
+	if m.tmux.cached != nil {
 		session = "No cached session"
-		if m.cachedTmux[tmux.SessionName(p)] {
+		if m.tmux.cached[tmux.SessionName(p)] {
 			session = "● " + p.Name + " · active (cached)"
 		}
 	}
@@ -133,7 +133,7 @@ func (m model) inspectorLines(width int) []string {
 func (m model) viewInspector(width, height int) string {
 	lines := m.inspectorLines(width)
 	rows := max(height-1, 1)
-	start := min(max(m.inspectorScroll, 0), max(len(lines)-rows, 0))
+	start := min(max(m.navigation.inspectorScroll, 0), max(len(lines)-rows, 0))
 	body := strings.Join(lines[start:min(start+rows, len(lines))], "\n")
-	return paneContent(ui.PaneTitle("Inspector", m.focus == ui.Inspector, width)+"\n"+body, width, height)
+	return paneContent(ui.PaneTitle("Inspector", m.navigation.focus == ui.Inspector, width)+"\n"+body, width, height)
 }

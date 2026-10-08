@@ -50,7 +50,7 @@ func TestStandaloneMoveCommandThroughPortableFilesystem(t *testing.T) {
 	if err := os.MkdirAll(destination.Path(), 0755); err != nil {
 		t.Fatal(err)
 	}
-	m.rawProjects = []core.Project{p}
+	m.navigation.projects = []core.Project{p}
 	m.moveTarget = p
 	m.uiState.ToggleFavorite(p.Path)
 	m.uiState.AddRecent(p)

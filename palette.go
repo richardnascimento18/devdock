@@ -212,10 +212,10 @@ func (m model) updatePalette(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "clone":
 				return m.startCloneFlow(m.list.SelectedItem().(githubItem).repo), nil
 			case "attach":
-				m.pendingTmuxAttach = m.list.SelectedItem().(tmuxSessionItem).name
+				m.launch.session = m.list.SelectedItem().(tmuxSessionItem).name
 				return m, tea.Quit
 			}
-			m.focus = ui.Projects
+			m.navigation.focus = ui.Projects
 			if a.key == "ctrl+g" {
 				return m.updateList(tea.KeyMsg{Type: tea.KeyCtrlG})
 			}

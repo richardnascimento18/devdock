@@ -29,7 +29,7 @@ func (m model) startCreateGroup() (tea.Model, tea.Cmd) {
 }
 
 func (m model) openDomainPickerForGroup() (tea.Model, tea.Cmd) {
-	domains := m.workspaceDomains[m.pendingRoot]
+	domains := m.navigation.domains[m.pendingRoot]
 	if len(domains) == 0 {
 		m.state = stateList
 		m.statusMsg = errorStyle.Render("no domains in this root — create a domain first (N)")
@@ -78,7 +78,7 @@ func (m model) updateCreateGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputScr.err = "name cannot be empty"
 				return m, nil
 			}
-			if err := m.workspaceTree.CreateGroups(m.groupFlow.parent, strings.Split(name, "/")); err != nil {
+			if err := m.navigation.tree.CreateGroups(m.groupFlow.parent, strings.Split(name, "/")); err != nil {
 				m.inputScr.err = err.Error()
 				return m, nil
 			}
@@ -118,11 +118,11 @@ func (m model) startDeleteGroup() (tea.Model, tea.Cmd) {
 }
 
 func (m model) openGroupPickerForDelete() (tea.Model, tea.Cmd) {
-	domains := m.workspaceDomains[m.pendingRoot]
+	domains := m.navigation.domains[m.pendingRoot]
 	var groups []string
 	m.groupFlow.deleteLocations = nil
 	for _, d := range domains {
-		for _, loc := range m.workspaceTree.Locations(m.pendingRoot, d) {
+		for _, loc := range m.navigation.tree.Locations(m.pendingRoot, d) {
 			if len(loc.GroupPath) > 0 {
 				groups = append(groups, loc.Breadcrumb())
 				m.groupFlow.deleteLocations = append(m.groupFlow.deleteLocations, loc)

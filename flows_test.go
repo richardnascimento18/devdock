@@ -28,8 +28,8 @@ func fixtureModel(t *testing.T, roots ...string) model {
 		t.Fatal(snapshot.Err)
 	}
 	m := newModel(snapshot.Projects, config.Config{Roots: roots}, preset.DefaultPresets, tmpl.DefaultTemplates, ui)
-	m.workspaceDomains = snapshot.Domains
-	m.workspaceTree = snapshot.Tree
+	m.navigation.domains = snapshot.Domains
+	m.navigation.tree = snapshot.Tree
 	return m.rebuildList(false)
 }
 func TestMultiRootGroupDeleteRequiresFullPath(t *testing.T) {
@@ -97,7 +97,7 @@ func TestGroupCreateResetsPreviousDomainAndSentinelNamesAreNames(t *testing.T) {
 		m = next.(model)
 		next, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 		m = next.(model)
-		if m.state != statePickDomain || m.pendingProjectName != name {
+		if m.state != statePickDomain || m.creation.name != name {
 			t.Fatalf("name %s treated as sentinel", name)
 		}
 	}
@@ -153,7 +153,7 @@ func TestPickerCollisionsIndependentOfPresentation(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := fixtureModel(t, root)
-	m.rawProjects = []core.Project{p}
+	m.navigation.projects = []core.Project{p}
 	m.allItems = nil
 	m.treeMode = false
 	next, _ := m.openDomainPicker(root, "demo")
@@ -178,7 +178,7 @@ func TestFavoritesAndRecentsRespectRootWithoutPruning(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := fixtureModel(t, a, b)
-	m.rawProjects = []core.Project{p, q}
+	m.navigation.projects = []core.Project{p, q}
 	m.uiState.ToggleFavorite(p.Path)
 	m.uiState.ToggleFavorite(q.Path)
 	m.uiState.AddRecent(p)
@@ -204,10 +204,10 @@ func TestResizeAndStaleScanResults(t *testing.T) {
 	if m.editorScr.termW != 70 || m.editorScr.termH != 20 {
 		t.Fatal("resize swallowed")
 	}
-	m.scanID = 2
-	before := len(m.rawProjects)
+	m.scan.id = 2
+	before := len(m.navigation.projects)
 	next, _ = m.Update(scanResultMsg{id: 1, snapshot: app.Snapshot{Projects: []core.Project{{Name: "stale"}}}})
-	if len(next.(model).rawProjects) != before {
+	if len(next.(model).navigation.projects) != before {
 		t.Fatal("stale scan applied")
 	}
 }
@@ -231,7 +231,7 @@ func TestDomainCreationRefreshesSnapshot(t *testing.T) {
 			}
 			next, _ = m.Update(operationMessage(cmd))
 			m = next.(model)
-			if len(m.workspaceDomains[root]) != 1 || m.workspaceDomains[root][0] != "new" {
+			if len(m.navigation.domains[root]) != 1 || m.navigation.domains[root][0] != "new" {
 				t.Fatal("new domain absent from picker snapshot")
 			}
 		})
@@ -287,7 +287,7 @@ func TestSnapshotKeepsStateForUnavailableRoots(t *testing.T) {
 	if snapshot.Err == nil {
 		t.Fatal("scan failure suppressed")
 	}
-	next, _ := m.handleScanResult(scanResultMsg{id: m.scanID, snapshot: snapshot})
+	next, _ := m.handleScanResult(scanResultMsg{id: m.scan.id, snapshot: snapshot})
 	m = next.(model)
 	if !m.uiState.Favorites[filepath.Join(missing, "apps", "demo")] || len(m.uiState.Recents) != 1 {
 		t.Fatal("unavailable root state pruned")
@@ -318,7 +318,7 @@ func TestTemplateFailureNeverQueuesSuccessfulLaunch(t *testing.T) {
 	m.ptyScr = newPTYScreen(100, 40, nil, root, tmpl.Vars{ProjectPath: root}, nil, root, gh.Repo{})
 	next, cmd := m.Update(pty.ExitMsg{Err: errors.New("exit status 7")})
 	m = next.(model)
-	if m.pendingLaunchReady || m.state != stateList || cmd != nil || !strings.Contains(m.statusMsg, "failed") {
+	if m.launch.ready || m.state != stateList || cmd != nil || !strings.Contains(m.statusMsg, "failed") {
 		t.Fatal("template failure shown as success")
 	}
 }

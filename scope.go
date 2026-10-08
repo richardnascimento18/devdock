@@ -9,38 +9,38 @@ import (
 )
 
 func (m model) switchScope(loc *core.Location) model {
-	m.workspaceScope = loc
+	m.navigation.scope = loc
 	m.rootSel.cursor = 0
 	if loc != nil {
 		copy := *loc
 		copy.GroupPath = append([]string(nil), loc.GroupPath...)
-		m.workspaceScope = &copy
+		m.navigation.scope = &copy
 		for i, root := range m.rootSel.roots {
 			if root == loc.Root {
 				m.rootSel.cursor = i + 1
 				break
 			}
 		}
-		m.workspaceSelection = loc.Key()
+		m.navigation.selection = loc.Key()
 	} else {
-		m.workspaceSelection = ""
+		m.navigation.selection = ""
 	}
-	m.focus = ui.Projects
-	m.inspectorScroll = 0
+	m.navigation.focus = ui.Projects
+	m.navigation.inspectorScroll = 0
 	// Preserve the search query. The Update boundary clears multi-selection
 	// when scope changes, preventing actions against an old scope.
 	return m.rebuildList(m.cfg.IsGitHubConnected())
 }
 func (m model) navigateScope(key string) model {
-	if key == "backspace" && m.workspaceScope == nil && m.activeRoot() == "" {
+	if key == "backspace" && m.navigation.scope == nil && m.activeRoot() == "" {
 		return m
 	}
 	if key == "ctrl+a" {
 		return m.switchScope(nil)
 	}
 	root := m.activeRoot()
-	if m.workspaceScope != nil {
-		root = m.workspaceScope.Root
+	if m.navigation.scope != nil {
+		root = m.navigation.scope.Root
 	}
 	if root == "" {
 		if p, ok := projectFromItem(m.list.SelectedItem()); ok {
@@ -51,8 +51,8 @@ func (m model) navigateScope(key string) model {
 		return m.switchScope(nil)
 	}
 	loc := core.Location{Root: root}
-	if key == "backspace" && m.workspaceScope != nil {
-		loc = *m.workspaceScope
+	if key == "backspace" && m.navigation.scope != nil {
+		loc = *m.navigation.scope
 		if len(loc.GroupPath) > 0 {
 			loc.GroupPath = loc.GroupPath[:len(loc.GroupPath)-1]
 		} else if loc.Domain != "" {
@@ -68,7 +68,7 @@ func (m model) scopeActions() []actionBinding {
 	var visit func(*core.Node)
 	visit = func(n *core.Node) {
 		rootLabel := config.RootName(n.Root)
-		for _, other := range m.workspaceTree.Roots {
+		for _, other := range m.navigation.tree.Roots {
 			if other.Root != n.Root && config.RootName(other.Root) == rootLabel {
 				rootLabel = n.Root
 				break
@@ -85,7 +85,7 @@ func (m model) scopeActions() []actionBinding {
 			visit(child)
 		}
 	}
-	for _, root := range m.workspaceTree.Roots {
+	for _, root := range m.navigation.tree.Roots {
 		visit(root)
 	}
 	return actions

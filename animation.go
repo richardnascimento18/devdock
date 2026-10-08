@@ -30,17 +30,17 @@ func (m model) activityLabel() string {
 		return m.spinnerScr.message
 	case m.state == statePTYExecution && !m.ptyScr.completed:
 		return "Running template steps…"
-	case m.state == stateGitHubAuth && m.githubAuthScr.verificationURI == "" && m.githubAuthScr.err == "":
+	case m.state == stateGitHubAuth && m.auth.screen.verificationURI == "" && m.auth.screen.err == "":
 		return "Connecting to GitHub…"
-	case m.state == stateGitHubAuth && m.githubAuthScr.done && m.repoLoading:
+	case m.state == stateGitHubAuth && m.auth.screen.done && m.repositories.loading:
 		return "Loading GitHub repositories…"
 	case m.state != stateList:
 		return ""
-	case m.scanInFlight:
+	case m.scan.inFlight:
 		return "Scanning workspace…"
-	case m.repoLoading:
+	case m.repositories.loading:
 		return "Loading GitHub repositories…"
-	case m.tmuxRefreshing || m.tmuxDeleting:
+	case m.tmux.refreshing || m.tmux.deleting:
 		return "Updating tmux sessions…"
 	}
 	return ""

@@ -57,7 +57,7 @@ func (m model) updateDeleteDomain(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				foundRoot := ""
 				for _, root := range roots {
-					domains := m.workspaceDomains[root]
+					domains := m.navigation.domains[root]
 					for _, d := range domains {
 						if d == typed {
 							foundRoot = root

@@ -33,7 +33,7 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 				next.modalScroll = 0
 			}
 			if rowIdentity(next.list.SelectedItem()) != rowIdentity(m.list.SelectedItem()) {
-				next.inspectorScroll = 0
+				next.navigation.inspectorScroll = 0
 			}
 			if next.scopeIdentity() != m.scopeIdentity() || next.activeTab != m.activeTab {
 				next.selected = nil
@@ -49,10 +49,10 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 			if cmd != nil {
 				commands = append(commands, cmd)
 			}
-			if next.scanRequested {
+			if next.scan.requested {
 				commands = append(commands, next.scanCommand())
 			}
-			if next.tmuxRefreshRequested {
+			if next.tmux.requested {
 				commands = append(commands, next.tmuxRefreshCommand())
 			}
 			if tick := next.scheduleAnimation(); tick != nil {
@@ -219,10 +219,10 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 // ---------------------------------------------------------------------------
 
 func (m model) handleGitHubReposLoaded(msg ReposLoadedMsg) (tea.Model, tea.Cmd) {
-	if msg.ID != m.repoLoadID || !m.cfg.IsGitHubConnected() {
+	if msg.ID != m.repositories.id || !m.cfg.IsGitHubConnected() {
 		return m, nil
 	}
-	m.repoLoading = false
+	m.repositories.loading = false
 	if msg.Err != nil {
 		m.statusMsg = errorStyle.Render(ui.SafeBlock("✗  GitHub: " + msg.Err.Error()))
 		return m, nil
@@ -237,22 +237,22 @@ func (m model) handleGitHubReposLoaded(msg ReposLoadedMsg) (tea.Model, tea.Cmd) 
 }
 
 func (m model) handleGitHubAuthDone(msg AuthDoneMsg) (tea.Model, tea.Cmd) {
-	if m.state != stateGitHubAuth || msg.ID != m.authID {
+	if m.state != stateGitHubAuth || msg.ID != m.auth.id {
 		return m, nil
 	}
 	if msg.Err != nil {
-		m.githubAuthScr.err = msg.Err.Error()
+		m.auth.screen.err = msg.Err.Error()
 		return m, nil
 	}
 	proposed := m.cfg.Clone()
 	proposed.GitHubToken = msg.Token
 	proposed.GitHubUsername = msg.Username
 	if err := m.preferences.Config.Save(proposed); err != nil {
-		m.githubAuthScr.err = "save credentials: " + err.Error()
+		m.auth.screen.err = "save credentials: " + err.Error()
 		return m, nil
 	}
 	m.cfg = proposed
-	m.githubAuthScr.done = true
+	m.auth.screen.done = true
 	m.cancelAuth()
 	return m, m.fetchRepos()
 }
@@ -267,24 +267,24 @@ func (m model) handleGitHubRepoCreated(msg RepoCreatedMsg) (tea.Model, tea.Cmd) 
 		return m, nil
 	}
 
-	m.pendingGHRepo = msg.Repo
+	m.creation.repo = msg.Repo
 
-	if m.pendingTemplate != nil {
+	if m.creation.template != nil {
 		vars := tmpl.Vars{
-			ProjectName: m.pendingProjectName,
+			ProjectName: m.creation.name,
 			Domain:      m.pendingDomain,
 			Root:        m.pendingRoot,
 		}
-		projectPath, workDir, err := core.PrepareProject(m.currentLocation(), vars.ProjectName, m.pendingTemplate.CreatesProjectFolder)
+		projectPath, workDir, err := core.PrepareProject(m.currentLocation(), vars.ProjectName, m.creation.template.CreatesProjectFolder)
 		if err != nil {
 			m.statusMsg = errorStyle.Render(ui.SafeBlock("create project: " + err.Error()))
 			m.state = stateList
 			return m, nil
 		}
 		vars.ProjectPath = projectPath
-		m.ptyScr = newPTYScreenContext(m.context(), m.termW, m.termH, m.pendingTemplate, projectPath, vars,
-			m.pendingTemplate.Steps, workDir, msg.Repo)
-		m.pendingLaunchPreset = m.pendingPreset
+		m.ptyScr = newPTYScreenContext(m.context(), m.termW, m.termH, m.creation.template, projectPath, vars,
+			m.creation.template.Steps, workDir, msg.Repo)
+		m.launch.preset = m.creation.preset
 		m.ptyScr.scaffold.Git = m.workspaces.Git
 		m.operationID++
 		m.ptyScr.operationID = m.operationID
@@ -292,7 +292,7 @@ func (m model) handleGitHubRepoCreated(msg RepoCreatedMsg) (tea.Model, tea.Cmd) 
 		return m, m.ptyScr.startNextStep()
 	}
 
-	p, err := core.CreateProject(m.currentLocation(), m.pendingProjectName)
+	p, err := core.CreateProject(m.currentLocation(), m.creation.name)
 	if err != nil {
 		m.statusMsg = errorStyle.Render(ui.SafeBlock("✗  project create error: " + err.Error()))
 		m.state = stateList
@@ -322,9 +322,9 @@ func (m model) handleGitCloneDone(msg CloneDoneMsg) (tea.Model, tea.Cmd) {
 	m.state = stateList
 	m.uiState.AddRecent(msg.Project)
 	m.saveState()
-	m.pendingLaunch = msg.Project
-	m.pendingLaunchReady = true
-	m.pendingLaunchPreset = preset.ByName(m.presets, m.presetSel.SelectedName())
+	m.launch.project = msg.Project
+	m.launch.ready = true
+	m.launch.preset = preset.ByName(m.presets, m.presetSel.SelectedName())
 	return m, tea.Quit
 }
 
@@ -360,7 +360,7 @@ func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd
 // ---------------------------------------------------------------------------
 
 func (m model) openMoveDestDomainPicker() model {
-	domains := m.workspaceDomains[m.pendingRoot]
+	domains := m.navigation.domains[m.pendingRoot]
 	opts := append(append([]string{}, domains...), createNewDomainOption)
 	m.genericPicker = newGenericPicker(
 		fmt.Sprintf("Move \"%s\" — destination domain:", m.moveTarget.Name),
@@ -378,10 +378,10 @@ func (m model) openMovePlacementPicker(destRoot, destDomain string) model {
 }
 
 func (m model) openDomainPickerForClone() model {
-	domains := m.workspaceDomains[m.pendingRoot]
+	domains := m.navigation.domains[m.pendingRoot]
 	opts := append(append([]string{}, domains...), createNewDomainOption)
 	m.genericPicker = newGenericPicker(
-		fmt.Sprintf("Clone \"%s\" — select domain:", m.pendingGHRepo.Name),
+		fmt.Sprintf("Clone \"%s\" — select domain:", m.creation.repo.Name),
 		opts, "↑/↓  •  enter  •  esc",
 	)
 	m.state = statePickDomainForClone
@@ -389,10 +389,10 @@ func (m model) openDomainPickerForClone() model {
 }
 
 func (m model) openDomainPicker(root, projectName string) (model, tea.Cmd) {
-	domains := m.workspaceDomains[root]
+	domains := m.navigation.domains[root]
 	// Collisions belong to the selected location, not the entire domain.
 	existing := map[string]bool{}
-	m.pendingProjectName = projectName
+	m.creation.name = projectName
 	m.pendingRoot = root
 	m.domainPicker = newDomainPickerScreen(projectName, domains, existing)
 	m.state = statePickDomain
@@ -400,7 +400,7 @@ func (m model) openDomainPicker(root, projectName string) (model, tea.Cmd) {
 }
 
 func (m model) openRootPickerForProject(projectName string) model {
-	m.pendingProjectName = projectName
+	m.creation.name = projectName
 	m.genericPicker = newRootPicker(fmt.Sprintf("Select root for %q:", projectName), m.cfg.ActiveRoots(), "↑/↓ • enter • esc")
 	m.state = statePickRoot
 	return m
@@ -480,7 +480,7 @@ func isSafePathName(name string) bool { return core.ValidName(name) }
 // ---------------------------------------------------------------------------
 
 func (m model) updateDeleteTmuxSession(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m.tmuxDeleting {
+	if m.tmux.deleting {
 		return m, nil
 	}
 	if k, ok := msg.(tea.KeyMsg); ok {
@@ -496,7 +496,7 @@ func (m model) updateDeleteTmuxSession(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			name := m.confirmDelTmux.sessionName
-			m.tmuxDeleting = true
+			m.tmux.deleting = true
 			return m, func() tea.Msg { return tmuxKilledMsg{name: name, err: m.tmuxClient.KillSession(name)} }
 		}
 	}
@@ -525,8 +525,8 @@ func (m model) handleGitLinked(msg gitLinkedMsg) (tea.Model, tea.Cmd) {
 	}
 	m.uiState.AddRecent(msg.project)
 	m.saveState()
-	m.pendingLaunch = msg.project
-	m.pendingLaunchReady = true
-	m.pendingLaunchPreset = m.pendingPreset
+	m.launch.project = msg.project
+	m.launch.ready = true
+	m.launch.preset = m.creation.preset
 	return m, tea.Quit
 }

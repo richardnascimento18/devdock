@@ -27,7 +27,7 @@ func (m model) currentLocation() core.Location {
 func (m model) openPlacement(root, domain string, intent placementIntent) model {
 	m.pendingRoot, m.pendingDomain = root, domain
 	m.placementIntent = intent
-	locations := m.workspaceTree.Locations(root, domain)
+	locations := m.navigation.tree.Locations(root, domain)
 	if len(locations) == 0 {
 		locations = []core.Location{{Root: root, Domain: domain}}
 	}
@@ -75,7 +75,7 @@ func (m model) updatePlacement(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.pendingLocation = loc
 	switch m.placementIntent {
 	case placeProject:
-		path, err := loc.ProjectPath(m.pendingProjectName)
+		path, err := loc.ProjectPath(m.creation.name)
 		if err == nil {
 			err = core.CheckDestination(loc.Root, path)
 		}

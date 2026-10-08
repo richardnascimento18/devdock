@@ -69,5 +69,5 @@ const asciiTitle = `██████╗ ███████╗██╗   �
 ╚═════╝ ╚══════╝  ╚═══╝  ╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝`
 
 func (m model) showBrandMark() bool {
-	return m.termW >= 110 && m.termH >= 36 && (m.scanInFlight && len(m.rawProjects) == 0 || len(m.list.Items()) == 0 && m.lastFilter == "")
+	return m.termW >= 110 && m.termH >= 36 && (m.scan.inFlight && len(m.navigation.projects) == 0 || len(m.list.Items()) == 0 && m.query.value == "")
 }

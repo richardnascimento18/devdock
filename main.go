@@ -82,7 +82,7 @@ func run(ctx context.Context) error {
 	m := newModelWithPreferences(nil, cfg, presets, templates, uiSt, preferences)
 	m.appContext = ctx
 	m.tmuxClient = tmux.NewClientContext(ctx, "")
-	m.startupCmd = m.scanCommand()
+	m.scan.startup = m.scanCommand()
 	m.motion.pending = !m.motion.reduced
 	m.motion.generation++
 	prog := tea.NewProgram(m, tea.WithAltScreen(), tea.WithContext(ctx))
@@ -113,13 +113,13 @@ func run(ctx context.Context) error {
 
 	// Launch the workspace AFTER the TUI exits so the alt-screen is torn down
 	// and tmux can attach cleanly.
-	if fm.pendingLaunchReady {
-		if err := fm.tmuxClient.LaunchWorkspace(fm.pendingLaunch, fm.pendingLaunchPreset); err != nil {
+	if fm.launch.ready {
+		if err := fm.tmuxClient.LaunchWorkspace(fm.launch.project, fm.launch.preset); err != nil {
 			return err
 		}
 	}
-	if fm.pendingTmuxAttach != "" {
-		if err := fm.tmuxClient.AttachSession(fm.pendingTmuxAttach); err != nil {
+	if fm.launch.session != "" {
+		if err := fm.tmuxClient.AttachSession(fm.launch.session); err != nil {
 			return err
 		}
 	}

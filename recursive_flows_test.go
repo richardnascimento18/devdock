@@ -40,7 +40,7 @@ func TestArbitraryDepthDestinationPickerAndCreation(t *testing.T) {
 	if len(m.movePlacementOpts) != 36 {
 		t.Fatalf("picker locations %d", len(m.movePlacementOpts))
 	}
-	m.pendingProjectName = "api"
+	m.creation.name = "api"
 	m.genericPicker.cursor = 35
 	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = next.(model)
@@ -49,15 +49,15 @@ func TestArbitraryDepthDestinationPickerAndCreation(t *testing.T) {
 	}
 	next, _ = m.finishCreateProject(root, "apps", m.presets[0])
 	m = next.(model)
-	if m.pendingLaunch.Path != filepath.Join(loc.Path(), "api") || !m.pendingLaunchReady {
-		t.Fatalf("create %+v", m.pendingLaunch)
+	if m.launch.project.Path != filepath.Join(loc.Path(), "api") || !m.launch.ready {
+		t.Fatalf("create %+v", m.launch.project)
 	}
-	if _, err := os.Stat(m.pendingLaunch.Path); err != nil {
+	if _, err := os.Stat(m.launch.project.Path); err != nil {
 		t.Fatal(err)
 	}
 	// Nested clone uses the same selected location; don't execute network work.
 	m = fixtureModel(t, root)
-	m.pendingGHRepo = gh.Repo{Name: "repo", CloneURL: "unused"}
+	m.creation.repo = gh.Repo{Name: "repo", CloneURL: "unused"}
 	m = m.openPlacement(root, "apps", placeClone)
 	m.genericPicker.cursor = 35
 	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -124,7 +124,7 @@ func TestTreeStateRenderingAndNoFilesystemReads(t *testing.T) {
 	})
 	m = m.rebuildList(false)
 	m = m.openMovePlacementPicker(root, "apps")
-	if len(m.movePlacementOpts) != 36 || m.scanRequested {
+	if len(m.movePlacementOpts) != 36 || m.scan.requested {
 		t.Fatal("picker triggered scan")
 	}
 	m.state = stateList
@@ -133,7 +133,7 @@ func TestTreeStateRenderingAndNoFilesystemReads(t *testing.T) {
 	// list and selected project; the complete loaded hierarchy is still available.
 	deepest := loc.Key()
 	foundNode := false
-	for _, row := range m.workspaceRows {
+	for _, row := range m.navigation.rows {
 		if row.node != nil && row.node.Key() == deepest {
 			foundNode = true
 		}

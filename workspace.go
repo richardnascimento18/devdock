@@ -17,12 +17,12 @@ type scanResultMsg struct {
 	snapshot app.Snapshot
 }
 
-func (m model) rescan() model { m.scanRequested = true; return m }
+func (m model) rescan() model { m.scan.requested = true; return m }
 func (m *model) scanCommand() tea.Cmd {
-	m.scanRequested = false
-	m.scanInFlight = true
-	m.scanID++
-	id := m.scanID
+	m.scan.requested = false
+	m.scan.inFlight = true
+	m.scan.id++
+	id := m.scan.id
 	roots := append([]string(nil), m.cfg.ActiveRoots()...)
 	repos := append([]gh.Repo(nil), m.githubRepos...)
 	return func() tea.Msg {
@@ -30,14 +30,14 @@ func (m *model) scanCommand() tea.Cmd {
 	}
 }
 func (m model) handleScanResult(msg scanResultMsg) (tea.Model, tea.Cmd) {
-	if msg.id != m.scanID {
+	if msg.id != m.scan.id {
 		return m, nil
 	}
-	m.scanInFlight = false
-	m.startupCmd = nil
-	m.rawProjects = msg.snapshot.Projects
-	m.workspaceTree = msg.snapshot.Tree
-	m.workspaceDomains = msg.snapshot.Domains
+	m.scan.inFlight = false
+	m.scan.startup = nil
+	m.navigation.projects = msg.snapshot.Projects
+	m.navigation.tree = msg.snapshot.Tree
+	m.navigation.domains = msg.snapshot.Domains
 	availableRoots := make([]string, 0, len(msg.snapshot.Domains))
 	for root := range msg.snapshot.Domains {
 		availableRoots = append(availableRoots, root)
@@ -50,13 +50,13 @@ func (m model) handleScanResult(msg scanResultMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	m.isFiltered = false
-	m.scanWarnings = ""
-	m.scanWarningCount = 0
+	m.scan.warnings = ""
+	m.scan.warningCount = 0
 	if msg.snapshot.Err != nil {
-		m.scanWarnings = msg.snapshot.Err.Error()
-		m.scanWarningCount = warningCount(msg.snapshot.Err)
-		m.statusMsg = warningStyle.Render(ui.SafeBlock(fmt.Sprintf("⚠ Workspace scan completed with %d warnings · ! details", m.scanWarningCount)))
-	} else if m.scanWarnings == "" && m.scanWarningCount == 0 && strings.Contains(ansi.Strip(m.statusMsg), "Workspace scan completed with") {
+		m.scan.warnings = msg.snapshot.Err.Error()
+		m.scan.warningCount = warningCount(msg.snapshot.Err)
+		m.statusMsg = warningStyle.Render(ui.SafeBlock(fmt.Sprintf("⚠ Workspace scan completed with %d warnings · ! details", m.scan.warningCount)))
+	} else if m.scan.warnings == "" && m.scan.warningCount == 0 && strings.Contains(ansi.Strip(m.statusMsg), "Workspace scan completed with") {
 		m.statusMsg = ""
 	}
 	m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)

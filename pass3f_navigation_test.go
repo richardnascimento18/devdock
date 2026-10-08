@@ -22,65 +22,65 @@ func TestDirectFocusAndTabCycle(t *testing.T) {
 		pane ui.Pane
 	}{{"1", ui.Workspace}, {"3", ui.Inspector}, {"2", ui.Projects}, {"1", ui.Workspace}} {
 		m = dashboardKey(t, m, altKey(test.key))
-		if m.focus != test.pane {
-			t.Fatalf("alt+%s: %v", test.key, m.focus)
+		if m.navigation.focus != test.pane {
+			t.Fatalf("alt+%s: %v", test.key, m.navigation.focus)
 		}
 	}
 	for _, pane := range []ui.Pane{ui.Projects, ui.Inspector, ui.Workspace} {
 		m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyTab})
-		if m.focus != pane {
-			t.Fatalf("tab: %v", m.focus)
+		if m.navigation.focus != pane {
+			t.Fatalf("tab: %v", m.navigation.focus)
 		}
 	}
 	m = dashboardKey(t, m, keyRune("/query"))
 	m = dashboardKey(t, m, altKey("1"))
-	if m.searching || m.focus != ui.Workspace || strings.Contains(m.searchInput.Value(), "1") {
+	if m.query.editing || m.navigation.focus != ui.Workspace || strings.Contains(m.query.input.Value(), "1") {
 		t.Fatal("pane shortcut leaked into search")
 	}
 }
 func TestScopeShortcutsSearchAndSelection(t *testing.T) {
 	m := renderFixture()
-	loc := m.rawProjects[0].Location
+	loc := m.navigation.projects[0].Location
 	m = m.switchScope(&loc)
-	m.selected = map[string]bool{m.rawProjects[0].Path: true}
-	m.lastFilter = "billing"
+	m.selected = map[string]bool{m.navigation.projects[0].Path: true}
+	m.query.value = "billing"
 	m.isFiltered = true
 	m = m.applySearch()
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyBackspace})
-	if m.workspaceScope == nil || m.workspaceScope.Domain != "backend" || len(m.workspaceScope.GroupPath) != 0 || m.focus != ui.Projects {
+	if m.navigation.scope == nil || m.navigation.scope.Domain != "backend" || len(m.navigation.scope.GroupPath) != 0 || m.navigation.focus != ui.Projects {
 		t.Fatal("parent group")
 	}
-	if m.lastFilter != "billing" || len(m.selected) != 0 {
+	if m.query.value != "billing" || len(m.selected) != 0 {
 		t.Fatal("scope lost query or retained old selections")
 	}
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlU})
-	if m.workspaceScope == nil || m.workspaceScope.Domain != "" || m.activeRoot() != loc.Root {
+	if m.navigation.scope == nil || m.navigation.scope.Domain != "" || m.activeRoot() != loc.Root {
 		t.Fatal("root shortcut")
 	}
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlA})
-	if m.workspaceScope != nil || m.activeRoot() != "" || m.lastFilter != "billing" {
+	if m.navigation.scope != nil || m.activeRoot() != "" || m.query.value != "billing" {
 		t.Fatal("all shortcut")
 	}
 }
 func TestPaletteFuzzyScopeSelectionAndReturnFocus(t *testing.T) {
 	m := renderFixture()
-	m.focus = ui.Workspace
+	m.navigation.focus = ui.Workspace
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlP})
 	m = dashboardKey(t, m, keyRune("scope services"))
 	if len(m.palette.visible) == 0 {
 		t.Fatal("scope not discoverable")
 	}
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
-	if m.state != stateList || m.focus != ui.Projects || m.workspaceScope == nil || m.workspaceScope.Key() != m.rawProjects[0].Location.Key() || len(m.list.Items()) != 1 {
-		t.Fatalf("scope selection: %+v", m.workspaceScope)
+	if m.state != stateList || m.navigation.focus != ui.Projects || m.navigation.scope == nil || m.navigation.scope.Key() != m.navigation.projects[0].Location.Key() || len(m.list.Items()) != 1 {
+		t.Fatalf("scope selection: %+v", m.navigation.scope)
 	}
 }
 func TestConciseScanWarningsKeepFullDetails(t *testing.T) {
 	m := renderFixture()
 	problem := errors.Join(errors.New("inspect /mounted/one: invalid TOML"), errors.New("inspect /mounted/two: unavailable"))
-	next, _ := m.handleScanResult(scanResultMsg{id: m.scanID, snapshot: app.Snapshot{Tree: m.workspaceTree, Projects: m.rawProjects, Domains: m.workspaceDomains, Err: problem}})
+	next, _ := m.handleScanResult(scanResultMsg{id: m.scan.id, snapshot: app.Snapshot{Tree: m.navigation.tree, Projects: m.navigation.projects, Domains: m.navigation.domains, Err: problem}})
 	m = next.(model)
-	if m.scanWarningCount != 2 || !strings.Contains(ansi.Strip(m.statusMsg), "2 warnings") || strings.Contains(m.statusMsg, "/mounted/") {
+	if m.scan.warningCount != 2 || !strings.Contains(ansi.Strip(m.statusMsg), "2 warnings") || strings.Contains(m.statusMsg, "/mounted/") {
 		t.Fatal("verbose main warning")
 	}
 	m = dashboardKey(t, m, keyRune("!"))
@@ -90,17 +90,17 @@ func TestConciseScanWarningsKeepFullDetails(t *testing.T) {
 }
 func TestHumanTmuxIdentityKeepsExactBackend(t *testing.T) {
 	m := renderFixture()
-	p := m.rawProjects[2]
+	p := m.navigation.projects[2]
 	session := tmux.SessionName(p)
 	row := m.sessionItem(session)
 	if row.displayName() != p.Name || row.confirmation != p.Name || row.name != session {
 		t.Fatalf("identity %+v", row)
 	}
-	duplicate := m.sessionItem(tmux.SessionName(m.rawProjects[0]))
-	if duplicate.confirmation == duplicate.name || duplicate.confirmation == m.rawProjects[0].Name {
+	duplicate := m.sessionItem(tmux.SessionName(m.navigation.projects[0]))
+	if duplicate.confirmation == duplicate.name || duplicate.confirmation == m.navigation.projects[0].Name {
 		t.Fatal("duplicate confirmation ambiguous")
 	}
-	m.tmuxSessions = []string{session}
+	m.tmux.sessions = []string{session}
 	m.activeTab = TabTmux
 	m = m.refreshTabList()
 	next, _ := m.startDeleteTmuxSession()
@@ -116,17 +116,17 @@ func TestHumanTmuxIdentityKeepsExactBackend(t *testing.T) {
 	}
 	m.confirmDelTmux.input.SetValue(p.Name)
 	next, cmd = m.updateDeleteTmuxSession(tea.KeyMsg{Type: tea.KeyEnter})
-	if cmd == nil || !next.(model).tmuxDeleting || next.(model).confirmDelTmux.sessionName != session {
+	if cmd == nil || !next.(model).tmux.deleting || next.(model).confirmDelTmux.sessionName != session {
 		t.Fatal("kill lost exact backend target")
 	}
 }
 func TestProjectMetadataPrioritizedAtResponsiveWidths(t *testing.T) {
 	m := renderFixture()
-	p := m.rawProjects[0]
+	p := m.navigation.projects[0]
 	p.Languages = []string{"Express"}
 	p.LocalGit = true
-	m.rawProjects[0] = p
-	m.cachedTmux = map[string]bool{tmux.SessionName(p): true}
+	m.navigation.projects[0] = p
+	m.tmux.cached = map[string]bool{tmux.SessionName(p): true}
 	for _, width := range []int{120, 80, 40} {
 		m.termW = width
 		m = m.rebuildList(false)
@@ -142,7 +142,7 @@ func TestProjectMetadataPrioritizedAtResponsiveWidths(t *testing.T) {
 }
 func TestDelayedShimmerAndStaticConfirmations(t *testing.T) {
 	m := renderFixture()
-	m.scanInFlight = true
+	m.scan.inFlight = true
 	if m.scheduleAnimation() == nil || m.motion.frame != 0 {
 		t.Fatal("activity delay not scheduled")
 	}

@@ -28,7 +28,7 @@ func (m model) updateNewProjectName(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputScr.err = "name contains invalid characters (/ and \\ are not allowed)"
 				return m, nil
 			}
-			m.pendingProjectName = name
+			m.creation.name = name
 			roots := m.cfg.ActiveRoots()
 			if len(roots) == 1 {
 				return m.openDomainPicker(roots[0], name)
@@ -64,7 +64,7 @@ func (m model) updatePickRoot(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case rootForDeleteGroup:
 				return m.openGroupPickerForDelete()
 			}
-			return m.openDomainPicker(root, m.pendingProjectName)
+			return m.openDomainPicker(root, m.creation.name)
 		}
 	}
 	return m, nil
@@ -215,7 +215,7 @@ func (m model) updatePickPreset(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "enter":
-			m.pendingPreset = m.presetPicker.Selected()
+			m.creation.preset = m.presetPicker.Selected()
 			m.templatePicker = newTemplatePicker(m.templates)
 			m.state = statePickTemplate
 			return m, nil
@@ -242,13 +242,13 @@ func (m model) updatePickTemplate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "enter":
-			m.pendingTemplate = m.templatePicker.Selected()
+			m.creation.template = m.templatePicker.Selected()
 			if m.cfg.IsGitHubConnected() {
 				m.yesNoScr = newYesNoScreen("Create a GitHub repository for this project?")
 				m.state = stateAskCreateGitHub
 				return m, nil
 			}
-			return m.finishCreateProject(m.pendingRoot, m.pendingDomain, m.pendingPreset)
+			return m.finishCreateProject(m.pendingRoot, m.pendingDomain, m.creation.preset)
 		}
 	}
 	return m, nil
@@ -266,13 +266,13 @@ func (m model) updateAskCreateGitHub(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.yesNoScr.cursor = 1
 		case "enter":
 			if m.yesNoScr.IsYes() {
-				m.pendingCreateGH = true
+				m.creation.createGitHub = true
 				m.yesNoScr = newYesNoScreen("Make the repository private?")
 				m.state = stateAskRepoPrivacy
 				return m, nil
 			}
-			m.pendingCreateGH = false
-			return m.finishCreateProject(m.pendingRoot, m.pendingDomain, m.pendingPreset)
+			m.creation.createGitHub = false
+			return m.finishCreateProject(m.pendingRoot, m.pendingDomain, m.creation.preset)
 		}
 	}
 	return m, nil
@@ -289,8 +289,8 @@ func (m model) updateAskRepoPrivacy(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down", "j":
 			m.yesNoScr.cursor = 1
 		case "enter":
-			m.pendingGHPrivate = m.yesNoScr.IsYes()
-			return m.finishCreateProject(m.pendingRoot, m.pendingDomain, m.pendingPreset)
+			m.creation.private = m.yesNoScr.IsYes()
+			return m.finishCreateProject(m.pendingRoot, m.pendingDomain, m.creation.preset)
 		}
 	}
 	return m, nil
@@ -301,13 +301,13 @@ func (m model) updateAskRepoPrivacy(msg tea.Msg) (tea.Model, tea.Cmd) {
 // ---------------------------------------------------------------------------
 
 func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (tea.Model, tea.Cmd) {
-	if !core.ValidName(domainName) || !core.ValidName(m.pendingProjectName) {
+	if !core.ValidName(domainName) || !core.ValidName(m.creation.name) {
 		m.statusMsg = errorStyle.Render("invalid project or domain name")
 		m.state = stateList
 		return m, nil
 	}
 	location := m.currentLocation()
-	path, err := location.ProjectPath(m.pendingProjectName)
+	path, err := location.ProjectPath(m.creation.name)
 	if err == nil {
 		err = core.CheckDestination(location.Root, path)
 	}
@@ -317,36 +317,36 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 		return m, nil
 	}
 
-	if m.pendingCreateGH && m.cfg.IsGitHubConnected() {
-		m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Creating GitHub repo \"%s\"...", m.pendingProjectName))
+	if m.creation.createGitHub && m.cfg.IsGitHubConnected() {
+		m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Creating GitHub repo \"%s\"...", m.creation.name))
 		m.state = stateCreatingGitHub
-		return m, cmdCreateRepo(m.context(), m.cfg.GitHubToken, m.pendingProjectName, m.pendingGHPrivate)
+		return m, cmdCreateRepo(m.context(), m.cfg.GitHubToken, m.creation.name, m.creation.private)
 	}
 
-	if m.pendingTemplate != nil {
+	if m.creation.template != nil {
 		vars := tmpl.Vars{
-			ProjectName: m.pendingProjectName,
+			ProjectName: m.creation.name,
 			Domain:      domainName,
 			Root:        root,
 		}
-		projectPath, workDir, err := core.PrepareProject(location, vars.ProjectName, m.pendingTemplate.CreatesProjectFolder)
+		projectPath, workDir, err := core.PrepareProject(location, vars.ProjectName, m.creation.template.CreatesProjectFolder)
 		if err != nil {
 			m.statusMsg = errorStyle.Render(ui.SafeBlock("create project: " + err.Error()))
 			m.state = stateList
 			return m, nil
 		}
 		vars.ProjectPath = projectPath
-		m.ptyScr = newPTYScreenContext(m.context(), m.termW, m.termH, m.pendingTemplate, projectPath, vars,
-			m.pendingTemplate.Steps, workDir, m.pendingGHRepo)
+		m.ptyScr = newPTYScreenContext(m.context(), m.termW, m.termH, m.creation.template, projectPath, vars,
+			m.creation.template.Steps, workDir, m.creation.repo)
 		m.ptyScr.scaffold.Git = m.workspaces.Git
 		m.operationID++
 		m.ptyScr.operationID = m.operationID
 		m.state = statePTYExecution
-		m.pendingLaunchPreset = ps
+		m.launch.preset = ps
 		return m, m.ptyScr.startNextStep()
 	}
 
-	p, err := core.CreateProject(location, m.pendingProjectName)
+	p, err := core.CreateProject(location, m.creation.name)
 	if err != nil {
 		m.inputScr.err = fmt.Sprintf("error: %v", err)
 		return m, nil
@@ -358,9 +358,9 @@ func (m model) finishCreateProject(root, domainName string, ps preset.Preset) (t
 	m.state = stateList
 	m.uiState.AddRecent(p)
 	m.saveState()
-	m.pendingLaunch = p
-	m.pendingLaunchReady = true
-	m.pendingLaunchPreset = ps
+	m.launch.project = p
+	m.launch.ready = true
+	m.launch.preset = ps
 	return m, tea.Quit
 }
 
@@ -391,13 +391,13 @@ func (m model) updatePTYExecution(msg tea.Msg) (tea.Model, tea.Cmd) {
 		p := core.Project{Location: m.currentLocation(), Name: filepath.Base(projectPath),
 			Path: projectPath,
 		}
-		if m.pendingGHRepo.FullName != "" {
-			p.GitHubRepo = m.pendingGHRepo.FullName
+		if m.creation.repo.FullName != "" {
+			p.GitHubRepo = m.creation.repo.FullName
 		}
 		m.uiState.AddRecent(p)
 		m.saveState()
-		m.pendingLaunch = p
-		m.pendingLaunchReady = true
+		m.launch.project = p
+		m.launch.ready = true
 		m.statusMsg = successStyle.Render(ui.SafeBlock(fmt.Sprintf("✓  Project \"%s\" created successfully", p.Name)))
 		return m, tea.Quit
 	}

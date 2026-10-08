@@ -46,15 +46,15 @@ func TestMultiSelectionNavigationFilterScopeAndReconciliation(t *testing.T) {
 	}
 	m = renderFixture()
 	m = dashboardKey(t, m, keyRune(" "))
-	m.focus = ui.Workspace
-	m.workspaceCursor = 1
+	m.navigation.focus = ui.Workspace
+	m.navigation.cursor = 1
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
 	if len(m.selected) != 0 {
 		t.Fatal("scope retained selection")
 	}
 	m = renderFixture()
 	m = dashboardKey(t, m, keyRune(" "))
-	m.rawProjects = nil
+	m.navigation.projects = nil
 	m = m.rebuildList(false)
 	if len(m.selected) != 0 {
 		t.Fatal("stale selection")
@@ -63,7 +63,7 @@ func TestMultiSelectionNavigationFilterScopeAndReconciliation(t *testing.T) {
 func TestBulkFavoritesAndDestructiveGuard(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	m := renderFixture()
-	m.selected = map[string]bool{m.rawProjects[0].Path: true, m.rawProjects[1].Path: true}
+	m.selected = map[string]bool{m.navigation.projects[0].Path: true, m.navigation.projects[1].Path: true}
 	m = dashboardKey(t, m, keyRune("x"))
 	if m.state != stateList {
 		t.Fatal("delete accepted while selected")

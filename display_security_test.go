@@ -31,7 +31,7 @@ func TestHostileDisplayDoesNotChangeWorkspaceIdentity(t *testing.T) {
 		assertSafeDisplay(t, m.View())
 		assertSafeDisplay(t, strings.Join(m.inspectorLines(width), "\n"))
 	}
-	if m.rawProjects[0].Name != name || m.rawProjects[0].Path != path {
+	if m.navigation.projects[0].Name != name || m.navigation.projects[0].Path != path {
 		t.Fatal("display sanitization changed identity")
 	}
 	assertSafeDisplay(t, githubItem{repo: gh.Repo{Name: name}}.Title())

@@ -42,8 +42,8 @@ func renderFixture() model {
 	frontend := &core.Node{Location: projects[1].Location, Kind: core.NodeDomain, Name: "frontend", Projects: projects[1:2], ProjectCount: 1}
 	backend.Children = []*core.Node{services}
 	root.Children = []*core.Node{backend, frontend}
-	m.workspaceTree = core.Workspace{Roots: []*core.Node{root}, Projects: projects}
-	m.workspaceDomains = map[string][]string{"/workspace/work": {"backend", "frontend"}}
+	m.navigation.tree = core.Workspace{Roots: []*core.Node{root}, Projects: projects}
+	m.navigation.domains = map[string][]string{"/workspace/work": {"backend", "frontend"}}
 	return m.rebuildList(false)
 }
 
@@ -54,10 +54,10 @@ func fixtureScreens() map[string]model {
 	add("main-wide", func(m *model) {})
 	add("main-medium", func(m *model) { m.termW, m.termH = 80, 24 })
 	add("main-narrow", func(m *model) { m.termW, m.termH = 40, 15 })
-	add("empty", func(m *model) { m.rawProjects = nil; m.allItems = nil; m.list.SetItems(nil) })
+	add("empty", func(m *model) { m.navigation.projects = nil; m.allItems = nil; m.list.SetItems(nil) })
 	add("favorites", func(m *model) { m.activeTab = TabFavorites; *m = m.refreshTabList() })
 	add("recents", func(m *model) {
-		m.uiState.AddRecent(m.rawProjects[0])
+		m.uiState.AddRecent(m.navigation.projects[0])
 		m.uiState.Recents[0].OpenedAt = time.Date(2026, 1, 2, 15, 4, 0, 0, time.UTC)
 		m.activeTab = TabRecents
 		*m = m.refreshTabList()
@@ -77,7 +77,7 @@ func fixtureScreens() map[string]model {
 	add("loading", func(m *model) { m.state = stateCloningRepo; m.spinnerScr = newSpinnerScreen("Cloning repository…") })
 	add("oauth", func(m *model) {
 		m.state = stateGitHubAuth
-		m.githubAuthScr = githubAuthScreen{verificationURI: "https://github.com/login/device", userCode: "ABCD-EFGH"}
+		m.auth.screen = githubAuthScreen{verificationURI: "https://github.com/login/device", userCode: "ABCD-EFGH"}
 	})
 	add("help", func(m *model) { m.state = stateHelp })
 	add("picker", func(m *model) {
@@ -111,21 +111,21 @@ func fixtureScreens() map[string]model {
 			parent.Children = []*core.Node{child}
 			parent = child
 		}
-		m.workspaceTree = core.Workspace{Roots: []*core.Node{root}}
-		m.workspaceSelection = parent.Key()
-		m.focus = ui.Workspace
+		m.navigation.tree = core.Workspace{Roots: []*core.Node{root}}
+		m.navigation.selection = parent.Key()
+		m.navigation.focus = ui.Workspace
 		m.refreshWorkspaceRows()
 	})
 	add("palette", func(m *model) { next, _ := m.openPalette(); *m = next.(model) })
 	add("search-active", func(m *model) {
-		m.searching = true
-		m.searchInput.SetValue("billing")
-		m.searchInput.Focus()
-		m.lastFilter = "billing"
+		m.query.editing = true
+		m.query.input.SetValue("billing")
+		m.query.input.Focus()
+		m.query.value = "billing"
 		*m = m.applySearch()
 	})
-	add("inspector-narrow", func(m *model) { m.termW, m.termH = 40, 15; m.focus = ui.Inspector })
-	add("workspace-narrow", func(m *model) { m.termW, m.termH = 40, 15; m.focus = ui.Workspace })
+	add("inspector-narrow", func(m *model) { m.termW, m.termH = 40, 15; m.navigation.focus = ui.Inspector })
+	add("workspace-narrow", func(m *model) { m.termW, m.termH = 40, 15; m.navigation.focus = ui.Workspace })
 	add("settings-narrow", func(m *model) {
 		m.termW, m.termH = 40, 15
 		m.state = stateEditor
@@ -188,10 +188,12 @@ func fixtureScreens() map[string]model {
 		m.editorScr.deleting = true
 		m.editorScr.deleteName = "service"
 	})
-	add("multi-selection", func(m *model) { m.selected = map[string]bool{m.rawProjects[0].Path: true, m.rawProjects[1].Path: true} })
+	add("multi-selection", func(m *model) {
+		m.selected = map[string]bool{m.navigation.projects[0].Path: true, m.navigation.projects[1].Path: true}
+	})
 	add("bulk-move-confirmation", func(m *model) {
 		m.state = stateBulkConfirm
-		m.bulk = bulkWorkflow{projects: []core.Project{m.rawProjects[0], m.rawProjects[2]}, destination: core.Location{Root: "/workspace/work", Domain: "destination"}}
+		m.bulk = bulkWorkflow{projects: []core.Project{m.navigation.projects[0], m.navigation.projects[2]}, destination: core.Location{Root: "/workspace/work", Domain: "destination"}}
 		for _, p := range m.bulk.projects {
 			m.bulk.rows = append(m.bulk.rows, bulkMoveRow{plan: core.MovePlan{Source: p, Destination: m.bulk.destination, Path: m.bulk.destination.Path() + "/" + p.Name}})
 		}
@@ -206,11 +208,11 @@ func fixtureScreens() map[string]model {
 		m.spinnerScr = newSpinnerScreen("Cloning repository…")
 		m.motion.reduced = true
 	})
-	add("scan-loading", func(m *model) { m.scanInFlight = true; m.motion.frame = 10 })
-	add("oauth-connecting", func(m *model) { m.state = stateGitHubAuth; m.githubAuthScr = githubAuthScreen{} })
+	add("scan-loading", func(m *model) { m.scan.inFlight = true; m.motion.frame = 10 })
+	add("oauth-connecting", func(m *model) { m.state = stateGitHubAuth; m.auth.screen = githubAuthScreen{} })
 	add("oauth-error", func(m *model) {
 		m.state = stateGitHubAuth
-		m.githubAuthScr = githubAuthScreen{err: "Connection unavailable. Escape and retry with g."}
+		m.auth.screen = githubAuthScreen{err: "Connection unavailable. Escape and retry with g."}
 	})
 	add("pty-narrow", func(m *model) { m.termW, m.termH = 40, 15; staticPTYFixture(m) })
 	add("status-details", func(m *model) {
@@ -218,7 +220,10 @@ func fixtureScreens() map[string]model {
 		m.state = stateStatusDetails
 		m.statusDetails = "! Refresh failed: " + strings.Repeat("/日本語-👩‍💻-é", 20) + ". Check this root, then press r to retry."
 	})
-	add("selected-narrow", func(m *model) { m.termW, m.termH = 40, 15; m.selected = map[string]bool{m.rawProjects[0].Path: true} })
+	add("selected-narrow", func(m *model) {
+		m.termW, m.termH = 40, 15
+		m.selected = map[string]bool{m.navigation.projects[0].Path: true}
+	})
 	add("tiny", func(m *model) { m.termW, m.termH = 20, 6 })
 	pass3fFixtures(add)
 	return values
@@ -373,7 +378,7 @@ func TestFocusHelpResizeAndEscape(t *testing.T) {
 		next, _ := m.Update(k)
 		m = next.(model)
 	}
-	if m.focus != ui.Projects {
+	if m.navigation.focus != ui.Projects {
 		t.Fatal("focus cycle")
 	}
 	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
@@ -405,7 +410,7 @@ func TestFocusHelpResizeAndEscape(t *testing.T) {
 				t.Fatalf("width %v", sz)
 			}
 		}
-		if m.scanRequested {
+		if m.scan.requested {
 			t.Fatal("resize requested scan")
 		}
 	}
@@ -415,13 +420,13 @@ func BenchmarkFoundationRender(b *testing.B) {
 	for _, count := range []int{1000, 5000} {
 		b.Run(fmt.Sprint(count), func(b *testing.B) {
 			m := renderFixture()
-			seed := m.rawProjects[0]
-			m.rawProjects = nil
+			seed := m.navigation.projects[0]
+			m.navigation.projects = nil
 			for i := 0; i < count; i++ {
 				p := seed
 				p.Name = fmt.Sprintf("service-%d", i)
 				p.Path = seed.Path + strconv.Itoa(i)
-				m.rawProjects = append(m.rawProjects, p)
+				m.navigation.projects = append(m.navigation.projects, p)
 			}
 			m = m.rebuildList(false)
 			m.sizePresentation()
@@ -437,14 +442,14 @@ func BenchmarkFoundationRender(b *testing.B) {
 func pass3fFixtures(add func(string, func(*model))) {
 	for _, focus := range []ui.Pane{ui.Workspace, ui.Projects, ui.Inspector} {
 		pane := focus
-		add("focus-"+strings.ToLower(pane.String()), func(m *model) { m.focus = pane })
+		add("focus-"+strings.ToLower(pane.String()), func(m *model) { m.navigation.focus = pane })
 	}
 	add("metadata-tmux-github-local", func(m *model) {
-		m.rawProjects = append([]core.Project(nil), m.rawProjects...)
-		m.rawProjects[0].Languages = []string{"Express"}
-		m.rawProjects[0].LocalGit = true
-		m.rawProjects[1].LocalGit = true
-		m.cachedTmux = map[string]bool{tmux.SessionName(m.rawProjects[0]): true}
+		m.navigation.projects = append([]core.Project(nil), m.navigation.projects...)
+		m.navigation.projects[0].Languages = []string{"Express"}
+		m.navigation.projects[0].LocalGit = true
+		m.navigation.projects[1].LocalGit = true
+		m.tmux.cached = map[string]bool{tmux.SessionName(m.navigation.projects[0]): true}
 		*m = m.rebuildList(false)
 	})
 	add("scope-picker", func(m *model) {
@@ -454,8 +459,8 @@ func pass3fFixtures(add func(string, func(*model))) {
 		m.palette.filter()
 	})
 	add("scan-warning-concise", func(m *model) {
-		m.scanWarningCount = 2
-		m.scanWarnings = "inspect /workspace/work/one: invalid .devdock marker\ninspect /workspace/work/two: unknown .devdock type"
+		m.scan.warningCount = 2
+		m.scan.warnings = "inspect /workspace/work/one: invalid .devdock marker\ninspect /workspace/work/two: unknown .devdock type"
 		m.statusMsg = warningStyle.Render("⚠ Workspace scan completed with 2 warnings · ! details")
 	})
 	add("preset-picker", func(m *model) {
@@ -471,17 +476,17 @@ func pass3fFixtures(add func(string, func(*model))) {
 	})
 	add("tmux-human-confirmation", func(m *model) {
 		m.state = stateDeleteTmuxSession
-		m.confirmDelTmux = newConfirmDeleteTmuxScreen(tmux.SessionName(m.rawProjects[0]))
+		m.confirmDelTmux = newConfirmDeleteTmuxScreen(tmux.SessionName(m.navigation.projects[0]))
 		m.confirmDelTmux.targetName = "backend/services/billing-api"
 		m.confirmDelTmux.input.Placeholder = m.confirmDelTmux.targetName
 	})
 	add("tmux-human-list", func(m *model) {
-		m.tmuxSessions = []string{tmux.SessionName(m.rawProjects[0]), tmux.SessionName(m.rawProjects[2]), "legacy-session"}
+		m.tmux.sessions = []string{tmux.SessionName(m.navigation.projects[0]), tmux.SessionName(m.navigation.projects[2]), "legacy-session"}
 		m.activeTab = TabTmux
 		*m = m.refreshTabList()
 	})
-	add("shimmer-delayed", func(m *model) { m.scanInFlight = true; m.motion.frame = 0 })
-	add("shimmer-running", func(m *model) { m.scanInFlight = true; m.motion.frame = 24 })
+	add("shimmer-delayed", func(m *model) { m.scan.inFlight = true; m.motion.frame = 0 })
+	add("shimmer-running", func(m *model) { m.scan.inFlight = true; m.motion.frame = 24 })
 	for _, width := range []int{140, 80, 40} {
 		width := width
 		for _, kind := range []string{"preset", "template"} {

@@ -25,7 +25,7 @@ func (f *fakeAuth) PollForToken(context.Context, gh.DeviceCodeResponse) (string,
 func (f *fakeAuth) FetchUsername(context.Context, string) (string, error) { return "user", nil }
 func TestAuthStartsAsyncAndCancelledResultsAreIgnored(t *testing.T) {
 	f := &fakeAuth{}
-	m := model{authClient: f}
+	m := model{auth: authState{client: f}}
 	next, cmd := m.startGitHubAuth()
 	m = next.(model)
 	if f.started || cmd == nil {
@@ -53,19 +53,21 @@ func TestAuthStartsAsyncAndCancelledResultsAreIgnored(t *testing.T) {
 }
 func TestAuthPersistenceFailureKeepsActiveCredentials(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	m := model{state: stateGitHubAuth, authID: 1, preferences: app.NewPreferences(app.PathsAt(t.TempDir()))}
+	m := model{state: stateGitHubAuth, preferences: app.NewPreferences(app.PathsAt(t.TempDir())), auth:
 	// An invalid root makes proposed config validation fail deterministically.
+	authState{id: 1}}
+
 	m.cfg = config.Config{Roots: []string{"relative"}}
 	next, cmd := m.handleGitHubAuthDone(AuthDoneMsg{ID: 1, Token: "token", Username: "user"})
 	m = next.(model)
-	if m.cfg.GitHubToken != "" || m.githubAuthScr.err == "" || cmd != nil {
+	if m.cfg.GitHubToken != "" || m.auth.screen.err == "" || cmd != nil {
 		t.Fatal("failed credential save committed")
 	}
 }
 
 func TestAuthRetryIgnoresPreviousAttemptWhileNewScreenActive(t *testing.T) {
 	f := &fakeAuth{}
-	m := model{authClient: f}
+	m := model{auth: authState{client: f}}
 	first, cmd := m.startGitHubAuth()
 	m = first.(model)
 	old := cmd().(DeviceStartedMsg)

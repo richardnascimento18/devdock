@@ -32,7 +32,7 @@ func (m model) toggleSelection() model {
 }
 func (m model) selectedProjects() []core.Project {
 	var projects []core.Project
-	for _, p := range m.rawProjects {
+	for _, p := range m.navigation.projects {
 		if m.selected[p.Path] {
 			projects = append(projects, p)
 		}
@@ -42,7 +42,7 @@ func (m model) selectedProjects() []core.Project {
 }
 func (m *model) reconcileSelection() {
 	valid := make(map[string]bool, len(m.selected))
-	for _, p := range m.rawProjects {
+	for _, p := range m.navigation.projects {
 		if m.selected[p.Path] {
 			valid[p.Path] = true
 		}
@@ -74,8 +74,8 @@ func (m model) selectionStatus() string {
 	return s
 }
 func (m model) scopeIdentity() string {
-	if m.workspaceScope != nil {
-		return string(m.workspaceScope.Key())
+	if m.navigation.scope != nil {
+		return string(m.navigation.scope.Key())
 	}
 	return m.activeRoot()
 }

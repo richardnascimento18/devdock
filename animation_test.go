@@ -24,7 +24,7 @@ func TestSharedClockLifecycle(t *testing.T) {
 	if m.scheduleAnimation() != nil {
 		t.Fatal("idle schedules ticks")
 	}
-	m.scanInFlight = true
+	m.scan.inFlight = true
 	if m.scheduleAnimation() == nil || !m.motion.pending {
 		t.Fatal("activity has no tick")
 	}
@@ -42,9 +42,9 @@ func TestSharedClockLifecycle(t *testing.T) {
 	if m.motion.frame != 1 || !m.motion.pending || cmd == nil {
 		t.Fatal("accepted tick not rescheduled")
 	}
-	next, _ = m.Update(scanResultMsg{id: m.scanID, snapshot: app.Snapshot{Tree: m.workspaceTree, Projects: m.rawProjects, Domains: m.workspaceDomains}})
+	next, _ = m.Update(scanResultMsg{id: m.scan.id, snapshot: app.Snapshot{Tree: m.navigation.tree, Projects: m.navigation.projects, Domains: m.navigation.domains}})
 	m = next.(model)
-	if m.motion.pending || m.scanInFlight {
+	if m.motion.pending || m.scan.inFlight {
 		t.Fatal("completed scan keeps ticking")
 	}
 	next, cmd = m.Update(animationTickMsg{m.motion.generation - 1})
@@ -52,7 +52,7 @@ func TestSharedClockLifecycle(t *testing.T) {
 		t.Fatal("late completion tick mutated idle UI")
 	}
 	m.state = stateHelp
-	m.scanInFlight = true
+	m.scan.inFlight = true
 	if m.scheduleAnimation() != nil {
 		t.Fatal("hidden work animates help")
 	}
@@ -81,20 +81,20 @@ func TestReducedMotionAndAsyncStartup(t *testing.T) {
 	m := renderFixture()
 	m.cfg = config.Config{Roots: []string{root}}
 	m.motion = animationClock{reduced: true}
-	m.rawProjects = nil
-	m.startupCmd = m.scanCommand()
-	if !m.scanInFlight || m.scheduleAnimation() != nil {
+	m.navigation.projects = nil
+	m.scan.startup = m.scanCommand()
+	if !m.scan.inFlight || m.scheduleAnimation() != nil {
 		t.Fatal("startup/motion flags")
 	}
 	// A static UI still executes the service command, without waiting on a tick.
 	message := operationMessage(m.Init()).(scanResultMsg)
 	stale, _ := m.Update(scanResultMsg{id: message.id - 1})
-	if !stale.(model).scanInFlight {
+	if !stale.(model).scan.inFlight {
 		t.Fatal("stale scan cleared live activity")
 	}
 	next, cmd := m.Update(message)
 	m = next.(model)
-	if len(m.rawProjects) != 1 || m.rawProjects[0].Path != project || m.scanInFlight || m.motion.pending || cmd != nil {
+	if len(m.navigation.projects) != 1 || m.navigation.projects[0].Path != project || m.scan.inFlight || m.motion.pending || cmd != nil {
 		t.Fatal("asynchronous scan did not complete independently")
 	}
 }
@@ -120,22 +120,22 @@ func TestAllScreensResizeUnicodeAndTransparency(t *testing.T) {
 						t.Fatalf("width at %v", size)
 					}
 				}
-				if m.scanRequested {
+				if m.scan.requested {
 					t.Fatal("resize requested scan")
 				}
 			}
 		})
 	}
 	deep := fixtureScreens()["deep-tree"]
-	if len(deep.workspaceRows) != 203 {
-		t.Fatalf("lost logical nodes: %d", len(deep.workspaceRows))
+	if len(deep.navigation.rows) != 203 {
+		t.Fatalf("lost logical nodes: %d", len(deep.navigation.rows))
 	}
-	for _, row := range deep.workspaceRows {
+	for _, row := range deep.navigation.rows {
 		if ansi.StringWidth(row.guide) > 10 {
 			t.Fatal("unbounded visual indentation")
 		}
 	}
-	if deep.workspaceRows[len(deep.workspaceRows)-1].depth != 201 {
+	if deep.navigation.rows[len(deep.navigation.rows)-1].depth != 201 {
 		t.Fatal("lost logical depth")
 	}
 	for _, label := range []string{"日本語", "👩‍💻", "é"} {
@@ -199,10 +199,10 @@ func TestStatusDetailsRecoverFullError(t *testing.T) {
 
 func TestCachedInspectorAndCompactPTYControls(t *testing.T) {
 	m := renderFixture()
-	name := tmux.SessionName(m.rawProjects[0])
-	next, _ := m.Update(tmuxSessionsMsg{id: m.tmuxRefreshID, sessions: []string{name}})
+	name := tmux.SessionName(m.navigation.projects[0])
+	next, _ := m.Update(tmuxSessionsMsg{id: m.tmux.id, sessions: []string{name}})
 	m = next.(model)
-	if !strings.Contains(strings.Join(m.inspectorLines(40), "\n"), m.rawProjects[0].Name+" · active (cached)") {
+	if !strings.Contains(strings.Join(m.inspectorLines(40), "\n"), m.navigation.projects[0].Name+" · active (cached)") {
 		t.Fatal("known session missing")
 	}
 	for _, width := range []int{24, 40, 120} {
@@ -226,14 +226,14 @@ func BenchmarkDeepTreeAndSelection(b *testing.B) {
 	})
 	b.Run("selection-5000", func(b *testing.B) {
 		m := renderFixture()
-		p := m.rawProjects[0]
-		m.rawProjects = nil
+		p := m.navigation.projects[0]
+		m.navigation.projects = nil
 		m.selected = map[string]bool{}
 		for i := 0; i < 5000; i++ {
 			q := p
 			q.Name = fmt.Sprint("project-", i)
 			q.Path = p.Path + fmt.Sprint(i)
-			m.rawProjects = append(m.rawProjects, q)
+			m.navigation.projects = append(m.navigation.projects, q)
 			m.selected[q.Path] = true
 		}
 		m = m.rebuildList(false)
