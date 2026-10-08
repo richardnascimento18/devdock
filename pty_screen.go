@@ -12,6 +12,7 @@ import (
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/pty"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
+	"github.com/richardnascimento18/devdock/internal/terminal"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -68,48 +69,6 @@ const (
 	lineError
 )
 
-type virtualScreen struct {
-	lines  []string
-	cursor int
-	col    int
-}
-
-func (v *virtualScreen) ensureLine(row int) {
-	for len(v.lines) <= row {
-		v.lines = append(v.lines, "")
-	}
-}
-
-func (v *virtualScreen) currentLines() []string {
-	return v.lines
-}
-
-func (v *virtualScreen) reset() {
-	v.lines = nil
-	v.cursor = 0
-	v.col = 0
-}
-
-func (v *virtualScreen) write(text string) {
-	if text == "" {
-		return
-	}
-	v.ensureLine(v.cursor)
-	if v.col == 0 {
-		// Overwrite from start — replace the line content
-		v.lines[v.cursor] = text
-	} else {
-		// Append to existing content
-		existing := v.lines[v.cursor]
-		if v.col <= len(existing) {
-			v.lines[v.cursor] = existing[:v.col] + text
-		} else {
-			v.lines[v.cursor] = existing + text
-		}
-	}
-	v.col += len(text)
-}
-
 type ptyScreen struct {
 	context     context.Context
 	cancel      context.CancelFunc
@@ -121,7 +80,7 @@ type ptyScreen struct {
 	// prompts that use \r to overwrite themselves). When we receive a bare \r
 	// (without \n), we reset the live block and start fresh. When we receive \n,
 	// the current live line is promoted to the committed log.
-	vscreen virtualScreen
+	vscreen terminal.Screen
 
 	session       *pty.Session
 	workDir       string
@@ -175,13 +134,13 @@ func (p *ptyScreen) addLine(text string, kind lineKind) {
 }
 
 func (p *ptyScreen) flushPending() {
-	for _, l := range p.vscreen.lines {
+	for _, l := range p.vscreen.Lines() {
 		t := strings.TrimSpace(l)
 		if t != "" {
 			p.lines = append(p.lines, logLine{ts: time.Now(), text: t, kind: lineNormal})
 		}
 	}
-	p.vscreen.reset()
+	p.vscreen.Reset()
 	p.refreshViewport()
 }
 
@@ -240,7 +199,7 @@ func (p *ptyScreen) buildViewportContent(extraPending string) string {
 	sep := sepStyle.Render(" -- ")
 
 	firstLive := true
-	for _, line := range p.vscreen.currentLines() {
+	for _, line := range p.vscreen.Lines() {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -271,132 +230,9 @@ func hardWrap(s string, maxWidth int) string {
 	return ansi.Hardwrap(ui.SafeBlock(s), maxWidth, true)
 }
 
-// ingestPTYData processes raw PTY bytes into committed lines and live block.
-//
-// The strategy:
-//   - Split on \n first — each \n-terminated chunk is a "paragraph" of output.
-//   - Within each paragraph, \r means "overwrite from column 0", i.e. restart
-//     drawing the current live block.
-//   - The last chunk (after the last \n) is incomplete and stored as livePartial.
-//
-// For a multi-line interactive prompt like Next.js's option picker, the program
-// emits the entire prompt, then on navigation re-emits the entire prompt
-// prefixed with \r (or uses cursor-up ANSI codes — which we strip). The result
-// after ANSI stripping is just \r + new block text. We detect this by checking
-// whether the incoming data starts with \r (or contains \r before any \n),
-// which signals "replace the live block".
-func (p *ptyScreen) ingestPTYData(raw []byte) {
-	s := string(raw)
-	i := 0
-	for i < len(s) {
-		c := s[i]
-
-		if c == '\x1b' {
-			i++
-			if i >= len(s) {
-				break
-			}
-			if s[i] != '[' {
-				i++
-				continue
-			}
-			i++ // skip '['
-			params := []int{}
-			cur := 0
-			hasCur := false
-			for i < len(s) {
-				ch := s[i]
-				if ch >= '0' && ch <= '9' {
-					cur = cur*10 + int(ch-'0')
-					hasCur = true
-					i++
-				} else if ch == ';' {
-					params = append(params, cur)
-					cur = 0
-					hasCur = false
-					i++
-				} else if ch == '?' {
-					// skip mode prefix
-					i++
-				} else {
-					break
-				}
-			}
-			if hasCur {
-				params = append(params, cur)
-			}
-			if i >= len(s) {
-				break
-			}
-			final := s[i]
-			i++
-
-			param1 := 0
-			if len(params) > 0 {
-				param1 = params[0]
-			}
-
-			switch final {
-			case 'A': // cursor up
-				n := param1
-				if n == 0 {
-					n = 1
-				}
-				p.vscreen.cursor -= n
-				if p.vscreen.cursor < 0 {
-					p.vscreen.cursor = 0
-				}
-				p.vscreen.col = 0
-			case 'B': // cursor down
-				n := param1
-				if n == 0 {
-					n = 1
-				}
-				p.vscreen.cursor += n
-				p.vscreen.col = 0
-			case 'C': // cursor right — ignore
-			case 'D': // cursor left / large value = go to col 1
-				p.vscreen.col = 0
-			case 'G': // cursor to column 1
-				p.vscreen.col = 0
-			case 'K': // erase line
-				p.vscreen.ensureLine(p.vscreen.cursor)
-				p.vscreen.lines[p.vscreen.cursor] = ""
-				p.vscreen.col = 0
-			case 'J': // erase display
-				if p.vscreen.cursor < len(p.vscreen.lines) {
-					p.vscreen.lines = p.vscreen.lines[:p.vscreen.cursor]
-				}
-			case 'h', 'l', 'm': // mode/color — ignore
-			}
-			continue
-		}
-
-		switch c {
-		case '\r':
-			// Carriage return: move to column 0, do NOT erase.
-			// Erasing is done by explicit \x1b[K sequences.
-			p.vscreen.col = 0
-			i++
-		case '\n':
-			p.vscreen.cursor++
-			p.vscreen.col = 0
-			i++
-		default:
-			start := i
-			for i < len(s) && s[i] >= 0x20 && s[i] != '\x1b' {
-				i++
-			}
-			if start == i {
-				i++
-				continue
-			} // consume control bytes such as BEL/backspace
-			p.vscreen.write(s[start:i])
-		}
-	}
-
-	p.refreshViewport()
-}
+// PTY data is interpreted locally; no child control sequences reach the host.
+func (p *ptyScreen) ingestPTYData(raw []byte) { p.vscreen.Write(raw); p.refreshViewport() }
+func readPTY(session *pty.Session) tea.Cmd    { return func() tea.Msg { return session.Read() } }
 
 // ---------------------------------------------------------------------------
 // Update
@@ -453,9 +289,9 @@ func (p ptyScreen) Update(msg tea.Msg) (ptyScreen, tea.Cmd) {
 
 	case ptyStepStartMsg:
 		p.session = msg.session
-		p.vscreen.reset()
+		p.vscreen.Reset()
 		p.addLine(fmt.Sprintf("$ %s", msg.cmdStr), lineCmd)
-		return p, p.wrap(pty.CmdRead(p.session))
+		return p, p.wrap(readPTY(p.session))
 
 	case ptyBuiltinCompleteMsg:
 		p.addLine(msg.text, lineSystem)
@@ -481,7 +317,7 @@ func (p ptyScreen) Update(msg tea.Msg) (ptyScreen, tea.Cmd) {
 			p.ingestPTYData(msg.Data)
 		}
 		if p.session != nil && !p.completed {
-			return p, p.wrap(pty.CmdRead(p.session))
+			return p, p.wrap(readPTY(p.session))
 		}
 
 	case pty.ExitMsg:

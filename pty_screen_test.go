@@ -35,7 +35,7 @@ func TestPTYPostStepsAndFailure(t *testing.T) {
 func TestPTYControlBytesAndInputDoNotStartRead(t *testing.T) {
 	p := newPTYScreen(100, 40, nil, t.TempDir(), tmpl.Vars{}, nil, "", gh.Repo{})
 	p.ingestPTYData([]byte("hello\a\b\x00 world\n"))
-	if len(p.vscreen.lines) == 0 {
+	if len(p.vscreen.Lines()) == 0 {
 		t.Fatal("output absent")
 	}
 	s, err := pty.NewSession([]string{"cat"}, t.TempDir())
