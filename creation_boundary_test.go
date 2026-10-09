@@ -34,7 +34,7 @@ func TestCreationEffectsRunOutsideUpdateAndFailuresRetainDraft(t *testing.T) {
 	}
 	next, _ = m.handleCreateDone(result)
 	m = next.(model)
-	if m.state != statePickTemplate || m.creation.name != "example" || m.inputScr.err == "" || m.launch.ready {
+	if m.state != statePickTemplate || m.creation.name != "example" || m.creation.failure.Summary == "" || m.launch.ready {
 		t.Fatal("failed creation lost draft or launched")
 	}
 }

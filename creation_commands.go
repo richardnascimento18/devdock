@@ -22,6 +22,7 @@ func (m model) preflightCreation() (tea.Model, tea.Cmd) {
 	id, service, ctx := m.operationID, m.workspaces, m.context()
 	location, name := m.currentLocation(), m.creation.name
 	m.creation.returnState = m.state
+	m.creation.failure = app.Diagnostic{}
 	m.state = statePreparingProject
 	m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Preparing %q...", name))
 	return m, func() tea.Msg { return createPreflightMsg{id: id, err: service.CheckCreate(ctx, location, name)} }
@@ -60,7 +61,7 @@ func (m model) handleCreateDone(msg createDoneMsg) (tea.Model, tea.Cmd) {
 	if msg.err != nil {
 		if m.creation.template == nil && m.creation.repo.FullName == "" {
 			m.state = m.creation.returnState
-			m.inputScr.err = fmt.Sprintf("error: %v", msg.err)
+			m.creation.failure = app.Diagnostic{Severity: app.Error, Summary: "create project: " + msg.err.Error(), Cause: msg.err, Operation: "create"}
 		} else {
 			m.state = stateList
 			m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "create project: " + msg.err.Error(), Cause: msg.err, Operation: "create"}

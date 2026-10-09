@@ -14,7 +14,17 @@ func (c modalContent) View(width, height, offset int) string {
 	return ui.ModalAt(c.title, c.body, c.hint, width, height, offset)
 }
 func (m model) flowModal() bool { return m.state.kind() == routeOverlay }
-func (m model) currentModal() modalContent {
+func (m model) currentModal() (content modalContent) {
+	// The retained creation draft owns its failure, including while navigating
+	// back through its choices. A retry or a fresh creation clears it.
+	defer func() {
+		switch m.state {
+		case statePickPreset, statePickTemplate, stateAskCreateGitHub, stateAskRepoPrivacy:
+			if m.creation.failure.Summary != "" {
+				content.body = diagnosticView(m.creation.failure) + "\n\n" + content.body
+			}
+		}
+	}()
 	w, h := m.termW, m.termH
 	switch m.state {
 	case stateStatusDetails:

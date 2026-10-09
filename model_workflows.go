@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/core"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
@@ -30,6 +31,7 @@ type navigationState struct {
 }
 
 type creationState struct {
+	failure      app.Diagnostic
 	returnState  appState
 	name         string
 	preset       preset.Preset
