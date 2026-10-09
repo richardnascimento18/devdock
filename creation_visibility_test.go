@@ -123,25 +123,46 @@ func TestCreationPartialOutcomesRemainVisible(t *testing.T) {
 }
 
 func TestCancelledAndSupersededCreationCannotLaunch(t *testing.T) {
-	m := fixtureModel(t, t.TempDir())
-	m.termW, m.termH = 120, 40
-	m.creation.name, m.creation.returnState = "example", statePickTemplate
-	m.pendingRoot, m.pendingDomain = m.cfg.Roots[0], "apps"
-	ctx, cancel := context.WithCancel(context.Background())
-	m.appContext = ctx
-	next, cmd := m.beginLocalCreation()
-	m = next.(model)
-	cancel()
-	completion := operationMessage(cmd)
-	next, _ = m.Update(completion)
-	m = next.(model)
-	if m.launch.ready || !strings.Contains(m.View(), context.Canceled.Error()) {
-		t.Fatal("cancellation was silent or launched")
+	for _, reduced := range []bool{false, true} {
+		m := fixtureModel(t, t.TempDir())
+		m.termW, m.termH, m.motion.reduced = 120, 40, reduced
+		m.creation.name, m.creation.returnState = "example", statePickTemplate
+		m.pendingRoot, m.pendingDomain = m.cfg.Roots[0], "apps"
+		ctx, cancel := context.WithCancel(context.Background())
+		m.appContext = ctx
+		next, cmd := m.beginLocalCreation()
+		m = next.(model)
+		cancel()
+		completion := operationMessage(cmd)
+		next, _ = m.Update(completion)
+		m = next.(model)
+		if m.launch.ready || !strings.Contains(m.View(), context.Canceled.Error()) {
+			t.Fatal("cancellation was silent or launched")
+		}
+		m.state, m.operationID = statePreparingProject, m.operationID+1
+		next, cmd = m.Update(createDoneMsg{id: m.operationID - 1})
+		after := next.(model)
+		if after.launch.ready || after.state != statePreparingProject || after.operationID != m.operationID || after.creation.name != m.creation.name {
+			t.Fatal("late success changed newer operation")
+		}
+		assertOnlyAnimationCommand(t, cmd)
 	}
-	m.state, m.operationID = statePreparingProject, m.operationID+1
-	next, cmd = m.Update(createDoneMsg{id: m.operationID - 1})
-	if cmd != nil || next.(model).launch.ready || next.(model).state != statePreparingProject {
-		t.Fatal("late success changed newer operation")
+}
+
+// Reject operation effects while permitting Update's independent motion clock.
+func assertOnlyAnimationCommand(t *testing.T, cmd tea.Cmd) {
+	t.Helper()
+	if cmd == nil {
+		return
+	}
+	switch msg := cmd().(type) {
+	case tea.BatchMsg:
+		for _, command := range msg {
+			assertOnlyAnimationCommand(t, command)
+		}
+	case animationTickMsg:
+	default:
+		t.Fatalf("stale completion scheduled an operation effect: %T", msg)
 	}
 }
 
