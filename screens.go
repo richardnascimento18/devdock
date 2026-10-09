@@ -183,7 +183,7 @@ func (g genericPickerScreen) content(termW, termH int) modalContent {
 		case i == g.cursor:
 			line = activeStyle.Render(ui.SafeText("▶ " + o))
 		default:
-			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render(ui.SafeBlock("  " + o))
+			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render(ui.SafeText("  " + o))
 		}
 		inner.WriteString(line + "\n")
 	}
@@ -263,7 +263,7 @@ func (p presetPickerScreen) content(termW, termH int) modalContent {
 		inner.WriteString(ansi.Truncate(line, ui.ModalInnerWidth(termW), "…") + "\n")
 	}
 	if len(p.presets) > 0 {
-		inner.WriteString("\nSelected: " + p.Selected().Name)
+		inner.WriteString("\nSelected: " + ui.SafeText(p.Selected().Name))
 	}
 	return modalContent{title: "Choose tmux preset", body: inner.String(), hint: "↑/↓ choose · enter confirm · esc cancel"}
 }
@@ -305,7 +305,7 @@ func (t templatePickerScreen) content(termW, termH int) modalContent {
 	for i := start; i < min(start+rows, len(t.templates)); i++ {
 		tmpl := t.templates[i]
 		idx := i + 1
-		desc := dimStyle.Render(ui.SafeBlock("  " + tmpl.Description))
+		desc := dimStyle.Render(ui.SafeText("  " + tmpl.Description))
 		var line string
 		if idx == t.cursor {
 			line = activeStyle.Render(ui.SafeText("▶  "+tmpl.Name)) + desc
@@ -315,7 +315,7 @@ func (t templatePickerScreen) content(termW, termH int) modalContent {
 		inner.WriteString(ansi.Truncate(line, ui.ModalInnerWidth(termW), "…") + "\n")
 	}
 	if selected := t.Selected(); selected != nil {
-		inner.WriteString("\nSelected: " + selected.Name + "\n" + selected.Description)
+		inner.WriteString("\nSelected: " + ui.SafeText(selected.Name) + "\n" + ui.SafeBlock(selected.Description))
 	}
 	return modalContent{title: "Choose a template", body: inner.String(), hint: "↑/↓ choose · enter confirm · esc cancel"}
 }

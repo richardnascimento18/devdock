@@ -95,7 +95,7 @@ func (m model) viewList(w, h int) string {
 		}
 	}
 	if status == "" {
-		status = dimStyle.Render(ui.SafeBlock(m.currentLocationLabel()))
+		status = dimStyle.Render(ui.SafeText(m.currentLocationLabel()))
 	}
 	return strings.Join([]string{header, ui.Fit(collectionLine, w, 1), "", body, ui.Footer(m.dashboardHint(w), status, w)}, "\n")
 }
@@ -132,7 +132,7 @@ func (m model) viewProjects(width, height int) string {
 	case m.query.editing:
 		title = ui.Fit(ui.InputView(m.query.input), width, 1)
 	case m.isFiltered:
-		title = ui.Fit(title+dimStyle.Render(ui.SafeBlock(" / "+m.query.value)), width, 1)
+		title = ui.Fit(title+dimStyle.Render(ui.SafeText(" / "+m.query.value)), width, 1)
 	}
 	if len(m.list.Items()) > 0 {
 		content = m.list.View()
@@ -150,7 +150,7 @@ func (m model) viewProjects(width, height int) string {
 			content = "No workspace roots configured.\nPress a to add a root."
 		}
 		if m.query.value != "" {
-			content = fmt.Sprintf("No projects match %q.\nEsc clears search; n creates a project.", m.query.value)
+			content = fmt.Sprintf("No projects match %q.\nEsc clears search; n creates a project.", ui.SafeText(m.query.value))
 		}
 		if m.scan.inFlight && m.query.value == "" {
 			content = "Loading projects from configured roots."

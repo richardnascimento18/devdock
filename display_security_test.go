@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
@@ -16,8 +18,13 @@ import (
 func assertSafeDisplay(t *testing.T, output string) {
 	t.Helper()
 	plain := sgrPattern.ReplaceAllString(output, "")
-	if strings.ContainsAny(plain, "\x1b\a\r\u009b\u009d\u202e\u2066\u2069") {
-		t.Fatalf("active external terminal control in display: %q", plain)
+	if !utf8.ValidString(plain) {
+		t.Fatal("invalid display UTF-8")
+	}
+	for _, r := range plain {
+		if (unicode.IsControl(r) && r != '\n') || strings.ContainsRune("\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u206a\u206b\u206c\u206d\u206e\u206f", r) {
+			t.Fatalf("active external terminal control in display: %q", plain)
+		}
 	}
 }
 
