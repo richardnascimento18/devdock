@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 
 	"github.com/richardnascimento18/devdock/internal/core"
@@ -77,10 +78,22 @@ func (s Workspaces) Associate(ctx context.Context, projects []core.Project, repo
 		byFullName[strings.ToLower(repo.FullName)] = repo
 	}
 	linked := make([]core.Project, len(projects))
+	// Snapshot-local only: a later association always re-reads Git metadata and
+	// remotes, including directories that have become repositories since a scan.
+	identities := make(map[string]string)
+
 	for i, project := range projects {
 		project.GitHubRepo = ""
-		if s.Git.Initialized(ctx, project.Path) {
-			if repo, ok := byFullName[strings.ToLower(s.Git.Remote(ctx, project.Path))]; ok {
+		if len(byFullName) > 0 && ctx.Err() == nil && project.Path != "" {
+			path := filepath.Clean(project.Path)
+			identity, inspected := identities[path]
+			if !inspected {
+				if s.Git.Initialized(ctx, path) {
+					identity = s.Git.Remote(ctx, path)
+				}
+				identities[path] = identity
+			}
+			if repo, ok := byFullName[strings.ToLower(identity)]; ok {
 				project.GitHubRepo = repo.FullName
 			}
 		}

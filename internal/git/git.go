@@ -105,6 +105,19 @@ func IsGitInitialized(projectPath string) bool {
 	return NewClient().Initialized(context.Background(), projectPath)
 }
 func (c Client) Initialized(parent context.Context, projectPath string) bool {
+	if parent.Err() != nil {
+		return false
+	}
+	// An independent worktree normally has a .git directory or gitfile. Missing
+	// metadata cannot identify this directory as a repository root; asking Git
+	// would only discover a parent repository, which we reject below anyway.
+	// Explicit external metadata still needs authoritative Git discovery.
+	if os.Getenv("GIT_DIR") == "" && os.Getenv("GIT_WORK_TREE") == "" {
+		if _, err := os.Lstat(filepath.Join(projectPath, ".git")); os.IsNotExist(err) {
+			return false
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
 	out, err := c.Output(ctx, projectPath, "rev-parse", "--show-toplevel")

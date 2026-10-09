@@ -57,3 +57,26 @@ func TestWorktreeAndParentRepositoryDiscovery(t *testing.T) {
 		t.Fatal("parent repository treated as project repository")
 	}
 }
+
+func TestExplicitGitMetadataOutsideProject(t *testing.T) {
+	repository, project := t.TempDir(), t.TempDir()
+	testutil.Git(t, repository, "init")
+	t.Setenv("GIT_DIR", filepath.Join(repository, ".git"))
+	t.Setenv("GIT_WORK_TREE", project)
+	if !IsGitInitialized(project) {
+		t.Fatal("explicit Git metadata not recognized")
+	}
+}
+
+func TestCancelledDiscoveryDoesNotRunGit(t *testing.T) {
+	client := NewClient()
+	client.Output = func(context.Context, string, ...string) ([]byte, error) {
+		t.Fatal("Git started after cancellation")
+		return nil, nil
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if client.Initialized(ctx, t.TempDir()) {
+		t.Fatal("cancelled discovery succeeded")
+	}
+}
