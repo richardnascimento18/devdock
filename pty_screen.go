@@ -8,13 +8,14 @@ import (
 	"time"
 	"unicode"
 
-	gh "github.com/richardnascimento18/devdock/internal/github"
-	"github.com/richardnascimento18/devdock/internal/pty"
-	tmpl "github.com/richardnascimento18/devdock/internal/template"
-
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/app"
+	"github.com/richardnascimento18/devdock/internal/pty"
+	tmpl "github.com/richardnascimento18/devdock/internal/template"
+	"github.com/richardnascimento18/devdock/internal/terminal"
 	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
@@ -66,48 +67,6 @@ const (
 	lineError
 )
 
-type virtualScreen struct {
-	lines  []string
-	cursor int
-	col    int
-}
-
-func (v *virtualScreen) ensureLine(row int) {
-	for len(v.lines) <= row {
-		v.lines = append(v.lines, "")
-	}
-}
-
-func (v *virtualScreen) currentLines() []string {
-	return v.lines
-}
-
-func (v *virtualScreen) reset() {
-	v.lines = nil
-	v.cursor = 0
-	v.col = 0
-}
-
-func (v *virtualScreen) write(text string) {
-	if text == "" {
-		return
-	}
-	v.ensureLine(v.cursor)
-	if v.col == 0 {
-		// Overwrite from start — replace the line content
-		v.lines[v.cursor] = text
-	} else {
-		// Append to existing content
-		existing := v.lines[v.cursor]
-		if v.col <= len(existing) {
-			v.lines[v.cursor] = existing[:v.col] + text
-		} else {
-			v.lines[v.cursor] = existing + text
-		}
-	}
-	v.col += len(text)
-}
-
 type ptyScreen struct {
 	context     context.Context
 	cancel      context.CancelFunc
@@ -119,10 +78,9 @@ type ptyScreen struct {
 	// prompts that use \r to overwrite themselves). When we receive a bare \r
 	// (without \n), we reset the live block and start fresh. When we receive \n,
 	// the current live line is promoted to the committed log.
-	vscreen virtualScreen
+	vscreen terminal.Screen
 
 	session       *pty.Session
-	workDir       string
 	width         int
 	height        int
 	completed     bool
@@ -131,30 +89,21 @@ type ptyScreen struct {
 	interrupted   bool
 	exitErr       error
 
-	tmpl           *tmpl.Template
-	projectPath    string
-	currentStepIdx int
-	allSteps       []tmpl.TemplateStep
-	vars           tmpl.Vars
-	isPostSteps    bool
-	githubRepo     gh.Repo
+	tmpl     *tmpl.Template
+	scaffold app.Scaffold
 }
 
-func newPTYScreen(w, h int, t *tmpl.Template, projectPath string, vars tmpl.Vars, steps []tmpl.TemplateStep, workDir string, ghRepo gh.Repo) ptyScreen {
-	ctx, cancel := context.WithCancel(context.Background())
+func newPTYScreenWithScaffold(parent context.Context, w, h int, t *tmpl.Template, scaffold app.Scaffold) ptyScreen {
+	ctx, cancel := context.WithCancel(parent)
 	vp := viewport.New(vpW(w), vpH(h))
 	vp.Style = lipgloss.NewStyle()
 	ps := ptyScreen{
 		context: ctx, cancel: cancel,
-		viewport:    vp,
-		workDir:     workDir,
-		width:       w,
-		height:      h,
-		tmpl:        t,
-		projectPath: projectPath,
-		allSteps:    steps,
-		vars:        vars,
-		githubRepo:  ghRepo,
+		viewport: vp,
+		width:    w,
+		height:   h,
+		tmpl:     t,
+		scaffold: scaffold,
 	}
 	ps.addLine("Starting template setup...", lineSystem)
 	return ps
@@ -173,13 +122,13 @@ func (p *ptyScreen) addLine(text string, kind lineKind) {
 }
 
 func (p *ptyScreen) flushPending() {
-	for _, l := range p.vscreen.lines {
+	for _, l := range p.vscreen.Lines() {
 		t := strings.TrimSpace(l)
 		if t != "" {
 			p.lines = append(p.lines, logLine{ts: time.Now(), text: t, kind: lineNormal})
 		}
 	}
-	p.vscreen.reset()
+	p.vscreen.Reset()
 	p.refreshViewport()
 }
 
@@ -204,7 +153,7 @@ func (p *ptyScreen) buildViewportContent(extraPending string) string {
 	var sb strings.Builder
 
 	renderCommitted := func(l logLine) {
-		ts := tsStyle.Render(l.ts.Format("2006-01-02 15:04:05"))
+		ts := tsStyle.Render(ui.SafeBlock(l.ts.Format("2006-01-02 15:04:05")))
 		sep := sepStyle.Render(" -- ")
 		var msgStyle lipgloss.Style
 		switch l.kind {
@@ -222,9 +171,9 @@ func (p *ptyScreen) buildViewportContent(extraPending string) string {
 		wrapped := hardWrap(l.text, msgW)
 		for i, wl := range strings.Split(wrapped, "\n") {
 			if i == 0 {
-				sb.WriteString(ts + sep + msgStyle.Render(wl) + "\n")
+				sb.WriteString(ts + sep + msgStyle.Render(ui.SafeBlock(wl)) + "\n")
 			} else {
-				sb.WriteString(strings.Repeat(" ", tsWidth+sepWidth) + msgStyle.Render(wl) + "\n")
+				sb.WriteString(strings.Repeat(" ", tsWidth+sepWidth) + msgStyle.Render(ui.SafeBlock(wl)) + "\n")
 			}
 		}
 	}
@@ -234,11 +183,11 @@ func (p *ptyScreen) buildViewportContent(extraPending string) string {
 	}
 
 	// Replace the live block rendering section with:
-	ts := tsStyle.Render(time.Now().Format("2006-01-02 15:04:05"))
+	ts := tsStyle.Render(ui.SafeBlock(time.Now().Format("2006-01-02 15:04:05")))
 	sep := sepStyle.Render(" -- ")
 
 	firstLive := true
-	for _, line := range p.vscreen.currentLines() {
+	for _, line := range p.vscreen.Lines() {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -246,10 +195,10 @@ func (p *ptyScreen) buildViewportContent(extraPending string) string {
 		parts := strings.Split(wrapped, "\n")
 		for j, wl := range parts {
 			if firstLive && j == 0 {
-				sb.WriteString(ts + sep + liveStyle.Render(wl) + "\n")
+				sb.WriteString(ts + sep + liveStyle.Render(ui.SafeBlock(wl)) + "\n")
 				firstLive = false
 			} else {
-				sb.WriteString(strings.Repeat(" ", tsWidth+sepWidth) + liveStyle.Render(wl) + "\n")
+				sb.WriteString(strings.Repeat(" ", tsWidth+sepWidth) + liveStyle.Render(ui.SafeBlock(wl)) + "\n")
 			}
 		}
 	}
@@ -263,157 +212,15 @@ func (p *ptyScreen) refreshViewport() {
 }
 
 func hardWrap(s string, maxWidth int) string {
-	if maxWidth <= 0 || len(s) <= maxWidth {
-		return s
+	if maxWidth <= 0 {
+		return ui.SafeBlock(s)
 	}
-	var sb strings.Builder
-	for len(s) > 0 {
-		if len(s) <= maxWidth {
-			sb.WriteString(s)
-			break
-		}
-		cut := maxWidth
-		for cut > 0 && s[cut-1] != ' ' {
-			cut--
-		}
-		if cut == 0 {
-			cut = maxWidth
-		}
-		sb.WriteString(s[:cut])
-		s = strings.TrimLeft(s[cut:], " ")
-		if len(s) > 0 {
-			sb.WriteByte('\n')
-		}
-	}
-	return sb.String()
+	return ansi.Hardwrap(ui.SafeBlock(s), maxWidth, true)
 }
 
-// ingestPTYData processes raw PTY bytes into committed lines and live block.
-//
-// The strategy:
-//   - Split on \n first — each \n-terminated chunk is a "paragraph" of output.
-//   - Within each paragraph, \r means "overwrite from column 0", i.e. restart
-//     drawing the current live block.
-//   - The last chunk (after the last \n) is incomplete and stored as livePartial.
-//
-// For a multi-line interactive prompt like Next.js's option picker, the program
-// emits the entire prompt, then on navigation re-emits the entire prompt
-// prefixed with \r (or uses cursor-up ANSI codes — which we strip). The result
-// after ANSI stripping is just \r + new block text. We detect this by checking
-// whether the incoming data starts with \r (or contains \r before any \n),
-// which signals "replace the live block".
-func (p *ptyScreen) ingestPTYData(raw []byte) {
-	s := string(raw)
-	i := 0
-	for i < len(s) {
-		c := s[i]
-
-		if c == '\x1b' {
-			i++
-			if i >= len(s) {
-				break
-			}
-			if s[i] != '[' {
-				i++
-				continue
-			}
-			i++ // skip '['
-			params := []int{}
-			cur := 0
-			hasCur := false
-			for i < len(s) {
-				ch := s[i]
-				if ch >= '0' && ch <= '9' {
-					cur = cur*10 + int(ch-'0')
-					hasCur = true
-					i++
-				} else if ch == ';' {
-					params = append(params, cur)
-					cur = 0
-					hasCur = false
-					i++
-				} else if ch == '?' {
-					// skip mode prefix
-					i++
-				} else {
-					break
-				}
-			}
-			if hasCur {
-				params = append(params, cur)
-			}
-			if i >= len(s) {
-				break
-			}
-			final := s[i]
-			i++
-
-			param1 := 0
-			if len(params) > 0 {
-				param1 = params[0]
-			}
-
-			switch final {
-			case 'A': // cursor up
-				n := param1
-				if n == 0 {
-					n = 1
-				}
-				p.vscreen.cursor -= n
-				if p.vscreen.cursor < 0 {
-					p.vscreen.cursor = 0
-				}
-				p.vscreen.col = 0
-			case 'B': // cursor down
-				n := param1
-				if n == 0 {
-					n = 1
-				}
-				p.vscreen.cursor += n
-				p.vscreen.col = 0
-			case 'C': // cursor right — ignore
-			case 'D': // cursor left / large value = go to col 1
-				p.vscreen.col = 0
-			case 'G': // cursor to column 1
-				p.vscreen.col = 0
-			case 'K': // erase line
-				p.vscreen.ensureLine(p.vscreen.cursor)
-				p.vscreen.lines[p.vscreen.cursor] = ""
-				p.vscreen.col = 0
-			case 'J': // erase display
-				if p.vscreen.cursor < len(p.vscreen.lines) {
-					p.vscreen.lines = p.vscreen.lines[:p.vscreen.cursor]
-				}
-			case 'h', 'l', 'm': // mode/color — ignore
-			}
-			continue
-		}
-
-		switch c {
-		case '\r':
-			// Carriage return: move to column 0, do NOT erase.
-			// Erasing is done by explicit \x1b[K sequences.
-			p.vscreen.col = 0
-			i++
-		case '\n':
-			p.vscreen.cursor++
-			p.vscreen.col = 0
-			i++
-		default:
-			start := i
-			for i < len(s) && s[i] >= 0x20 && s[i] != '\x1b' {
-				i++
-			}
-			if start == i {
-				i++
-				continue
-			} // consume control bytes such as BEL/backspace
-			p.vscreen.write(s[start:i])
-		}
-	}
-
-	p.refreshViewport()
-}
+// PTY data is interpreted locally; no child control sequences reach the host.
+func (p *ptyScreen) ingestPTYData(raw []byte) { p.vscreen.Write(raw); p.refreshViewport() }
+func readPTY(session *pty.Session) tea.Cmd    { return func() tea.Msg { return session.Read() } }
 
 // ---------------------------------------------------------------------------
 // Update
@@ -470,9 +277,9 @@ func (p ptyScreen) Update(msg tea.Msg) (ptyScreen, tea.Cmd) {
 
 	case ptyStepStartMsg:
 		p.session = msg.session
-		p.vscreen.reset()
+		p.vscreen.Reset()
 		p.addLine(fmt.Sprintf("$ %s", msg.cmdStr), lineCmd)
-		return p, p.wrap(pty.CmdRead(p.session))
+		return p, p.wrap(readPTY(p.session))
 
 	case ptyBuiltinCompleteMsg:
 		p.addLine(msg.text, lineSystem)
@@ -498,7 +305,7 @@ func (p ptyScreen) Update(msg tea.Msg) (ptyScreen, tea.Cmd) {
 			p.ingestPTYData(msg.Data)
 		}
 		if p.session != nil && !p.completed {
-			return p, p.wrap(pty.CmdRead(p.session))
+			return p, p.wrap(readPTY(p.session))
 		}
 
 	case pty.ExitMsg:
@@ -545,68 +352,27 @@ func (p ptyScreen) Update(msg tea.Msg) (ptyScreen, tea.Cmd) {
 
 func (p *ptyScreen) startNextStep() (cmd tea.Cmd) {
 	defer func() { cmd = p.wrap(cmd) }()
-	if !p.isPostSteps && p.currentStepIdx >= len(p.allSteps) {
-		if p.tmpl != nil && len(p.tmpl.PostSteps) > 0 {
-			p.isPostSteps = true
-			p.currentStepIdx = 0
-			p.allSteps = p.tmpl.PostSteps
-			p.workDir = p.projectPath
-			p.addLine("Running post-setup steps...", lineSystem)
-		}
+	step, ok, err := p.scaffold.Execution.Next()
+	if err != nil {
+		return func() tea.Msg { return pty.ExitMsg{Err: err} }
 	}
-	if p.currentStepIdx >= len(p.allSteps) {
-		projectPath, repo, ctx := p.projectPath, p.githubRepo, p.context
-		p.githubRepo = gh.Repo{}
-		return func() tea.Msg {
-			if err := tmpl.WriteDevDockMarkerFile(projectPath); err != nil {
-				return ptyDoneMsg{err: fmt.Errorf("write project marker: %w", err)}
-			}
-			if repo.FullName != "" {
-				return ptyDoneMsg{err: gh.InitRepoWithRemoteContext(ctx, projectPath, repo.CloneURL)}
-			}
-			return ptyDoneMsg{}
-		}
+	scaffold, ctx := p.scaffold, p.context
+	if !ok {
+		return func() tea.Msg { return ptyDoneMsg{err: scaffold.Finish(ctx)} }
 	}
-	step := p.allSteps[p.currentStepIdx]
-	p.currentStepIdx++
-	vars, workDir, ctx := p.vars, p.workDir, p.context
-	switch step.Type {
-	case "builtin":
-		return func() tea.Msg {
-			if err := ctx.Err(); err != nil {
-				return pty.ExitMsg{Err: err}
-			}
-			if err := tmpl.ExecuteBuiltin(step.Action, tmpl.ExpandVars(step.Path, vars), vars.ProjectPath); err != nil {
-				return pty.ExitMsg{Err: err}
-			}
-			return ptyBuiltinCompleteMsg{text: fmt.Sprintf("%s %s", step.Action, step.Path)}
-		}
-	case "command":
-		args, err := tmpl.CommandArgs(step, vars)
+	if step.PostStarted {
+		p.addLine("Running post-setup steps...", lineSystem)
+	}
+	rows, cols := uint16(vpH(p.height)), uint16(vpW(p.width))
+	return func() tea.Msg {
+		result, err := scaffold.Execute(ctx, step, rows, cols)
 		if err != nil {
-			return func() tea.Msg { return pty.ExitMsg{Err: err} }
+			return pty.ExitMsg{Err: err}
 		}
-		if step.Output != "" {
-			return func() tea.Msg {
-				if err := tmpl.ExecuteStepsContext(ctx, []tmpl.TemplateStep{step}, workDir, vars, false); err != nil {
-					return pty.ExitMsg{Err: err}
-				}
-				return ptyBuiltinCompleteMsg{text: step.Run + " → " + step.Output}
-			}
+		if result.Session != nil {
+			return ptyStepStartMsg{session: result.Session, cmdStr: result.Text}
 		}
-		width, height := p.width, p.height
-		return func() tea.Msg {
-			session, err := pty.NewSessionContext(ctx, args, workDir)
-			if err != nil {
-				return pty.ExitMsg{Err: fmt.Errorf("start command %q: %w", step.Run, err)}
-			}
-			if err := session.Resize(uint16(vpH(height)), uint16(vpW(width))); err != nil {
-				return pty.ExitMsg{Err: errors.Join(err, session.Close())}
-			}
-			return ptyStepStartMsg{session: session, cmdStr: tmpl.ExpandVars(step.Run, vars)}
-		}
-	default:
-		return func() tea.Msg { return pty.ExitMsg{Err: fmt.Errorf("unknown step type %q", step.Type)} }
+		return ptyBuiltinCompleteMsg{text: result.Text}
 	}
 }
 
@@ -623,13 +389,11 @@ func (p ptyScreen) View() string {
 	footer := "Opening workspace…"
 	if !p.completed {
 		label := "Running…"
-		if len(p.allSteps) > 0 {
-			total := len(p.allSteps)
-			if p.tmpl != nil && !p.isPostSteps {
-				total = len(p.tmpl.Steps)
-			}
-			label = fmt.Sprintf("Step %d/%d", min(max(p.currentStepIdx, 1), total), total)
+		index, total, _ := p.scaffold.Execution.Progress()
+		if total > 0 {
+			label = fmt.Sprintf("Step %d/%d", min(max(index, 1), total), total)
 		}
+
 		progress = ui.Activity(label, p.motionFrame, p.reducedMotion)
 		footer = "Type to send input · ctrl+c interrupt"
 		if p.width < 40 {
@@ -637,5 +401,5 @@ func (p ptyScreen) View() string {
 		}
 	}
 	terminal := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(theme.BorderFocused).Width(vpW(p.width)).Height(vpH(p.height)).Render(p.viewport.View())
-	return strings.Join([]string{ui.Header(title, p.width), ui.Fit(progress, p.width, 1), terminal, ui.Fit(dimStyle.Render(footer), p.width, 1)}, "\n")
+	return strings.Join([]string{ui.Header(title, p.width), ui.Fit(progress, p.width, 1), terminal, ui.Fit(dimStyle.Render(ui.SafeBlock(footer)), p.width, 1)}, "\n")
 }

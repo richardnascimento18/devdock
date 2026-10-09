@@ -2,6 +2,8 @@ module github.com/richardnascimento18/devdock
 
 go 1.26.0
 
+toolchain go1.27.2
+
 require (
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10

@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/ui"
 )
@@ -46,15 +47,15 @@ func TestMultiSelectionNavigationFilterScopeAndReconciliation(t *testing.T) {
 	}
 	m = renderFixture()
 	m = dashboardKey(t, m, keyRune(" "))
-	m.focus = ui.Workspace
-	m.workspaceCursor = 1
+	m.navigation.focus = ui.Workspace
+	m.navigation.cursor = 1
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
 	if len(m.selected) != 0 {
 		t.Fatal("scope retained selection")
 	}
 	m = renderFixture()
 	m = dashboardKey(t, m, keyRune(" "))
-	m.rawProjects = nil
+	m.navigation.projects = nil
 	m = m.rebuildList(false)
 	if len(m.selected) != 0 {
 		t.Fatal("stale selection")
@@ -63,7 +64,7 @@ func TestMultiSelectionNavigationFilterScopeAndReconciliation(t *testing.T) {
 func TestBulkFavoritesAndDestructiveGuard(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	m := renderFixture()
-	m.selected = map[string]bool{m.rawProjects[0].Path: true, m.rawProjects[1].Path: true}
+	m.selected = map[string]bool{m.navigation.projects[0].Path: true, m.navigation.projects[1].Path: true}
 	m = dashboardKey(t, m, keyRune("x"))
 	if m.state != stateList {
 		t.Fatal("delete accepted while selected")
@@ -110,16 +111,16 @@ func bulkFixture(t *testing.T) ([]core.Project, core.Location) {
 }
 func TestBulkPreflightAllAndChangedDestinationBlocksEveryMove(t *testing.T) {
 	projects, dest := bulkFixture(t)
-	rows := preflightBulk(projects, dest, core.PlanMove)
-	if !bulkValid(rows) {
+	rows := app.PreflightMoves(projects, dest, core.PlanMove)
+	if !app.MovesValid(rows) {
 		t.Fatal(rows)
 	}
-	if err := os.Mkdir(rows[1].plan.Path, 0755); err != nil {
+	if err := os.Mkdir(rows[1].Plan.Path, 0755); err != nil {
 		t.Fatal(err)
 	}
 	calls := 0
-	checked, executed := executeBulk(rows, core.PlanMove, func(plan core.MovePlan) (core.Project, error) { calls++; return core.ExecuteMove(plan) })
-	if executed || calls != 0 || checked[1].err == nil {
+	checked, executed := app.ExecuteMoves(rows, core.PlanMove, func(plan core.MovePlan) (core.Project, error) { calls++; return core.ExecuteMove(plan) })
+	if executed || calls != 0 || checked[1].Err == nil {
 		t.Fatal("obvious later collision discovered after starting move")
 	}
 	for _, p := range projects {
@@ -135,13 +136,13 @@ func TestBulkInternalCollisionAndPartialResults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocked := preflightBulk([]core.Project{projects[0], other}, dest, core.PlanMove)
-	if bulkValid(blocked) || blocked[0].err == nil || blocked[1].err == nil {
+	blocked := app.PreflightMoves([]core.Project{projects[0], other}, dest, core.PlanMove)
+	if app.MovesValid(blocked) || blocked[0].Err == nil || blocked[1].Err == nil {
 		t.Fatal("internal collision allowed")
 	}
-	rows := preflightBulk(projects, dest, core.PlanMove)
+	rows := app.PreflightMoves(projects, dest, core.PlanMove)
 	calls := 0
-	results, executed := executeBulk(rows, core.PlanMove, func(plan core.MovePlan) (core.Project, error) {
+	results, executed := app.ExecuteMoves(rows, core.PlanMove, func(plan core.MovePlan) (core.Project, error) {
 		calls++
 		if calls == 1 {
 			return core.Project{Location: plan.Destination, Name: plan.Source.Name, Path: plan.Path}, &core.PartialMoveError{Source: plan.Source.Path, Destination: plan.Path, Err: errors.New("cleanup blocked")}
@@ -167,24 +168,24 @@ func TestBulkMoveReconcilesStateAndStaleMessages(t *testing.T) {
 	m.uiState.AddRecent(projects[0])
 	m.bulk = bulkWorkflow{id: 4, projects: projects, destination: dest}
 	m.state = stateBulkMoving
-	rows, executed := executeBulk(preflightBulk(projects, dest, core.PlanMove), core.PlanMove, core.ExecuteMove)
+	rows, executed := app.ExecuteMoves(app.PreflightMoves(projects, dest, core.PlanMove), core.PlanMove, core.ExecuteMove)
 	next, _ := m.Update(bulkDoneMsg{3, rows, executed})
 	if next.(model).state != stateBulkMoving {
 		t.Fatal("stale completion accepted")
 	}
 	next, _ = m.Update(bulkDoneMsg{4, rows, executed})
 	m = next.(model)
-	if m.state != stateBulkResult || len(m.selected) != 0 || !m.uiState.Favorites[rows[0].project.Path] || m.uiState.Favorites[projects[0].Path] || m.uiState.Recents[0].Path != rows[0].project.Path {
+	if m.state != stateBulkResult || len(m.selected) != 0 || !m.uiState.Favorites[rows[0].Project.Path] || m.uiState.Favorites[projects[0].Path] || m.uiState.Recents[0].Path != rows[0].Project.Path {
 		t.Fatal("bulk state reconciliation")
 	}
 	for _, row := range rows {
-		if row.err != nil {
-			t.Fatal(row.err)
+		if row.Err != nil {
+			t.Fatal(row.Err)
 		}
-		if _, err := os.Stat(filepath.Join(row.project.Path, "go.mod")); err != nil {
+		if _, err := os.Stat(filepath.Join(row.Project.Path, "go.mod")); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := os.Stat(row.plan.Source.Path); !os.IsNotExist(err) {
+		if _, err := os.Stat(row.Plan.Source.Path); !os.IsNotExist(err) {
 			t.Fatal("source retained")
 		}
 	}
@@ -196,8 +197,8 @@ func TestBulkMoveReconcilesStateAndStaleMessages(t *testing.T) {
 func TestBulkConfirmationCancelBlockedAndResize(t *testing.T) {
 	projects, dest := bulkFixture(t)
 	m := renderFixture()
-	m.bulk = bulkWorkflow{id: 3, projects: projects, destination: dest, rows: preflightBulk(projects, dest, core.PlanMove)}
-	m.bulk.rows[1].err = errors.New("collision")
+	m.bulk = bulkWorkflow{id: 3, projects: projects, destination: dest, rows: app.PreflightMoves(projects, dest, core.PlanMove)}
+	m.bulk.rows[1].Err = errors.New("collision")
 	m.state = stateBulkConfirm
 	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd != nil || next.(model).state != stateBulkConfirm {
@@ -234,7 +235,7 @@ func TestBulkPreflightConfirmationExecutionFlow(t *testing.T) {
 	}
 	next, _ = m.Update(msg)
 	m = next.(model)
-	if m.state != stateBulkConfirm || !bulkValid(m.bulk.rows) {
+	if m.state != stateBulkConfirm || !app.MovesValid(m.bulk.rows) {
 		t.Fatal("confirmation missing")
 	}
 	next, cmd = m.updateBulk(tea.KeyMsg{Type: tea.KeyEnter})

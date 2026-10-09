@@ -21,10 +21,10 @@ func (m model) inWorkspaceScope(location core.Location) bool {
 	if !m.isAllMode() && location.Root != m.activeRoot() {
 		return false
 	}
-	if m.workspaceScope == nil {
+	if m.navigation.scope == nil {
 		return true
 	}
-	scope := *m.workspaceScope
+	scope := *m.navigation.scope
 	if location.Root != scope.Root || scope.Domain != "" && location.Domain != scope.Domain || len(location.GroupPath) < len(scope.GroupPath) {
 		return false
 	}

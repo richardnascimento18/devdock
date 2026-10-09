@@ -1,8 +1,6 @@
 package main
 
-import (
-	"github.com/richardnascimento18/devdock/internal/ui"
-)
+import "github.com/richardnascimento18/devdock/internal/ui"
 
 func (m model) View() string {
 	if ui.Measure(m.termW, m.termH).Mode == ui.Tiny {
@@ -19,19 +17,19 @@ func (m model) viewScreen() string {
 	if m.flowModal() {
 		return m.currentModal().View(w, h, m.modalScroll)
 	}
-	switch m.state {
-	case stateBulkPreflight, stateBulkMoving, stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
+	switch m.state.kind() {
+	case routeOperation:
 		return m.spinnerScr.View(w, h, m.motion.frame, m.motion.reduced, m.state == stateBulkPreflight)
-	case statePTYExecution:
+	case routeTerminal:
 		p := m.ptyScr
 		p.motionFrame = m.motion.frame
 		p.reducedMotion = m.motion.reduced
 		return p.View()
-	case stateHelp:
+	case routeHelp:
 		return renderHelpOverlay(w, h, m.helpScroll, m.availableActions())
-	case statePalette:
+	case routePalette:
 		return m.palette.View(w, h)
-	case stateEditor:
+	case routeEditor:
 		return m.editorScr.View()
 	default:
 		return m.viewList(w, h)

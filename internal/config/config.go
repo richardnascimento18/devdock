@@ -53,9 +53,12 @@ func Path() string {
 	return filepath.Join(Dir(), "config.toml")
 }
 
-func Load() (Config, error) {
+type Store struct{ File string }
+
+func Load() (Config, error) { return Store{File: Path()}.Load() }
+func (s Store) Load() (Config, error) {
 	var cfg Config
-	data, err := os.ReadFile(Path())
+	data, err := os.ReadFile(s.File)
 	if err != nil {
 		return cfg, err
 	}
@@ -67,26 +70,27 @@ func Load() (Config, error) {
 		cfg.Root = ""
 	}
 	if err := Validate(cfg); err != nil {
-		return Config{}, fmt.Errorf("invalid configuration %q: %w; correct the roots/settings in this file and restart (file unchanged)", Path(), err)
+		return Config{}, fmt.Errorf("invalid configuration %q: %w; correct the roots/settings in this file and restart (file unchanged)", s.File, err)
 	}
 	return cfg, nil
 }
 
-func Save(cfg Config) error {
-	if Dir() == "" {
-		return fmt.Errorf("cannot determine configuration directory: HOME is unset")
+func Save(cfg Config) error { return Store{File: Path()}.Save(cfg) }
+func (s Store) Save(cfg Config) error {
+	if !filepath.IsAbs(s.File) {
+		return fmt.Errorf("cannot determine absolute configuration file: HOME is unset")
 	}
 	if err := Validate(cfg); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(Dir(), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.File), 0o755); err != nil {
 		return err
 	}
 	data, err := toml.Marshal(cfg)
 	if err != nil {
 		return err
 	}
-	return fileutil.WriteFileAtomic(Path(), data, 0o600)
+	return fileutil.WriteFileAtomic(s.File, data, 0o600)
 }
 
 func (c *Config) AddRoot(path string) error {

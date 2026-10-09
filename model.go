@@ -6,6 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
 	gh "github.com/richardnascimento18/devdock/internal/github"
@@ -14,56 +18,36 @@ import (
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
 	"github.com/richardnascimento18/devdock/internal/tmux"
 	"github.com/richardnascimento18/devdock/internal/ui"
-
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 type model struct {
+	navigation   navigationState
+	creation     creationState
+	launch       launchState
+	auth         authState
+	scan         scanState
+	repositories repositoriesState
+	tmux         tmuxState
+	query        queryState
+
+	tmuxClient             tmux.Client
+	workspaces             app.Workspaces
+	appContext             context.Context
+	preferences            app.Preferences
 	selected               map[string]bool
 	bulk                   bulkWorkflow
 	bulkID                 uint64
-	focus                  ui.Pane
-	workspaceRows          []workspaceRow
-	workspaceCursor        int
-	workspaceSelection     core.NodeKey
-	workspaceScope         *core.Location
-	inspectorScroll        int
 	palette                paletteScreen
-	searchInput            textinput.Model
-	searching              bool
-	searchRestore          string
 	helpScroll             int
 	modalScroll            int
 	filesystemStatePending bool
-	tmuxRefreshRequested   bool
-	tmuxRefreshID          uint64
-	tmuxDeleting           bool
 	motion                 animationClock
-	startupCmd             tea.Cmd
-	scanInFlight           bool
-	repoLoading            bool
-	tmuxRefreshing         bool
-	cachedTmux             map[string]bool
 	moveFilesystem         core.Mover
 	statusDetails          string
-	scanWarnings           string
-	scanWarningCount       int
-	scanRequested          bool
-	scanID                 uint64
-	workspaceTree          core.Workspace
-	workspaceDomains       map[string][]string
 	rootIntent             rootPickerIntent
 	domainIntent           domainIntent
 	groupFlow              groupWorkflow
 	operationID            uint64
-	authID                 uint64
-	repoLoadID             uint64
-	authContext            context.Context
-	authCancel             context.CancelFunc
-	authClient             authClient
 	cfg                    config.Config
 	state                  appState
 	list                   list.Model
@@ -83,10 +67,8 @@ type model struct {
 	treeMode       bool
 	collapsedNodes map[core.NodeKey]bool
 
-	githubRepos   []gh.Repo
-	githubAuthScr githubAuthScreen
-	deviceCode    gh.DeviceCodeResponse
-	isFiltered    bool
+	githubRepos []gh.Repo
+	isFiltered  bool
 
 	inputScr         inputScreen
 	domainPicker     domainPickerScreen
@@ -102,33 +84,15 @@ type model struct {
 	confirmDelTmux   confirmDeleteTmuxScreen
 
 	// tmux-sessions tab
-	tmuxSessions      []string
-	pendingTmuxAttach string // session name to attach after TUI exits
-
-	pendingProjectName string
-	pendingDomainName  string
-	pendingRoot        string
-	pendingDomain      string
-	pendingLocation    core.Location
-	pendingPreset      preset.Preset
-	pendingTemplate    *tmpl.Template
-	pendingGHRepo      gh.Repo
-	pendingCreateGH    bool
-	pendingGHPrivate   bool
-	placementIntent    placementIntent
-	moveTarget         core.Project
-	movePlacementOpts  []movePlacementOption
-	deleteTarget       core.Project
-	lastFilter         string
-	statusMsg          string
-
-	pendingLaunch       core.Project
-	pendingLaunchReady  bool
-	pendingLaunchPreset preset.Preset
-
-	rawProjects        []core.Project
-	projectIndex       map[string]core.Project
-	duplicateLocations map[string]bool
+	pendingDomainName string
+	pendingRoot       string
+	pendingDomain     string
+	pendingLocation   core.Location
+	placementIntent   placementIntent
+	moveTarget        core.Project
+	movePlacementOpts []movePlacementOption
+	deleteTarget      core.Project
+	diagnostic        app.Diagnostic
 }
 
 type movePlacementOption struct {
@@ -136,35 +100,27 @@ type movePlacementOption struct {
 	location core.Location
 }
 
-func newModel(projects []core.Project, cfg config.Config, presets []preset.Preset, templates []tmpl.Template, uiSt uistate.UIState) model {
+func newModelWithPreferences(projects []core.Project, cfg config.Config, presets []preset.Preset, templates []tmpl.Template, uiSt uistate.UIState, preferences app.Preferences) model {
 	roots := cfg.ActiveRoots()
 
 	m := model{
-		focus:          ui.Projects,
-		motion:         animationClock{generation: 1, reduced: reducedMotion()},
-		repoLoading:    cfg.IsGitHubConnected(),
-		tmuxRefreshing: uiSt.ActiveTab == TabTmux,
-		cfg:            cfg,
-		repoLoadID:     1,
-		tmuxRefreshID:  1,
-		presets:        presets,
-		templates:      templates,
-		uiState:        uiSt.Clone(),
-		committedState: uiSt.Clone(),
-		rootSel:        newRootSelector(roots),
-		presetSel:      newPresetSelector(presets, cfg.DefaultPreset),
-		treeMode:       uiSt.TreeMode,
-		collapsedNodes: cloneCollapsed(uiSt.CollapsedNodes),
-		activeTab:      uiSt.ActiveTab,
-		rawProjects:    projects,
-		termW:          120,
-		termH:          40,
+		preferences: preferences, workspaces: app.NewWorkspaces(), tmuxClient: tmux.NewClient(),
+		cfg: cfg, motion: animationClock{generation: 1, reduced: reducedMotion()},
+		navigation:   navigationState{focus: ui.Projects, projects: projects},
+		repositories: repositoriesState{loading: cfg.IsGitHubConnected(), id: 1},
+		tmux:         tmuxState{refreshing: uiSt.ActiveTab == TabTmux, id: 1},
+		presets:      presets, templates: templates,
+		uiState: uiSt.Clone(), committedState: uiSt.Clone(),
+		rootSel: newRootSelector(roots), presetSel: newPresetSelector(presets, cfg.DefaultPreset),
+		treeMode: uiSt.TreeMode, collapsedNodes: cloneCollapsed(uiSt.CollapsedNodes), activeTab: uiSt.ActiveTab,
+		termW: 120, termH: 40,
 	}
+
 	if m.collapsedNodes == nil {
 		m.collapsedNodes = make(map[core.NodeKey]bool)
 	}
 	if cfg.IsGitHubConnected() {
-		m.statusMsg = dimStyle.Render("↻  loading GitHub repos...")
+		m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: "↻  loading GitHub repos..."}
 	}
 
 	delegate := projectDelegate{}
@@ -203,8 +159,8 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 		}
 	}
 	m.list = l
-	m.searchInput = transparentInput()
-	m.searchInput.Prompt = "/ "
+	m.query.input = transparentInput()
+	m.query.input.Prompt = "/ "
 	m.refreshProjectDisambiguators()
 	m.sizePresentation()
 	m.motion.pending = !m.motion.reduced && m.activityLabel() != ""
@@ -214,19 +170,19 @@ func newModel(projects []core.Project, cfg config.Config, presets []preset.Prese
 
 func (m model) Init() tea.Cmd {
 	var commands []tea.Cmd
-	if m.startupCmd != nil {
-		commands = append(commands, m.startupCmd)
+	if m.scan.startup != nil {
+		commands = append(commands, m.scan.startup)
 	}
 	if m.motion.pending {
 		commands = append(commands, animationTick(m.motion.generation, 320*time.Millisecond))
 	}
 	if m.cfg.IsGitHubConnected() {
-		commands = append(commands, gh.CmdFetchRepos(m.cfg.GitHubToken, m.repoLoadID))
+		commands = append(commands, cmdFetchRepos(m.context(), m.cfg.GitHubToken, m.repositories.id))
 	}
 	if m.activeTab == TabTmux {
-		id := m.tmuxRefreshID
+		id := m.tmux.id
 		commands = append(commands, func() tea.Msg {
-			sessions, err := tmux.ListSessions()
+			sessions, err := m.tmuxClient.ListSessions()
 			return tmuxSessionsMsg{id: id, sessions: sessions, err: err}
 		})
 	}
@@ -240,7 +196,7 @@ func (m *model) saveState() bool {
 	m.uiState.CollapsedNodes = m.collapsedNodes
 	m.uiState.TreeMode = m.treeMode
 	m.uiState.ActiveTab = m.activeTab
-	if err := uistate.Save(config.Dir(), m.uiState); err != nil {
+	if err := m.preferences.State.Save(m.uiState); err != nil {
 		m.persistenceErr = fmt.Errorf("save state: %w", err)
 		if !m.filesystemStatePending {
 			m.uiState = m.committedState.Clone()
@@ -249,7 +205,7 @@ func (m *model) saveState() bool {
 		m.treeMode = m.uiState.TreeMode
 		m.activeTab = m.uiState.ActiveTab
 		*m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
-		m.statusMsg = errorStyle.Render("save state: " + err.Error())
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "save state: " + err.Error(), Cause: err, Operation: "save-state"}
 		return false
 	}
 	m.committedState = m.uiState.Clone()
@@ -288,7 +244,7 @@ func (m model) refreshTabList() model {
 	case TabFavorites:
 		var items []list.Item
 		showRoot := m.isAllMode() && len(m.cfg.ActiveRoots()) > 1
-		for _, p := range m.rawProjects {
+		for _, p := range m.navigation.projects {
 			if m.uiState.Favorites[p.Path] && m.inWorkspaceScope(p.Location) {
 				items = append(items, favoriteItem{project: p, showRoot: showRoot, verified: verified})
 			}
@@ -296,7 +252,7 @@ func (m model) refreshTabList() model {
 		m.list.SetItems(items)
 	case TabTmux:
 		var items []list.Item
-		for _, s := range m.tmuxSessions {
+		for _, s := range m.tmux.sessions {
 			items = append(items, m.sessionItem(s))
 		}
 		m.list.SetItems(items)
@@ -310,9 +266,9 @@ func (m model) refreshTabList() model {
 
 func (m *model) sizePresentation() {
 	l := m.dashboardLayout()
-	m.list.SetDelegate(projectDelegate{projects: m.projectIndex, duplicates: m.duplicateLocations, sessions: m.cachedTmux, favorites: m.uiState.Favorites, selected: m.selected, focused: m.focus == ui.Projects})
+	m.list.SetDelegate(projectDelegate{projects: m.navigation.projectIndex, duplicates: m.navigation.duplicateLocations, sessions: m.tmux.cached, favorites: m.uiState.Favorites, selected: m.selected, focused: m.navigation.focus == ui.Projects})
 	m.list.SetSize(max(l.Projects, 1), max(l.BodyHeight-1, 1))
-	m.searchInput.Width = max(min(m.termW-6, 72), 1)
+	m.query.input.Width = max(min(m.termW-6, 72), 1)
 }
 
 func (m model) rebuildList(verified bool) model {
@@ -320,9 +276,9 @@ func (m model) rebuildList(verified bool) model {
 	m.reconcileSelection()
 	m.refreshWorkspaceRows()
 	selected := rowIdentity(m.list.SelectedItem())
-	items := m.buildListItems(m.rawProjects, verified)
+	items := m.buildListItems(m.navigation.projects, verified)
 	if len(m.githubRepos) > 0 {
-		items = m.appendGitHubItems(items, m.rawProjects)
+		items = m.appendGitHubItems(items, m.navigation.projects)
 	}
 	m.allItems = items
 	m = m.refreshTabList()
@@ -377,13 +333,20 @@ func rowIdentity(it list.Item) string {
 // rebuilt for every animation frame or terminal resize.
 func (m *model) refreshProjectDisambiguators() {
 	names := map[string]int{}
-	m.projectIndex = make(map[string]core.Project, len(m.rawProjects))
-	m.duplicateLocations = map[string]bool{}
-	for _, p := range m.rawProjects {
+	m.navigation.projectIndex = make(map[string]core.Project, len(m.navigation.projects))
+	m.navigation.duplicateLocations = map[string]bool{}
+	for _, p := range m.navigation.projects {
 		names[p.Name+"\x00"+compactProjectLocation(p)]++
-		m.projectIndex[p.Path] = p
+		m.navigation.projectIndex[p.Path] = p
 	}
-	for _, p := range m.rawProjects {
-		m.duplicateLocations[p.Path] = names[p.Name+"\x00"+compactProjectLocation(p)] > 1
+	for _, p := range m.navigation.projects {
+		m.navigation.duplicateLocations[p.Path] = names[p.Name+"\x00"+compactProjectLocation(p)] > 1
 	}
+}
+
+func (m model) context() context.Context {
+	if m.appContext == nil {
+		return context.Background()
+	}
+	return m.appContext
 }

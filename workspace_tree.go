@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/ui"
-	"strings"
 )
 
 type workspaceRow struct {
@@ -18,10 +19,10 @@ type workspaceRow struct {
 // Walk only loaded container nodes. Project count does not affect this cache.
 func (m *model) refreshWorkspaceRows() {
 	rows := []workspaceRow{{}}
-	scopeFound := m.workspaceScope == nil
+	scopeFound := m.navigation.scope == nil
 	var visit func(*core.Node, int, []bool, bool)
 	visit = func(n *core.Node, depth int, parents []bool, last bool) {
-		if m.workspaceScope != nil && n.Key() == m.workspaceScope.Key() {
+		if m.navigation.scope != nil && n.Key() == m.navigation.scope.Key() {
 			scopeFound = true
 		}
 		guide := ""
@@ -54,7 +55,7 @@ func (m *model) refreshWorkspaceRows() {
 			visit(child, depth+1, nextParents, i == len(n.Children)-1)
 		}
 	}
-	for _, root := range m.workspaceTree.Roots {
+	for _, root := range m.navigation.tree.Roots {
 		visit(root, 0, nil, true)
 	}
 	// A hidden descendant may still be the active scope. Validate against the
@@ -62,7 +63,7 @@ func (m *model) refreshWorkspaceRows() {
 	if !scopeFound {
 		var exists func(*core.Node) bool
 		exists = func(n *core.Node) bool {
-			if n.Key() == m.workspaceScope.Key() {
+			if n.Key() == m.navigation.scope.Key() {
 				return true
 			}
 			for _, child := range n.Children {
@@ -72,31 +73,31 @@ func (m *model) refreshWorkspaceRows() {
 			}
 			return false
 		}
-		for _, root := range m.workspaceTree.Roots {
+		for _, root := range m.navigation.tree.Roots {
 			if exists(root) {
 				scopeFound = true
 				break
 			}
 		}
 		if !scopeFound {
-			m.workspaceScope = nil
+			m.navigation.scope = nil
 		}
 	}
-	m.workspaceRows = rows
-	m.workspaceCursor = 0
+	m.navigation.rows = rows
+	m.navigation.cursor = 0
 	for i, row := range rows {
-		if row.node != nil && row.node.Key() == m.workspaceSelection {
-			m.workspaceCursor = i
+		if row.node != nil && row.node.Key() == m.navigation.selection {
+			m.navigation.cursor = i
 			break
 		}
 	}
 	// Fall back to the nearest visible ancestor when the selected branch closes.
-	if m.workspaceSelection != "" && m.workspaceCursor == 0 {
-		loc, err := core.ParseNodeKey(m.workspaceSelection)
+	if m.navigation.selection != "" && m.navigation.cursor == 0 {
+		loc, err := core.ParseNodeKey(m.navigation.selection)
 		if err == nil {
 			for i, row := range rows {
 				if row.node != nil && row.node.Root == loc.Root && core.IsDescendant(row.node.Path(), loc.Path()) {
-					m.workspaceCursor = i
+					m.navigation.cursor = i
 				}
 			}
 		}
@@ -105,22 +106,22 @@ func (m *model) refreshWorkspaceRows() {
 }
 
 func (m *model) rememberWorkspaceSelection() {
-	m.workspaceSelection = ""
-	if m.workspaceCursor > 0 && m.workspaceCursor < len(m.workspaceRows) {
-		m.workspaceSelection = m.workspaceRows[m.workspaceCursor].node.Key()
+	m.navigation.selection = ""
+	if m.navigation.cursor > 0 && m.navigation.cursor < len(m.navigation.rows) {
+		m.navigation.selection = m.navigation.rows[m.navigation.cursor].node.Key()
 	}
 }
 
 func (m model) viewWorkspace(width, height int) string {
-	lines := []string{ui.PaneTitle("Workspace", m.focus == ui.Workspace, width)}
+	lines := []string{ui.PaneTitle("Workspace", m.navigation.focus == ui.Workspace, width)}
 	rows := max(height-1, 1)
-	start := max(0, m.workspaceCursor-rows/2)
-	start = min(start, max(len(m.workspaceRows)-rows, 0))
-	for i := start; i < min(start+rows, len(m.workspaceRows)); i++ {
-		row := m.workspaceRows[i]
+	start := max(0, m.navigation.cursor-rows/2)
+	start = min(start, max(len(m.navigation.rows)-rows, 0))
+	for i := start; i < min(start+rows, len(m.navigation.rows)); i++ {
+		row := m.navigation.rows[i]
 		label := "All workspaces"
-		guide, count := "", len(m.rawProjects)
-		activeScope := m.workspaceScope == nil && m.activeRoot() == ""
+		guide, count := "", len(m.navigation.projects)
+		activeScope := m.navigation.scope == nil && m.activeRoot() == ""
 		style := ui.Foreground(theme.Secondary)
 		glyph := "◉"
 		if row.node != nil {
@@ -128,7 +129,7 @@ func (m model) viewWorkspace(width, height int) string {
 			guide = row.guide
 			label = n.Name
 			if n.Kind == core.NodeRoot {
-				for _, other := range m.workspaceTree.Roots {
+				for _, other := range m.navigation.tree.Roots {
 					if other.Root != n.Root && other.Name == n.Name {
 						label += " · " + core.PathID(n.Root)[:4]
 						break
@@ -136,7 +137,7 @@ func (m model) viewWorkspace(width, height int) string {
 				}
 			}
 			count = n.ProjectCount
-			activeScope = m.workspaceScope != nil && m.workspaceScope.Key() == n.Key()
+			activeScope = m.navigation.scope != nil && m.navigation.scope.Key() == n.Key()
 			glyph = "▾"
 			if len(n.Children) == 0 {
 				glyph = "·"
@@ -156,49 +157,49 @@ func (m model) viewWorkspace(width, height int) string {
 			prefix = "● "
 			style = style.Bold(true)
 		}
-		if i == m.workspaceCursor {
+		if i == m.navigation.cursor {
 			prefix = "› "
-			if m.focus == ui.Workspace {
+			if m.navigation.focus == ui.Workspace {
 				prefix = "> "
 				style = selectedStyle.Underline(true)
 			}
 		}
-		suffix := dimStyle.Render(fmt.Sprintf(" %d", count))
+		suffix := dimStyle.Render(ui.SafeText(fmt.Sprintf(" %d", count)))
 		budget := max(width-ansi.StringWidth(prefix+guide+glyph+" "+suffix), 1)
-		line := prefix + dimStyle.Render(guide) + style.Render(glyph+" ") + style.Render(ansi.Truncate(label, budget, "…")) + suffix
+		line := prefix + dimStyle.Render(ui.SafeText(guide)) + style.Render(ui.SafeText(glyph+" ")) + style.Render(ui.SafeText(ansi.Truncate(label, budget, "…"))) + suffix
 		lines = append(lines, ui.Fit(line, width, 1))
 	}
-	if len(m.workspaceRows) == 1 {
+	if len(m.navigation.rows) == 1 {
 		lines = append(lines, dimStyle.Render("No roots found.\nPress a to add a root."))
 	}
 	return paneContent(strings.Join(lines, "\n"), width, height)
 }
 
 func (m model) updateWorkspace(key tea.KeyMsg) (model, bool) {
-	if len(m.workspaceRows) == 0 {
+	if len(m.navigation.rows) == 0 {
 		m.refreshWorkspaceRows()
 	}
 	switch key.String() {
 	case "j", "down":
-		m.workspaceCursor = min(m.workspaceCursor+1, len(m.workspaceRows)-1)
+		m.navigation.cursor = min(m.navigation.cursor+1, len(m.navigation.rows)-1)
 	case "k", "up":
-		m.workspaceCursor = max(m.workspaceCursor-1, 0)
+		m.navigation.cursor = max(m.navigation.cursor-1, 0)
 	case "home":
-		m.workspaceCursor = 0
+		m.navigation.cursor = 0
 	case "end":
-		m.workspaceCursor = len(m.workspaceRows) - 1
+		m.navigation.cursor = len(m.navigation.rows) - 1
 	case "enter":
 		var loc *core.Location
-		if m.workspaceCursor > 0 {
-			copy := m.workspaceRows[m.workspaceCursor].node.Location
+		if m.navigation.cursor > 0 {
+			copy := m.navigation.rows[m.navigation.cursor].node.Location
 			loc = &copy
 		}
 		m = m.switchScope(loc)
 	case " ", "right", "l", "left", "h":
-		if m.workspaceCursor == 0 {
+		if m.navigation.cursor == 0 {
 			return m, true
 		}
-		n := m.workspaceRows[m.workspaceCursor].node
+		n := m.navigation.rows[m.navigation.cursor].node
 		if key.String() == "left" || key.String() == "h" {
 			m.collapsedNodes[n.Key()] = true
 		} else if key.String() == "right" || key.String() == "l" {
@@ -210,7 +211,7 @@ func (m model) updateWorkspace(key tea.KeyMsg) (model, bool) {
 		m.refreshWorkspaceRows()
 		m.saveState()
 	case "esc":
-		m.focus = ui.Projects
+		m.navigation.focus = ui.Projects
 	default:
 		return m, false
 	}

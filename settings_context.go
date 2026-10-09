@@ -1,10 +1,11 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/richardnascimento18/devdock/internal/ui"
-	"strings"
 )
 
 func (m model) settingsFlowVisible() bool {
@@ -27,5 +28,5 @@ func (m model) viewSettingsFlow() string {
 	offset := min(m.modalScroll, max(len(lines)-max(rows-1, 1), 0))
 	content := ui.PaneTitle(form.title, true, detail) + "\n" + strings.Join(lines[offset:], "\n")
 	body := lipgloss.JoinHorizontal(lipgloss.Top, paneContent(choices, left, rows), "  ", paneContent(content, detail, rows))
-	return strings.Join([]string{ui.Header("Configuration › Settings", m.termW), promptStyle.Render("Roots / Values"), "", body, ui.Footer(form.hint, m.statusMsg, m.termW)}, "\n")
+	return strings.Join([]string{ui.Header("Configuration › Settings", m.termW), promptStyle.Render("Roots / Values"), "", body, ui.Footer(form.hint, diagnosticView(m.diagnostic), m.termW)}, "\n")
 }

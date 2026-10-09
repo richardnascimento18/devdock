@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/charmbracelet/x/ansi"
-	"github.com/richardnascimento18/devdock/internal/core"
 	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/preset"
 	tmpl "github.com/richardnascimento18/devdock/internal/template"
 	"github.com/richardnascimento18/devdock/internal/ui"
@@ -53,12 +53,12 @@ func (s inputScreen) Update(msg tea.Msg) (inputScreen, tea.Cmd) {
 func (s inputScreen) content(termW, termH int) modalContent {
 	s.input.Width = max(ui.ModalInnerWidth(termW)-2, 1)
 	var inner strings.Builder
-	inner.WriteString(s.input.View() + "\n")
+	inner.WriteString(ui.InputView(s.input) + "\n")
 	if s.err != "" {
-		inner.WriteString(errorStyle.Render("! "+s.err) + "\n")
+		inner.WriteString(errorStyle.Render(ui.SafeBlock("! "+s.err)) + "\n")
 	}
 	if s.targetPath != "" {
-		inner.WriteString("\n" + warningStyle.Render("Filesystem target ["+core.PathID(s.targetPath)+"]:") + "\n" + s.targetPath)
+		inner.WriteString("\n" + warningStyle.Render(ui.SafeBlock("Filesystem target ["+core.PathID(s.targetPath)+"]:")) + "\n" + ui.SafeText(s.targetPath))
 	}
 	return modalContent{title: s.title, body: inner.String(), hint: s.hint}
 }
@@ -81,13 +81,13 @@ func (y yesNoScreen) content(termW, termH int) modalContent {
 	var inner strings.Builder
 	for i, opt := range []string{"  Yes", "  No"} {
 		if i == y.cursor {
-			inner.WriteString(activeStyle.Render(opt) + "\n")
+			inner.WriteString(activeStyle.Render(ui.SafeText(opt)) + "\n")
 		} else {
-			inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render(opt) + "\n")
+			inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render(ui.SafeText(opt)) + "\n")
 		}
 	}
 	if y.err != "" {
-		inner.WriteString("\n" + errorStyle.Render("✗  "+y.err))
+		inner.WriteString("\n" + errorStyle.Render(ui.SafeBlock("✗  "+y.err)))
 	}
 	return modalContent{title: y.title, body: inner.String(), hint: "↑/↓ choose · enter confirm · esc cancel"}
 }
@@ -121,18 +121,18 @@ type githubAuthScreen struct {
 func (g githubAuthScreen) content(termW, termH int) modalContent {
 	var inner strings.Builder
 	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render("1. Open this URL in your browser:") + "\n")
-	inner.WriteString("   " + lipgloss.NewStyle().Foreground(theme.Info).Underline(true).Render(g.verificationURI) + "\n\n")
+	inner.WriteString("   " + lipgloss.NewStyle().Foreground(theme.Info).Underline(true).Render(ui.SafeText(g.verificationURI)) + "\n\n")
 	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render("2. Enter this one-time code:") + "\n")
 	inner.WriteString("   " + lipgloss.NewStyle().
 		Bold(true).Foreground(theme.Favorite).Padding(0, 2).
-		Render(g.userCode) + "\n\n")
+		Render(ui.SafeText(g.userCode)) + "\n\n")
 	if g.done {
 		inner.WriteString(successStyle.Render("✓  Authorized! Loading your repositories..."))
 	} else {
 		inner.WriteString(lipgloss.NewStyle().Foreground(theme.Muted).Render("Waiting for authorization..."))
 	}
 	if g.err != "" {
-		inner.WriteString("\n\n" + errorStyle.Render("✗  "+g.err))
+		inner.WriteString("\n\n" + errorStyle.Render(ui.SafeBlock("✗  "+g.err)))
 	}
 	return modalContent{title: "Connect GitHub Account", body: inner.String(), hint: "esc cancel"}
 }
@@ -179,22 +179,22 @@ func (g genericPickerScreen) content(termW, termH int) modalContent {
 		o = identity + o
 		switch {
 		case g.disabled[g.options[i]]:
-			line = dimStyle.Render("  "+o) + dimStyle.Render(" (already exists)")
+			line = dimStyle.Render(ui.SafeText("  "+o)) + dimStyle.Render(" (already exists)")
 		case i == g.cursor:
-			line = activeStyle.Render("▶ " + o)
+			line = activeStyle.Render(ui.SafeText("▶ " + o))
 		default:
-			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render("  " + o)
+			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render(ui.SafeText("  " + o))
 		}
 		inner.WriteString(line + "\n")
 	}
 	if g.cursor >= 0 && g.cursor < len(g.options) {
-		inner.WriteString("\n" + dimStyle.Render("Selected location:") + "\n" + g.options[g.cursor] + "\n")
+		inner.WriteString("\n" + dimStyle.Render("Selected location:") + "\n" + ui.SafeText(g.options[g.cursor]) + "\n")
 	}
 	if len(g.options) > rows {
-		inner.WriteString(dimStyle.Render(fmt.Sprintf("%d/%d", g.cursor+1, len(g.options))) + "\n")
+		inner.WriteString(dimStyle.Render(ui.SafeText(fmt.Sprintf("%d/%d", g.cursor+1, len(g.options)))) + "\n")
 	}
 	if g.err != "" {
-		inner.WriteString("\n" + errorStyle.Render("✗  "+g.err))
+		inner.WriteString("\n" + errorStyle.Render(ui.SafeBlock("✗  "+g.err)))
 	}
 	return modalContent{title: g.title, body: inner.String(), hint: g.hint}
 }
@@ -250,7 +250,7 @@ func (p presetPickerScreen) content(termW, termH int) modalContent {
 		if budget > 40 {
 			budget -= 12
 		}
-		line := nameStyle.Render(arrow) + nameStyle.Render(ansi.Truncate(ps.Name, budget, "…")) + dimStyle.Render(marker)
+		line := nameStyle.Render(ui.SafeBlock(arrow)) + nameStyle.Render(ansi.Truncate(ui.SafeText(ps.Name), budget, "…")) + dimStyle.Render(ui.SafeBlock(marker))
 		var windows []string
 		for _, win := range ps.Windows {
 			label := win.Name
@@ -259,11 +259,11 @@ func (p presetPickerScreen) content(termW, termH int) modalContent {
 			}
 			windows = append(windows, label)
 		}
-		line += dimStyle.Render("  [" + strings.Join(windows, " · ") + "]")
+		line += dimStyle.Render(ui.SafeText("  [" + strings.Join(windows, " · ") + "]"))
 		inner.WriteString(ansi.Truncate(line, ui.ModalInnerWidth(termW), "…") + "\n")
 	}
 	if len(p.presets) > 0 {
-		inner.WriteString("\nSelected: " + p.Selected().Name)
+		inner.WriteString("\nSelected: " + ui.SafeText(p.Selected().Name))
 	}
 	return modalContent{title: "Choose tmux preset", body: inner.String(), hint: "↑/↓ choose · enter confirm · esc cancel"}
 }
@@ -305,17 +305,17 @@ func (t templatePickerScreen) content(termW, termH int) modalContent {
 	for i := start; i < min(start+rows, len(t.templates)); i++ {
 		tmpl := t.templates[i]
 		idx := i + 1
-		desc := dimStyle.Render("  " + tmpl.Description)
+		desc := dimStyle.Render(ui.SafeText("  " + tmpl.Description))
 		var line string
 		if idx == t.cursor {
-			line = activeStyle.Render("▶  "+tmpl.Name) + desc
+			line = activeStyle.Render(ui.SafeText("▶  "+tmpl.Name)) + desc
 		} else {
-			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render("   "+tmpl.Name) + desc
+			line = lipgloss.NewStyle().Foreground(theme.Secondary).Render(ui.SafeText("   "+tmpl.Name)) + desc
 		}
 		inner.WriteString(ansi.Truncate(line, ui.ModalInnerWidth(termW), "…") + "\n")
 	}
 	if selected := t.Selected(); selected != nil {
-		inner.WriteString("\nSelected: " + selected.Name + "\n" + selected.Description)
+		inner.WriteString("\nSelected: " + ui.SafeText(selected.Name) + "\n" + ui.SafeBlock(selected.Description))
 	}
 	return modalContent{title: "Choose a template", body: inner.String(), hint: "↑/↓ choose · enter confirm · esc cancel"}
 }
@@ -375,15 +375,15 @@ func (s confirmDeleteDomainScreen) Update(msg tea.Msg) (confirmDeleteDomainScree
 func (s confirmDeleteDomainScreen) content(termW, termH int) modalContent {
 	s.input.Width = max(ui.ModalInnerWidth(termW)-2, 1)
 	var inner strings.Builder
-	inner.WriteString(errorStyle.Render(fmt.Sprintf(
+	inner.WriteString(errorStyle.Render(ui.SafeText(fmt.Sprintf(
 		"ALL projects inside \"%s\" will be permanently deleted.", s.domainName,
-	)) + "\n\n")
+	))) + "\n\n")
 	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render(
-		fmt.Sprintf("Type \"%s\" to confirm:", s.domainName),
+		ui.SafeText(fmt.Sprintf("Type \"%s\" to confirm:", s.domainName)),
 	) + "\n\n")
-	inner.WriteString(s.input.View())
+	inner.WriteString(ui.InputView(s.input))
 	if s.err != "" {
-		inner.WriteString("\n\n" + errorStyle.Render("✗  "+s.err))
+		inner.WriteString("\n\n" + errorStyle.Render(ui.SafeBlock("✗  "+s.err)))
 	}
 	return modalContent{title: "! Delete domain", body: inner.String(), hint: "enter confirm · esc cancel"}
 }
@@ -428,15 +428,15 @@ func (s confirmDeleteTmuxScreen) target() string {
 func (s confirmDeleteTmuxScreen) content(termW, termH int) modalContent {
 	s.input.Width = max(ui.ModalInnerWidth(termW)-2, 1)
 	var inner strings.Builder
-	inner.WriteString(warningStyle.Render(fmt.Sprintf(
+	inner.WriteString(warningStyle.Render(ui.SafeText(fmt.Sprintf(
 		"Kill tmux session \"%s\"? All windows and panes will be lost.", s.target(),
-	)) + "\n\n")
+	))) + "\n\n")
 	inner.WriteString(lipgloss.NewStyle().Foreground(theme.Secondary).Render(
-		fmt.Sprintf("Type \"%s\" to confirm:", s.target()),
+		ui.SafeText(fmt.Sprintf("Type \"%s\" to confirm:", s.target())),
 	) + "\n\n")
-	inner.WriteString(s.input.View())
+	inner.WriteString(ui.InputView(s.input))
 	if s.err != "" {
-		inner.WriteString("\n\n" + errorStyle.Render("✗  "+s.err))
+		inner.WriteString("\n\n" + errorStyle.Render(ui.SafeBlock("✗  "+s.err)))
 	}
 	return modalContent{title: "! Kill tmux session", body: inner.String(), hint: "enter confirm · esc cancel"}
 }

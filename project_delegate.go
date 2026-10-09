@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"strings"
+
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -9,8 +12,6 @@ import (
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/tmux"
 	"github.com/richardnascimento18/devdock/internal/ui"
-	"io"
-	"strings"
 )
 
 type projectDelegate struct {
@@ -33,7 +34,7 @@ func (d projectDelegate) Render(w io.Writer, m list.Model, index int, it list.It
 		if cached, exists := d.projects[p.Path]; exists {
 			p = cached
 		}
-		title = p.Name
+		title = ui.SafeText(p.Name)
 		if d.selected[p.Path] {
 			decorations += selectedStyle.Render(" ●")
 		}
@@ -57,7 +58,7 @@ func (d projectDelegate) Render(w io.Writer, m list.Model, index int, it list.It
 		if p.GitHubRepo != "" {
 			repo = "⑂ GitHub"
 		}
-		tags = append(tags, ui.Foreground(theme.Git).Render(repo))
+		tags = append(tags, ui.Foreground(theme.Git).Render(ui.SafeText(repo)))
 		if d.sessions[tmux.SessionName(p)] {
 			tags = append(tags, ui.Foreground(theme.Tmux).Render("● tmux"))
 		}
@@ -68,12 +69,12 @@ func (d projectDelegate) Render(w io.Writer, m list.Model, index int, it list.It
 		if width >= 50 {
 			gap = strings.Repeat(" ", max(budget-ansi.StringWidth(metadata), 0)) + gap
 		}
-		detail = metadata + gap + dimStyle.Render(projectLocationAtWidth(p, locationWidth, d.duplicates[p.Path]))
+		detail = metadata + gap + dimStyle.Render(ui.SafeText(projectLocationAtWidth(p, locationWidth, d.duplicates[p.Path])))
 	} else if session, ok := it.(tmuxSessionItem); ok {
-		title = session.displayName()
+		title = ui.SafeText(session.displayName())
 		detail = ui.Foreground(theme.Tmux).Render("● active")
 		if session.location != "" {
-			detail += "   " + dimStyle.Render(session.location)
+			detail += "   " + dimStyle.Render(ui.SafeText(session.location))
 		}
 	} else if entry, ok := it.(interface{ Title() string }); ok {
 		title = ansi.Strip(entry.Title())
@@ -88,7 +89,7 @@ func (d projectDelegate) Render(w io.Writer, m list.Model, index int, it list.It
 			style = selectedStyle
 		}
 	}
-	fmt.Fprint(w, ansi.Truncate(prefix+style.Render(ansi.Truncate(title, max(m.Width()-2-ansi.StringWidth(decorations), 1), "…"))+decorations, m.Width(), "…"))
+	fmt.Fprint(w, ansi.Truncate(prefix+style.Render(ui.SafeText(ansi.Truncate(title, max(m.Width()-2-ansi.StringWidth(decorations), 1), "…")))+decorations, m.Width(), "…"))
 	if detail != "" {
 		fmt.Fprint(w, "\n"+ansi.Truncate("  "+detail, m.Width(), "…"))
 	} else {
@@ -106,7 +107,7 @@ func compactProjectLocation(p core.Project) string {
 	if len(parts) > 3 {
 		parts = []string{parts[0], "…", parts[len(parts)-1]}
 	}
-	return strings.Join(parts, " › ")
+	return ui.SafeText(strings.Join(parts, " › "))
 }
 
 func projectLocationAtWidth(p core.Project, width int, ambiguous bool) string {
@@ -117,12 +118,12 @@ func projectLocationAtWidth(p core.Project, width int, ambiguous bool) string {
 	budget := max(width-ansi.StringWidth(suffix), 1)
 	label := compactProjectLocation(p)
 	if ansi.StringWidth(label) > budget {
-		nearest := p.Domain
+		nearest := ui.SafeText(p.Domain)
 		if len(p.GroupPath) > 0 {
-			nearest = p.GroupPath[len(p.GroupPath)-1]
+			nearest = ui.SafeText(p.GroupPath[len(p.GroupPath)-1])
 		}
 		if nearest == "" {
-			nearest = config.RootName(p.Root)
+			nearest = ui.SafeText(config.RootName(p.Root))
 		}
 		label = "… › " + nearest
 		if ansi.StringWidth(label) > budget {

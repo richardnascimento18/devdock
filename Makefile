@@ -17,9 +17,7 @@ check:
 	bash scripts/check.sh
 tools:
 	# go install honors the caller's GOBIN; check.sh uses it on PATH.
-	go install honnef.co/go/tools/cmd/staticcheck@v0.8.1
-	go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
-	go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+	cd tools && go install honnef.co/go/tools/cmd/staticcheck golang.org/x/vuln/cmd/govulncheck github.com/rhysd/actionlint/cmd/actionlint
 release:
 	DEVDOCK_DIST_DIR="$(DEVDOCK_DIST_DIR)" bash scripts/build-release.sh
 clean-release:

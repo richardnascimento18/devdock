@@ -3,10 +3,8 @@ package template
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -298,41 +296,12 @@ func ExecuteSteps(steps []TemplateStep, workDir string, vars Vars, interactive b
 
 func ExecuteStepsContext(ctx context.Context, steps []TemplateStep, workDir string, vars Vars, interactive bool) error {
 	for _, step := range steps {
-		if err := ctx.Err(); err != nil {
+		prepared, err := PrepareStep(step, workDir, vars)
+		if err != nil {
 			return err
 		}
-		switch step.Type {
-		case "builtin":
-			if err := ExecuteBuiltin(step.Action, ExpandVars(step.Path, vars), vars.ProjectPath); err != nil {
-				return fmt.Errorf("builtin %s: %w", step.Action, err)
-			}
-		case "command":
-			args, err := CommandArgs(step, vars)
-			if err != nil {
-				return err
-			}
-			cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-			cmd.Dir = workDir
-			cmd.Stdin = os.Stdin
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			var output *os.File
-			if step.Output != "" {
-				output, err = CommandOutput(ExpandVars(step.Output, vars), vars.ProjectPath)
-				if err != nil {
-					return err
-				}
-				cmd.Stdout = output
-			}
-			err = cmd.Run()
-			if output != nil {
-				err = errors.Join(err, output.Close())
-			}
-			if err != nil {
-				return fmt.Errorf("command %q: %w", step.Run, err)
-			}
-		default:
-			return fmt.Errorf("unknown step type %q", step.Type)
+		if err := ExecutePrepared(ctx, prepared, os.Stdin, os.Stdout, os.Stderr); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -352,14 +321,20 @@ func Run(t Template, location core.Location, projectName string) (string, error)
 		return "", err
 	}
 	vars.ProjectPath = projectPath
-	if err := ExecuteSteps(t.Steps, workDir, vars, t.Interactive); err != nil {
-		return "", err
-	}
-	if len(t.PostSteps) > 0 {
-		if err := ExecuteSteps(t.PostSteps, projectPath, vars, false); err != nil {
-			return "", fmt.Errorf("post-step failed: %w", err)
+	execution := NewExecution(t.Steps, t.PostSteps, vars, workDir)
+	for {
+		prepared, ok, err := execution.Next()
+		if err != nil {
+			return "", err
+		}
+		if !ok {
+			break
+		}
+		if err := ExecutePrepared(context.Background(), prepared, os.Stdin, os.Stdout, os.Stderr); err != nil {
+			return "", err
 		}
 	}
+
 	return projectPath, nil
 }
 

@@ -1,15 +1,16 @@
 package ui
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/x/ansi"
 	"github.com/rivo/uniseg"
-	"strings"
 )
 
 // Activity applies a restrained moving foreground highlight to transient work.
 // Reduced motion is static and all glyph/padding cells inherit default background.
 func Activity(label string, frame int, reduced bool) string {
-	label = ansi.Truncate(label, 72, "…")
+	label = ansi.Truncate(SafeText(label), 72, "…")
 	if reduced || frame == 0 {
 		return Foreground(Default.Info).Render("… " + label)
 	}

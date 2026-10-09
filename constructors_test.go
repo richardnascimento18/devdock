@@ -1,0 +1,32 @@
+package main
+
+import (
+	"context"
+
+	"github.com/richardnascimento18/devdock/internal/app"
+	"github.com/richardnascimento18/devdock/internal/config"
+	"github.com/richardnascimento18/devdock/internal/core"
+	gh "github.com/richardnascimento18/devdock/internal/github"
+	"github.com/richardnascimento18/devdock/internal/preset"
+	"github.com/richardnascimento18/devdock/internal/state"
+	"github.com/richardnascimento18/devdock/internal/template"
+)
+
+// Existing characterization fixtures set an isolated HOME. Production always
+// constructs stores at startup and passes them explicitly to both models.
+func newModel(projects []core.Project, cfg config.Config, presets []preset.Preset, templates []template.Template, uiState state.UIState) model {
+	paths, _ := app.ResolvePaths()
+	return newModelWithPreferences(projects, cfg, presets, templates, uiState, app.NewPreferences(paths))
+}
+func newEditorScreen(presets []preset.Preset, templates []template.Template, w, h int) editorScreen {
+	paths, _ := app.ResolvePaths()
+	return newEditorScreenWithPreferences(presets, templates, w, h, app.NewPreferences(paths))
+}
+
+func scanWorkspace(roots []string, repos []gh.Repo) app.Snapshot {
+	return app.NewWorkspaces().Refresh(context.Background(), roots, repos)
+}
+
+func newPTYScreen(w, h int, t *template.Template, path string, vars template.Vars, steps []template.TemplateStep, workDir string, repo gh.Repo) ptyScreen {
+	return newPTYScreenWithScaffold(context.Background(), w, h, t, app.NewScaffold(t, path, vars, steps, workDir, repo.CloneURL))
+}

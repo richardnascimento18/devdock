@@ -1,18 +1,21 @@
 package main
 
-// editor.go — interactive preset/template/configuration editor
-//
-// Navigation is entirely keyboard-driven (vim-style: j/k, h/l, tab, enter).
-// The editor is split into three layers:
-//
-//  1. editorScreen  — top-level: Presets / Templates / Settings + item list
-//  2. presetEditor  — edit a single Preset (windows, pane splits)
-//  3. templateEditor — edit a single Template (steps list)
-//
-// All mutations happen in-memory; hitting ctrl+s (or 's') commits the file.
-// ESC / ctrl+c returns to the previous layer without saving.
-
 import (
+
+	// editor.go — interactive preset/template/configuration editor
+	//
+	// Navigation is entirely keyboard-driven (vim-style: j/k, h/l, tab, enter).
+	// The editor is split into three layers:
+	//
+	//  1. editorScreen  — top-level: Presets / Templates / Settings + item list
+	//  2. presetEditor  — edit a single Preset (windows, pane splits)
+	//  3. templateEditor — edit a single Template (steps list)
+	//
+	// All mutations happen in-memory; hitting ctrl+s (or 's') commits the file.
+	// ESC / ctrl+c returns to the previous layer without saving.
+
+	"github.com/richardnascimento18/devdock/internal/app"
+
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -57,13 +60,14 @@ const (
 // ---------------------------------------------------------------------------
 
 type editorScreen struct {
-	cfg      config.Config
-	revision uint64
-	tab      int
-	cursor   int
-	layer    editorLayer
-	presets  []preset.Preset
-	tmpls    []tmpl.Template
+	preferences app.Preferences
+	cfg         config.Config
+	revision    uint64
+	tab         int
+	cursor      int
+	layer       editorLayer
+	presets     []preset.Preset
+	tmpls       []tmpl.Template
 
 	pe presetEditor
 	te templateEditor
@@ -75,18 +79,19 @@ type editorScreen struct {
 	deleteName    string
 	scroll        int
 	manualScroll  bool
-	statusMsg     string
+	diagnostic    app.Diagnostic
 	termW         int
 	termH         int
 }
 
-func newEditorScreen(presets []preset.Preset, templates []tmpl.Template, w, h int) editorScreen {
+func newEditorScreenWithPreferences(presets []preset.Preset, templates []tmpl.Template, w, h int, preferences app.Preferences) editorScreen {
 	return editorScreen{
-		tab:     editorTabPresets,
-		presets: deepCopyPresets(presets),
-		tmpls:   deepCopyTemplates(templates),
-		termW:   w,
-		termH:   h,
+		preferences: preferences,
+		tab:         editorTabPresets,
+		presets:     deepCopyPresets(presets),
+		tmpls:       deepCopyTemplates(templates),
+		termW:       w,
+		termH:       h,
 	}
 }
 
@@ -159,13 +164,13 @@ func (e editorScreen) updateList(msg tea.Msg) (editorScreen, tea.Cmd) {
 	case "h", "left", "shift+tab":
 		e.tab = (e.tab + len(editorTabNames) - 1) % len(editorTabNames)
 		e.cursor = 0
-		e.statusMsg = ""
+		e.diagnostic = app.Diagnostic{}
 	case "l", "right", "tab":
 		e.tab = (e.tab + 1) % len(editorTabNames)
 		e.cursor = 0
-		e.statusMsg = ""
+		e.diagnostic = app.Diagnostic{}
 	case "enter":
-		e.statusMsg = ""
+		e.diagnostic = app.Diagnostic{}
 		switch e.tab {
 		case editorTabSettings:
 			if e.cursor == 0 {
@@ -212,7 +217,7 @@ func (e editorScreen) updatePresetEditor(msg tea.Msg) (editorScreen, tea.Cmd) {
 				if e.pe.splitEditor.editing {
 					size, err := parsePaneSize(e.pe.splitEditor.sizeInput.Value())
 					if err != nil {
-						e.pe.statusMsg = errorStyle.Render(err.Error())
+						e.pe.diagnostic = app.Diagnostic{Severity: app.Error, Summary: err.Error()}
 						e.pe.result = editorResultNone
 						return e, nil
 					}
@@ -227,7 +232,7 @@ func (e editorScreen) updatePresetEditor(msg tea.Msg) (editorScreen, tea.Cmd) {
 		proposed := deepCopyPresets(e.presets)
 		if errMsg := preset.ValidatePreset(p); errMsg != "" {
 			e.pe.result = editorResultNone
-			e.pe.statusMsg = errorStyle.Render("✗  " + errMsg)
+			e.pe.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  " + errMsg}
 			return e, nil
 		}
 		// upsert
@@ -246,16 +251,16 @@ func (e editorScreen) updatePresetEditor(msg tea.Msg) (editorScreen, tea.Cmd) {
 		if e.pe.isNew {
 			oldName = ""
 		}
-		proposedConfig, err := savePresetProposal(e.cfg, proposed, oldName, p.Name)
+		proposedConfig, err := e.preferences.SavePresetProposal(e.cfg, proposed, oldName, p.Name)
 		if err != nil {
-			e.pe.statusMsg = errorStyle.Render("✗  save failed: " + err.Error())
+			e.pe.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  save failed: " + err.Error()}
 			e.pe.result = editorResultNone
 			return e, nil
 		} else {
 			e.presets = proposed
 			e.cfg = proposedConfig
 			e.revision++
-			e.statusMsg = successStyle.Render("✓  preset \"" + p.Name + "\" saved")
+			e.diagnostic = app.Diagnostic{Severity: app.Success, Summary: "✓  preset \"" + p.Name + "\" saved"}
 		}
 		e.pe.result = editorResultNone
 		e.layer = editorLayerList
@@ -292,7 +297,7 @@ func (e editorScreen) updateTemplateEditor(msg tea.Msg) (editorScreen, tea.Cmd) 
 		errs := tmpl.ValidateFile(tmpl.TemplateFile{Templates: []tmpl.Template{t}})
 		if len(errs) > 0 {
 			e.te.result = editorResultNone
-			e.te.statusMsg = errorStyle.Render("✗  " + errs[0])
+			e.te.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  " + errs[0]}
 			return e, nil
 		}
 		found := false
@@ -306,14 +311,14 @@ func (e editorScreen) updateTemplateEditor(msg tea.Msg) (editorScreen, tea.Cmd) 
 		if !found {
 			proposed = append(proposed, t)
 		}
-		if err := tmpl.Save(config.Dir(), proposed); err != nil {
-			e.te.statusMsg = errorStyle.Render("✗  save failed: " + err.Error())
+		if err := e.preferences.Templates.Save(proposed); err != nil {
+			e.te.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  save failed: " + err.Error()}
 			e.te.result = editorResultNone
 			return e, nil
 		} else {
 			e.tmpls = proposed
 			e.revision++
-			e.statusMsg = successStyle.Render("✓  template \"" + t.Name + "\" saved")
+			e.diagnostic = app.Diagnostic{Severity: app.Success, Summary: "✓  template \"" + t.Name + "\" saved"}
 		}
 		e.te.result = editorResultNone
 		e.layer = editorLayerList

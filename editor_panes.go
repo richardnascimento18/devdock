@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/richardnascimento18/devdock/internal/preset"
 	"strconv"
 	"strings"
+
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
+	"github.com/richardnascimento18/devdock/internal/preset"
 )
 
 // For UX clarity we represent the split as a flat list of leaf panes, each
@@ -19,17 +21,17 @@ type paneLeaf struct {
 }
 
 type splitPaneEditor struct {
-	original  *preset.PaneLayout
-	direction string // "horizontal" or "vertical"
-	statusMsg string
-	panes     []paneLeaf
-	cursor    int
-	editIdx   int
-	editing   bool
-	typing    bool // true = keystrokes go to text input; i to enter, esc to leave
-	cmdInput  textinput.Model
-	sizeInput textinput.Model
-	editFocus int // 0=cmd 1=size
+	original   *preset.PaneLayout
+	direction  string // "horizontal" or "vertical"
+	diagnostic app.Diagnostic
+	panes      []paneLeaf
+	cursor     int
+	editIdx    int
+	editing    bool
+	typing     bool // true = keystrokes go to text input; i to enter, esc to leave
+	cmdInput   textinput.Model
+	sizeInput  textinput.Model
+	editFocus  int // 0=cmd 1=size
 }
 
 func newSplitPaneEditor(pl preset.PaneLayout) splitPaneEditor {
@@ -189,7 +191,7 @@ func (sp splitPaneEditor) updateEdit(msg tea.Msg) (splitPaneEditor, tea.Cmd) {
 		sp.panes[sp.editIdx].command = strings.TrimSpace(sp.cmdInput.Value())
 		sz, err := parsePaneSize(sp.sizeInput.Value())
 		if err != nil {
-			sp.statusMsg = errorStyle.Render(err.Error())
+			sp.diagnostic = app.Diagnostic{Severity: app.Error, Summary: err.Error()}
 			return sp, nil
 		}
 		sp.panes[sp.editIdx].size = sz

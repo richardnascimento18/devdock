@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -25,8 +26,8 @@ func (f *fakeRunner) call(args []string) error {
 	}
 	return nil
 }
-func (f *fakeRunner) Run(args ...string) error { return f.call(args) }
-func (f *fakeRunner) Output(args ...string) (string, error) {
+func (f *fakeRunner) Run(_ context.Context, args ...string) error { return f.call(args) }
+func (f *fakeRunner) Output(_ context.Context, args ...string) (string, error) {
 	if err := f.call(args); err != nil {
 		return "", err
 	}
@@ -44,7 +45,7 @@ func TestWorkspaceCommandsAndEveryFailure(t *testing.T) {
 	p := core.Project{Location: core.Location{Domain: "apps"}, Name: "demo", Path: "/workspace/demo"}
 	ps := preset.DefaultPresets[2]
 	good := &fakeRunner{}
-	if err := (Client{good}).LaunchWorkspace(p, ps); err != nil {
+	if err := (Client{Runner: good}).LaunchWorkspace(p, ps); err != nil {
 		t.Fatal(err)
 	}
 	var flags []string
@@ -61,7 +62,7 @@ func TestWorkspaceCommandsAndEveryFailure(t *testing.T) {
 	}
 	for i := 1; i <= len(good.calls); i++ {
 		fake := &fakeRunner{failAt: i}
-		err := (Client{fake}).LaunchWorkspace(p, ps)
+		err := (Client{Runner: fake}).LaunchWorkspace(p, ps)
 		if err == nil || !strings.Contains(err.Error(), "tmux") {
 			t.Fatalf("failure %d lost: %v", i, err)
 		}
@@ -73,7 +74,7 @@ func TestWorkspaceCommandsAndEveryFailure(t *testing.T) {
 func TestExistingSessionOnlyAttaches(t *testing.T) {
 	t.Setenv("TMUX", "")
 	f := &fakeRunner{existing: true}
-	if err := (Client{f}).LaunchWorkspace(core.Project{Location: core.Location{Domain: "a"}, Name: "b", Path: "/apps/b"}, preset.DefaultPresets[0]); err != nil {
+	if err := (Client{Runner: f}).LaunchWorkspace(core.Project{Location: core.Location{Domain: "a"}, Name: "b", Path: "/apps/b"}, preset.DefaultPresets[0]); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.calls) != 2 || f.calls[1][0] != "attach-session" || f.calls[1][2] != "="+SessionName(core.Project{Path: "/apps/b"}) {
@@ -83,7 +84,7 @@ func TestExistingSessionOnlyAttaches(t *testing.T) {
 func TestWindowAndLiteralCommand(t *testing.T) {
 	t.Setenv("TMUX", "")
 	f := &fakeRunner{}
-	if err := (Client{f}).LaunchWorkspace(core.Project{Location: core.Location{Domain: "a"}, Name: "b", Path: "/p"}, preset.DefaultPresets[0]); err != nil {
+	if err := (Client{Runner: f}).LaunchWorkspace(core.Project{Location: core.Location{Domain: "a"}, Name: "b", Path: "/p"}, preset.DefaultPresets[0]); err != nil {
 		t.Fatal(err)
 	}
 	windows, sends := 0, 0

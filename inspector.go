@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/richardnascimento18/devdock/internal/core"
 	"github.com/richardnascimento18/devdock/internal/tmux"
 	"github.com/richardnascimento18/devdock/internal/ui"
-	"strings"
-	"time"
 )
 
 func projectFromItem(it list.Item) (core.Project, bool) {
@@ -29,7 +30,7 @@ func projectFromItem(it list.Item) (core.Project, bool) {
 // canonical project when it still exists; stale recents remain openable only.
 func (m model) actionProject() (core.Project, bool) {
 	if recent, ok := m.list.SelectedItem().(recentItem); ok {
-		for _, p := range m.rawProjects {
+		for _, p := range m.navigation.projects {
 			if p.Path == recent.entry.Path {
 				return p, true
 			}
@@ -40,8 +41,8 @@ func (m model) actionProject() (core.Project, bool) {
 }
 
 func (m model) currentLocationLabel() string {
-	if m.focus == ui.Workspace && m.workspaceCursor > 0 && m.workspaceCursor < len(m.workspaceRows) {
-		return m.workspaceRows[m.workspaceCursor].node.Path()
+	if m.navigation.focus == ui.Workspace && m.navigation.cursor > 0 && m.navigation.cursor < len(m.navigation.rows) {
+		return m.navigation.rows[m.navigation.cursor].node.Path()
 	}
 	if p, ok := projectFromItem(m.list.SelectedItem()); ok {
 		return p.Path
@@ -54,14 +55,14 @@ func (m model) currentLocationLabel() string {
 func (m model) inspectorLines(width int) []string {
 	var lines []string
 	add := func(label, value string) {
-		lines = append(lines, promptStyle.Render(label))
+		lines = append(lines, promptStyle.Render(ui.SafeText(label)))
 		lines = append(lines, strings.Split(ansi.Hardwrap(value, max(width-2, 1), true), "\n")...)
 		lines = append(lines, "")
 	}
-	if m.focus == ui.Workspace && m.workspaceCursor > 0 && m.workspaceCursor < len(m.workspaceRows) {
-		n := m.workspaceRows[m.workspaceCursor].node
-		add("Workspace", n.Name+" · "+string(n.Kind))
-		add("Location", n.Path())
+	if m.navigation.focus == ui.Workspace && m.navigation.cursor > 0 && m.navigation.cursor < len(m.navigation.rows) {
+		n := m.navigation.rows[m.navigation.cursor].node
+		add("Workspace", ui.SafeText(n.Name)+" · "+string(n.Kind))
+		add("Location", ui.SafeText(n.Path()))
 		add("Projects", fmt.Sprint(n.ProjectCount))
 		add("Actions", "enter show projects\n←/→ collapse / expand\nG create group")
 		return lines
@@ -73,24 +74,24 @@ func (m model) inspectorLines(width int) []string {
 	if !ok {
 		switch x := m.list.SelectedItem().(type) {
 		case githubItem:
-			add("GitHub", x.repo.FullName)
+			add("GitHub", ui.SafeText(x.repo.FullName))
 			add("Actions", "enter clone repository")
 		case tmuxSessionItem:
-			add("Tmux", ui.Foreground(theme.Tmux).Render(x.displayName()+" · active"))
-			add("Location", x.location)
-			add("Technical session", dimStyle.Render(x.name))
+			add("Tmux", ui.Foreground(theme.Tmux).Render(ui.SafeText(x.displayName()+" · active")))
+			add("Location", ui.SafeText(x.location))
+			add("Technical session", dimStyle.Render(ui.SafeText(x.name)))
 			add("Actions", "enter attach · x kill with confirmation")
 		default:
 			lines = append(lines, dimStyle.Render("Select a project to inspect.\nctrl+p opens available actions."))
 		}
 		return lines
 	}
-	lines = append(lines, selectedStyle.Render(p.Name))
+	lines = append(lines, selectedStyle.Render(ui.SafeText(p.Name)))
 	if len(p.Languages) > 0 {
 		lines = append(lines, RenderLanguageTags(p.Languages))
 	}
 	lines = append(lines, "")
-	add("Location", dimStyle.Render(p.Location.Breadcrumb()+"\n"+p.Path))
+	add("Location", dimStyle.Render(ui.SafeText(p.Location.Breadcrumb())+"\n"+ui.SafeText(p.Path)))
 	repo := "⌂ Local project"
 	if p.LocalGit {
 		repo = "⑂ Local Git repository"
@@ -98,15 +99,15 @@ func (m model) inspectorLines(width int) []string {
 	if p.GitHubRepo != "" {
 		repo = "⑂ GitHub · " + p.GitHubRepo
 	}
-	add("Git", ui.Foreground(theme.Git).Render(repo))
+	add("Git", ui.Foreground(theme.Git).Render(ui.SafeText(repo)))
 	session := "Not checked · visit tmux tab"
-	if m.cachedTmux != nil {
+	if m.tmux.cached != nil {
 		session = "No cached session"
-		if m.cachedTmux[tmux.SessionName(p)] {
+		if m.tmux.cached[tmux.SessionName(p)] {
 			session = "● " + p.Name + " · active (cached)"
 		}
 	}
-	add("Tmux", ui.Foreground(theme.Tmux).Render(session)+"\n"+dimStyle.Render("Preset · "+m.presetSel.SelectedName()))
+	add("Tmux", ui.Foreground(theme.Tmux).Render(ui.SafeText(session))+"\n"+dimStyle.Render(ui.SafeText("Preset · "+m.presetSel.SelectedName())))
 	favorite := "☆ Not a favorite"
 	if m.uiState.Favorites[p.Path] {
 		favorite = "★ Favorite"
@@ -133,7 +134,7 @@ func (m model) inspectorLines(width int) []string {
 func (m model) viewInspector(width, height int) string {
 	lines := m.inspectorLines(width)
 	rows := max(height-1, 1)
-	start := min(max(m.inspectorScroll, 0), max(len(lines)-rows, 0))
+	start := min(max(m.navigation.inspectorScroll, 0), max(len(lines)-rows, 0))
 	body := strings.Join(lines[start:min(start+rows, len(lines))], "\n")
-	return paneContent(ui.PaneTitle("Inspector", m.focus == ui.Inspector, width)+"\n"+body, width, height)
+	return paneContent(ui.PaneTitle("Inspector", m.navigation.focus == ui.Inspector, width)+"\n"+body, width, height)
 }

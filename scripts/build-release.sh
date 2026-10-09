@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+python3 scripts/toolchain.py
 release_version=$(python3 scripts/version.py "$(cat VERSION)")
 release_commit=${DEVDOCK_COMMIT:-$(git rev-parse HEAD)}
 release_date=${DEVDOCK_BUILD_DATE:-$(date -u -d "@$(git log -1 --format=%ct)" +%Y-%m-%dT%H:%M:%SZ)}

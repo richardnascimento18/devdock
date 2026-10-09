@@ -10,7 +10,6 @@ import (
 	"sync"
 	"syscall"
 
-	tea "github.com/charmbracelet/bubbletea"
 	terminal "github.com/creack/pty"
 )
 
@@ -18,7 +17,7 @@ import (
 type Session struct {
 	cmd       *exec.Cmd
 	ptmx      *os.File
-	events    chan tea.Msg
+	events    chan Event
 	waited    chan struct{}
 	waitErr   error // published by closing waited
 	closed    chan struct{}
@@ -55,13 +54,21 @@ func NewSessionContext(ctx context.Context, args []string, workDir string) (*Ses
 	if err != nil {
 		return nil, fmt.Errorf("start PTY: %w", err)
 	}
-	s := &Session{cmd: cmd, ptmx: ptmx, events: make(chan tea.Msg, 16), waited: make(chan struct{}), closed: make(chan struct{})}
+	s := &Session{cmd: cmd, ptmx: ptmx, events: make(chan Event, 16), waited: make(chan struct{}), closed: make(chan struct{})}
 	go func() { s.waitErr = cmd.Wait(); close(s.waited) }()
 	go s.readOutput()
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = s.Close()
+		case <-s.closed:
+		case <-s.waited:
+		}
+	}()
 	return s, nil
 }
 
-func (s *Session) send(msg tea.Msg) bool {
+func (s *Session) send(msg Event) bool {
 	select {
 	case s.events <- msg:
 		return true
@@ -91,8 +98,12 @@ func (s *Session) readOutput() {
 	}
 }
 
-// CmdRead consumes the next event, never starts another terminal reader.
-func CmdRead(s *Session) tea.Cmd            { return func() tea.Msg { return <-s.events } }
+// Event values are plain infrastructure data. The TUI owns Tea translation.
+type Event interface{ ptyEvent() }
+
+func (OutputMsg) ptyEvent()                 {}
+func (ExitMsg) ptyEvent()                   {}
+func (s *Session) Read() Event              { return <-s.events }
 func (s *Session) Write(input []byte) error { _, err := s.ptmx.Write(input); return err }
 func (s *Session) Resize(rows, cols uint16) error {
 	return terminal.Setsize(s.ptmx, &terminal.Winsize{Rows: rows, Cols: cols})

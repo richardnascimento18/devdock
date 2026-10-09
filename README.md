@@ -7,7 +7,7 @@ The workspace hierarchy is `Root → Domain → Project or Group`. Groups can co
 ## Requirements and installation
 
 - Linux amd64 or arm64. Linux-specific filesystem and PTY handling is intentional.
-- Go **1.26 or newer** for source builds; CI tests the latest patches of Go 1.26 and 1.27. The previous Go 1.21 claim was incorrect.
+- Go **1.26.9+ or 1.27.2+** within those supported series for source builds. See the [compiler policy](CONTRIBUTING.md#compiler-security-policy).
 - tmux for opening workspaces; Git for GitHub cloning/linking. Template commands and preset commands require their own tools, such as Node.js, Python, Cargo, nvim, or opencode.
 - Python 3 and Bash for development validation and release scripts.
 
@@ -78,7 +78,7 @@ Missing preset/template files generate validated defaults. Invalid collections a
 Example config without GitHub credentials:
 
 ```toml
-roots = ["/home/you/projects", "/mnt/work/projects"]
+roots = ["/home/user/projects", "/mnt/work/projects"]
 default_preset = "nvim"
 ```
 
@@ -121,43 +121,9 @@ DEVDOCK_GITHUB_CLIENT_ID=YOUR_PUBLIC_CLIENT_ID ./devdock
 
 The runtime value takes precedence over the embedded ID. Building without an ID leaves local workspace features available and shows an explicit error when authorization is requested. Auth cancellation stops polling, and late responses cannot connect an abandoned flow. Once connected, DevDock lists repositories, matches GitHub remotes, creates/pushes new repositories, and clones into collision-checked destinations.
 
-## Development and releases
+## Contributing
 
-```sh
-GOBIN=/tmp/devdock-tools make tools
-GOBIN=/tmp/devdock-tools make check  # uses GOBIN on PATH; install ShellCheck for CI parity
-make check       # formatting, module consistency, version/workflow validation, tests,
-                 # race tests, vet, staticcheck, govulncheck, build
-make test
-make race
-```
-
-All tests use temporary workspaces and fakes for GitHub/tmux/editor boundaries. PTY tests run small local child processes. Race tests require Linux, CGO, and a C compiler; release binaries are built with CGO disabled. `govulncheck` needs network access to the advisory database.
-
-`VERSION` is an explicitly reviewed Semantic Version. The hosted beta lineage preserves historical `v1.0.0-beta` and `v1.1.0-beta`; the CI/CD rehearsal published [`v1.1.0-beta.1`](https://github.com/richardnascimento18/devdock/releases/tag/v1.1.0-beta.1). Build local Linux artifacts and checksums with:
-
-```sh
-DEVDOCK_GITHUB_CLIENT_ID=YOUR_PUBLIC_CLIENT_ID make release
-./dist/devdock_$(cat VERSION)_linux_amd64 --version
-(cd dist && sha256sum --check SHA256SUMS)
-```
-
-Builds embed version, full commit SHA, and commit timestamp. No script guesses or increments release versions. Ordinary `go build` reports development metadata.
-
-Each release build removes previous DevDock release binaries and checksums before compiling. The output directory must be dedicated to release artifacts: unexpected files are preserved and cause a preparation error. `make clean-release` performs the same cleanup; `DEVDOCK_DIST_DIR` selects a custom dedicated directory. `dist/` stays ignored. For review source, use `make source-archive SOURCE_ARCHIVE=/tmp/devdock-source.zip`; it archives the current committed `HEAD`, excluding dirty edits and untracked build outputs, and reports the archived commit.
-
-Publication requires repository variable `DEVDOCK_RELEASES_ENABLED` to be exactly `true`. Unset/`false` disables publication while verification/builds still run, including initial production bootstrap. The official public Client ID remains in `DEVDOCK_GITHUB_CLIENT_ID`.
-
-The permanent branch model is `production` (stable/default/release) and `staging` (integration). Legacy `main` was deleted after the live release rehearsal and history-reachability verification; it is not part of the permanent workflow.
-
-Future work uses a purpose-specific branch → PR into `staging` → verified promotion PR from `staging` into `production` → verified release. Direct development on these permanent branches is prohibited after Pass 1. Read [CONTRIBUTING.md](CONTRIBUTING.md) for checks, exact branch protections, release setup, and hotfix procedure. [The audit](docs/pass-1-audit.md) and [engineering report](docs/pass-1-report.md) describe this pass and its remaining limits.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development checks, package ownership,
+and the protected staging/production workflow.
 
 Licensed under [MIT](LICENSE).
-
-The [Pass 1B live engineering report](docs/pass-1b-report.md) records verified branch protections, hosted CI runs, release artifacts, and remaining limitations.
-
-## Pass 3F UX acceptance
-
-Project rows prioritize names and foreground stack/repository/tmux markers, with compact muted locations. The Inspector provides full paths and loaded details. Scope changes preserve the search query and clear the previous multi-selection; search text entry keeps ordinary editing keys. Scan warnings show a count and `! details`, where complete errors remain readable. The original beta mark appears on wide, tall empty/startup states; ordinary navigation uses the compact wordmark. Activity stays static for the first 320 ms, then uses a slower foreground sweep; reduced motion stays static.
-
-The owner accepted the Pass 3F candidate on 2026-10-06 after manual testing on the real mounted workspace and transparent Arch Linux/Caelestia environment, and explicitly authorized merge/promotion. Automated tests complement that acceptance. See [the validation report](docs/validation/pass-3f.md) and [manual acceptance record](docs/validation/pass-3f/manual-acceptance.md). Pass 4 remains deferred.

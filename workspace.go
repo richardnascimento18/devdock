@@ -2,61 +2,42 @@ package main
 
 import (
 	"fmt"
-	"github.com/charmbracelet/x/ansi"
 	"reflect"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/richardnascimento18/devdock/internal/core"
-	"github.com/richardnascimento18/devdock/internal/detect"
+	"github.com/richardnascimento18/devdock/internal/app"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 )
 
-type workspaceSnapshot struct {
-	projects []core.Project
-	tree     core.Workspace
-	domains  map[string][]string
-	err      error
-}
 type scanResultMsg struct {
 	id       uint64
-	snapshot workspaceSnapshot
+	snapshot app.Snapshot
 }
 
-func scanWorkspace(roots []string, repos []gh.Repo) workspaceSnapshot {
-	detector := detect.New()
-	s := workspaceSnapshot{domains: map[string][]string{}}
-	s.tree, s.err = core.ScanWorkspace(roots, detector.Inspect)
-	s.projects = s.tree.Projects
-	for _, root := range s.tree.Roots {
-		s.domains[root.Root] = s.tree.Domains(root.Root)
-	}
-	if len(repos) > 0 {
-		s.projects = gh.LinkProjectsToRepos(s.projects, repos)
-	}
-	return s
-}
-func (m model) rescan() model { m.scanRequested = true; return m }
+func (m model) rescan() model { m.scan.requested = true; return m }
 func (m *model) scanCommand() tea.Cmd {
-	m.scanRequested = false
-	m.scanInFlight = true
-	m.scanID++
-	id := m.scanID
+	m.scan.requested = false
+	m.scan.inFlight = true
+	m.scan.id++
+	id := m.scan.id
 	roots := append([]string(nil), m.cfg.ActiveRoots()...)
 	repos := append([]gh.Repo(nil), m.githubRepos...)
-	return func() tea.Msg { return scanResultMsg{id: id, snapshot: scanWorkspace(roots, repos)} }
+	return func() tea.Msg {
+		return scanResultMsg{id: id, snapshot: m.workspaces.Refresh(m.context(), roots, repos)}
+	}
 }
 func (m model) handleScanResult(msg scanResultMsg) (tea.Model, tea.Cmd) {
-	if msg.id != m.scanID {
+	if msg.id != m.scan.id {
 		return m, nil
 	}
-	m.scanInFlight = false
-	m.startupCmd = nil
-	m.rawProjects = msg.snapshot.projects
-	m.workspaceTree = msg.snapshot.tree
-	m.workspaceDomains = msg.snapshot.domains
-	availableRoots := make([]string, 0, len(msg.snapshot.domains))
-	for root := range msg.snapshot.domains {
+	m.scan.inFlight = false
+	m.scan.startup = nil
+	m.navigation.projects = msg.snapshot.Projects
+	m.navigation.tree = msg.snapshot.Tree
+	m.navigation.domains = msg.snapshot.Domains
+	availableRoots := make([]string, 0, len(msg.snapshot.Domains))
+	for root := range msg.snapshot.Domains {
 		availableRoots = append(availableRoots, root)
 	}
 	if len(availableRoots) > 0 {
@@ -67,14 +48,14 @@ func (m model) handleScanResult(msg scanResultMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	m.isFiltered = false
-	m.scanWarnings = ""
-	m.scanWarningCount = 0
-	if msg.snapshot.err != nil {
-		m.scanWarnings = msg.snapshot.err.Error()
-		m.scanWarningCount = warningCount(msg.snapshot.err)
-		m.statusMsg = warningStyle.Render(fmt.Sprintf("⚠ Workspace scan completed with %d warnings · ! details", m.scanWarningCount))
-	} else if m.scanWarnings == "" && m.scanWarningCount == 0 && strings.Contains(ansi.Strip(m.statusMsg), "Workspace scan completed with") {
-		m.statusMsg = ""
+	m.scan.warnings = ""
+	m.scan.warningCount = 0
+	if msg.snapshot.Err != nil {
+		m.scan.warnings = msg.snapshot.Err.Error()
+		m.scan.warningCount = warningCount(msg.snapshot.Err)
+		m.diagnostic = app.Diagnostic{Severity: app.Warning, Summary: fmt.Sprintf("⚠ Workspace scan completed with %d warnings · ! details", m.scan.warningCount), Cause: msg.snapshot.Err, Operation: "scan", Details: m.scan.warnings}
+	} else if m.scan.warnings == "" && m.scan.warningCount == 0 && strings.Contains(m.diagnostic.Summary, "Workspace scan completed with") {
+		m.diagnostic = app.Diagnostic{}
 	}
 	m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 	return m, nil

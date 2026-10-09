@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/ansi"
-	"github.com/richardnascimento18/devdock/internal/core"
-	"github.com/richardnascimento18/devdock/internal/ui"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/core"
+	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
 func keyRune(value string) tea.KeyMsg { return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(value)} }
@@ -23,7 +24,7 @@ func TestDashboardFocusAndResponsiveComposition(t *testing.T) {
 	m := renderFixture()
 	for _, expected := range []ui.Pane{ui.Inspector, ui.Workspace, ui.Projects} {
 		m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyTab})
-		if m.focus != expected {
+		if m.navigation.focus != expected {
 			t.Fatal("focus cycle")
 		}
 	}
@@ -42,7 +43,7 @@ func TestDashboardFocusAndResponsiveComposition(t *testing.T) {
 			t.Fatalf("inspector inaccessible %v", size)
 		}
 		m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyEsc})
-		if m.focus != ui.Projects {
+		if m.navigation.focus != ui.Projects {
 			t.Fatal("dedicated pane Escape")
 		}
 	}
@@ -58,9 +59,9 @@ func TestWorkspaceScopeCollapseAndSnapshotOnlyNavigation(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := fixtureModel(t, root)
-	m.workspaceSelection = loc.Key()
+	m.navigation.selection = loc.Key()
 	m.refreshWorkspaceRows()
-	m.focus = ui.Workspace
+	m.navigation.focus = ui.Workspace
 	away := root + "-away"
 	if err := os.Rename(root, away); err != nil {
 		t.Fatal(err)
@@ -71,10 +72,10 @@ func TestWorkspaceScopeCollapseAndSnapshotOnlyNavigation(t *testing.T) {
 		}
 	})
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
-	if m.workspaceScope == nil || m.workspaceScope.Key() != loc.Key() || len(m.list.Items()) != 1 {
+	if m.navigation.scope == nil || m.navigation.scope.Key() != loc.Key() || len(m.list.Items()) != 1 {
 		t.Fatal("deep scoped projects")
 	}
-	m.focus = ui.Workspace
+	m.navigation.focus = ui.Workspace
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyLeft})
 	if !m.collapsedNodes[loc.Key()] || rowIdentity(m.list.SelectedItem()) != p.Path {
 		t.Fatal("collapse lost selected project")
@@ -86,13 +87,13 @@ func TestWorkspaceScopeCollapseAndSnapshotOnlyNavigation(t *testing.T) {
 	if !strings.Contains(ansi.Strip(m.View()), "deep-api") {
 		t.Fatal("project not rendered")
 	}
-	m.focus = ui.Inspector
-	m.inspectorScroll = 100
+	m.navigation.focus = ui.Inspector
+	m.navigation.inspectorScroll = 100
 	_ = m.View()
-	m.focus = ui.Projects
+	m.navigation.focus = ui.Projects
 	m = dashboardKey(t, m, keyRune("/"))
 	m = dashboardKey(t, m, keyRune("deep"))
-	if !m.searching || len(m.list.Items()) != 1 || m.scanRequested {
+	if !m.query.editing || len(m.list.Items()) != 1 || m.scan.requested {
 		t.Fatal("search requested filesystem refresh")
 	}
 }
@@ -111,17 +112,17 @@ func TestLiveSearchSelectionCancelAndFuzzyLocation(t *testing.T) {
 		t.Fatal("location disambiguation")
 	}
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
-	if m.searching || !m.isFiltered {
+	if m.query.editing || !m.isFiltered {
 		t.Fatal("apply search")
 	}
 	m = dashboardKey(t, m, keyRune("/"))
 	m = dashboardKey(t, m, keyRune("zzz"))
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyEsc})
-	if m.lastFilter != "billing frontend" || len(m.list.Items()) != 1 {
+	if m.query.value != "billing frontend" || len(m.list.Items()) != 1 {
 		t.Fatal("cancel did not restore committed query")
 	}
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyEsc})
-	if m.lastFilter != "" || len(m.list.Items()) != 3 {
+	if m.query.value != "" || len(m.list.Items()) != 3 {
 		t.Fatal("clear search")
 	}
 	m = dashboardKey(t, m, keyRune("/"))
@@ -134,11 +135,11 @@ func TestLiveSearchSelectionCancelAndFuzzyLocation(t *testing.T) {
 func TestSearchTriggerAndQueryInOneTerminalMessage(t *testing.T) {
 	m := renderFixture()
 	m = dashboardKey(t, m, keyRune("/billing"))
-	if !m.searching || m.lastFilter != "billing" || len(m.list.Items()) != 2 {
+	if !m.query.editing || m.query.value != "billing" || len(m.list.Items()) != 2 {
 		t.Fatal("coalesced search trigger ignored")
 	}
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
-	if m.pendingLaunchReady {
+	if m.launch.ready {
 		t.Fatal("search apply launched a project")
 	}
 }
@@ -157,7 +158,7 @@ func TestPaletteFilteringExecutionCancellationAndDisabledAction(t *testing.T) {
 	m = renderFixture()
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyCtrlP})
 	m = dashboardKey(t, m, tea.KeyMsg{Type: tea.KeyEsc})
-	if m.state != stateList || m.pendingLaunchReady {
+	if m.state != stateList || m.launch.ready {
 		t.Fatal("palette cancel executed action")
 	}
 	m.list.SetItems(nil)
@@ -167,7 +168,7 @@ func TestPaletteFilteringExecutionCancellationAndDisabledAction(t *testing.T) {
 	if m.state != statePalette || m.palette.actions[m.palette.visible[0]].reason == "" {
 		t.Fatal("disabled destructive action")
 	}
-	if m.scanRequested {
+	if m.scan.requested {
 		t.Fatal("palette navigation scanned")
 	}
 }
@@ -175,14 +176,14 @@ func TestPaletteFilteringExecutionCancellationAndDisabledAction(t *testing.T) {
 func TestInspectorLongUnicodePathIsRecoverable(t *testing.T) {
 	m := renderFixture()
 	m.termW, m.termH = 40, 15
-	m.focus = ui.Inspector
-	p := m.rawProjects[0]
+	m.navigation.focus = ui.Inspector
+	p := m.navigation.projects[0]
 	p.Path = "/workspace/" + strings.Repeat("日本語/e\u0301/", 200) + "last-component"
 	m.list.SetItems(m.buildListItems([]core.Project{p}, false))
 	m.sizePresentation()
 	seen := ""
 	for i := 0; i < len(m.inspectorLines(40)); i += 5 {
-		m.inspectorScroll = i
+		m.navigation.inspectorScroll = i
 		seen += strings.Join(strings.Fields(ansi.Strip(m.View())), "")
 	}
 	if !strings.Contains(seen, "last-component") {
@@ -229,17 +230,17 @@ func BenchmarkDashboardSearch(b *testing.B) {
 	for _, count := range []int{1000, 5000} {
 		b.Run(fmt.Sprint(count), func(b *testing.B) {
 			m := renderFixture()
-			seed := m.rawProjects[0]
-			m.rawProjects = nil
+			seed := m.navigation.projects[0]
+			m.navigation.projects = nil
 			for i := 0; i < count; i++ {
 				p := seed
 				p.Name = fmt.Sprintf("service-%d", i)
 				p.Path = seed.Path + fmt.Sprint(i)
-				m.rawProjects = append(m.rawProjects, p)
+				m.navigation.projects = append(m.navigation.projects, p)
 			}
 			m = m.rebuildList(false)
-			m.searching = true
-			m.lastFilter = "srvc10"
+			m.query.editing = true
+			m.query.value = "srvc10"
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

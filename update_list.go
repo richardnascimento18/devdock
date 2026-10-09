@@ -3,16 +3,16 @@ package main
 import (
 	"fmt"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
 	"github.com/richardnascimento18/devdock/internal/core"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/preset"
-
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m.searching {
+	if m.query.editing {
 		return m.updateSearch(msg)
 	}
 	switch msg := msg.(type) {
@@ -26,14 +26,14 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "?":
-			if !m.searching {
+			if !m.query.editing {
 				m.state = stateHelp
 				m.helpScroll = 0
 				return m, nil
 			}
 
 		case "[":
-			if !m.searching {
+			if !m.query.editing {
 				m.activeTab = (m.activeTab + len(tabNames) - 1) % len(tabNames)
 				m.uiState.ActiveTab = m.activeTab
 				m.saveState()
@@ -46,7 +46,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "]":
-			if !m.searching {
+			if !m.query.editing {
 				m.activeTab = (m.activeTab + 1) % len(tabNames)
 				m.uiState.ActiveTab = m.activeTab
 				m.saveState()
@@ -59,7 +59,7 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "f":
-			if !m.searching {
+			if !m.query.editing {
 				projPath := ""
 				if project, ok := m.actionProject(); ok {
 					projPath = project.Path
@@ -71,9 +71,9 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 					if m.uiState.Favorites[projPath] {
-						m.statusMsg = successStyle.Render("★  added to favorites")
+						m.diagnostic = app.Diagnostic{Severity: app.Success, Summary: "★  added to favorites"}
 					} else {
-						m.statusMsg = dimStyle.Render("☆  removed from favorites")
+						m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: "☆  removed from favorites"}
 					}
 					if m.activeTab == TabFavorites {
 						m = m.refreshTabList()
@@ -85,21 +85,21 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "}":
 			m.rootSel.Next()
-			m.workspaceScope = nil
-			m.lastFilter = ""
+			m.navigation.scope = nil
+			m.query.value = ""
 			m.isFiltered = false
 			m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 			return m, nil
 		case "{":
 			m.rootSel.Prev()
-			m.workspaceScope = nil
-			m.lastFilter = ""
+			m.navigation.scope = nil
+			m.query.value = ""
 			m.isFiltered = false
 			m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 			return m, nil
 
 		case "p", "P":
-			if !m.searching {
+			if !m.query.editing {
 				proposedSel := m.presetSel
 				if msg.String() == "p" {
 					proposedSel.Next()
@@ -108,8 +108,8 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				proposed := m.cfg.Clone()
 				proposed.DefaultPreset = proposedSel.SelectedName()
-				if err := config.Save(proposed); err != nil {
-					m.statusMsg = errorStyle.Render("save config: " + err.Error())
+				if err := m.preferences.Config.Save(proposed); err != nil {
+					m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "save config: " + err.Error()}
 					return m, nil
 				}
 				m.cfg = proposed
@@ -118,20 +118,20 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "v":
-			if !m.searching {
+			if !m.query.editing {
 				m.treeMode = !m.treeMode
 				m = m.rebuildList(m.cfg.IsGitHubConnected() && len(m.githubRepos) > 0)
 				mode := "flat"
 				if m.treeMode {
 					mode = "tree"
 				}
-				m.statusMsg = dimStyle.Render("view: " + mode)
+				m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: "view: " + mode}
 				m.saveState()
 				return m, nil
 			}
 
 		case " ":
-			if !m.searching {
+			if !m.query.editing {
 				sel := m.list.SelectedItem()
 				if gi, ok := sel.(groupItem); ok {
 					m.collapsedNodes[gi.nodeKey] = !m.collapsedNodes[gi.nodeKey]
@@ -142,72 +142,72 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "g":
-			if !m.searching {
+			if !m.query.editing {
 				return m.startGitHubAuth()
 			}
 		case "G":
-			if !m.searching {
+			if !m.query.editing {
 				return m.startCreateGroup()
 			}
 		case "ctrl+g":
-			if !m.searching {
+			if !m.query.editing {
 				return m.startDeleteGroup()
 			}
 		case "e":
-			if !m.searching {
+			if !m.query.editing {
 				return m.startEditor()
 			}
 
 		case "r":
-			if !m.searching {
+			if !m.query.editing {
 				m = m.rescan()
 				var cmd tea.Cmd
 				if m.cfg.IsGitHubConnected() {
 					cmd = m.fetchRepos()
-					m.statusMsg = dimStyle.Render("↻  refreshing GitHub repos...")
+					m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: "↻  refreshing GitHub repos..."}
 				}
 				return m, cmd
 			}
 
 		case "c":
-			if !m.searching && m.isFiltered && m.activeTab == TabSearch {
+			if !m.query.editing && m.isFiltered && m.activeTab == TabSearch {
 				m.isFiltered = false
-				m.lastFilter = ""
+				m.query.value = ""
 				m = m.refreshTabList()
-				m.statusMsg = ""
+				m.diagnostic = app.Diagnostic{}
 				return m, nil
 			}
 
 		case "m":
-			if !m.searching {
+			if !m.query.editing {
 				return m.startMoveProject(), nil
 			}
 
 		case "n":
-			if !m.searching {
+			if !m.query.editing {
 				return m.startNewProject("")
 			}
 		case "N":
-			if !m.searching {
+			if !m.query.editing {
 				return m.startNewDomainOnly()
 			}
 		case "x":
-			if !m.searching {
+			if !m.query.editing {
 				if m.activeTab == TabTmux {
 					return m.startDeleteTmuxSession()
 				}
 				return m.startDeleteProject()
 			}
 		case "X":
-			if !m.searching {
+			if !m.query.editing {
 				return m.startDeleteDomain()
 			}
 		case "a":
-			if !m.searching {
+			if !m.query.editing {
 				return m.startAddRoot()
 			}
 		case "A":
-			if !m.searching {
+			if !m.query.editing {
 				return m.startRemoveRoot()
 			}
 
@@ -215,11 +215,11 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.beginSearch()
 
 		case "esc":
-			if !m.searching && m.isFiltered && m.activeTab == TabSearch {
+			if !m.query.editing && m.isFiltered && m.activeTab == TabSearch {
 				m.isFiltered = false
-				m.lastFilter = ""
+				m.query.value = ""
 				m = m.refreshTabList()
-				m.statusMsg = ""
+				m.diagnostic = app.Diagnostic{}
 				return m, nil
 			}
 
@@ -241,27 +241,27 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				ps := preset.ByName(m.presets, m.presetSel.SelectedName())
 				m.uiState.AddRecent(it.project)
 				m.saveState()
-				m.pendingLaunch = it.project
-				m.pendingLaunchReady = true
-				m.pendingLaunchPreset = ps
+				m.launch.project = it.project
+				m.launch.ready = true
+				m.launch.preset = ps
 				return m, tea.Quit
 			}
 			if fi, ok := sel.(flatItem); ok {
 				ps := preset.ByName(m.presets, m.presetSel.SelectedName())
 				m.uiState.AddRecent(fi.item.project)
 				m.saveState()
-				m.pendingLaunch = fi.item.project
-				m.pendingLaunchReady = true
-				m.pendingLaunchPreset = ps
+				m.launch.project = fi.item.project
+				m.launch.ready = true
+				m.launch.preset = ps
 				return m, tea.Quit
 			}
 			if fav, ok := sel.(favoriteItem); ok {
 				ps := preset.ByName(m.presets, m.presetSel.SelectedName())
 				m.uiState.AddRecent(fav.project)
 				m.saveState()
-				m.pendingLaunch = fav.project
-				m.pendingLaunchReady = true
-				m.pendingLaunchPreset = ps
+				m.launch.project = fav.project
+				m.launch.ready = true
+				m.launch.preset = ps
 				return m, tea.Quit
 			}
 			if re, ok := sel.(recentItem); ok {
@@ -269,16 +269,16 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 				ps := preset.ByName(m.presets, m.presetSel.SelectedName())
 				m.uiState.AddRecent(proj)
 				m.saveState()
-				m.pendingLaunch = proj
-				m.pendingLaunchReady = true
-				m.pendingLaunchPreset = ps
+				m.launch.project = proj
+				m.launch.ready = true
+				m.launch.preset = ps
 				return m, tea.Quit
 			}
 			if gi, ok := sel.(githubItem); ok {
 				return m.startCloneFlow(gi.repo), nil
 			}
 			if ts, ok := sel.(tmuxSessionItem); ok {
-				m.pendingTmuxAttach = ts.name
+				m.launch.session = ts.name
 				return m, tea.Quit
 			}
 		}
@@ -292,13 +292,9 @@ func (m model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) startNewProject(name string) (tea.Model, tea.Cmd) {
 	m.rootIntent = rootForProject
 	m.domainIntent = domainForProject
-	m.pendingGHRepo = gh.Repo{}
+	m.creation = creationState{}
 	m.pendingDomain = ""
 	m.pendingLocation = core.Location{}
-	m.pendingProjectName = ""
-	m.pendingTemplate = nil
-	m.pendingCreateGH = false
-	m.pendingGHPrivate = false
 	if name == "" {
 		m.inputScr = newInputScreen("New Project — enter name:", "project-name", "enter confirm  •  esc cancel")
 		m.state = stateNewProjectName
@@ -310,7 +306,7 @@ func (m model) startNewProject(name string) (tea.Model, tea.Cmd) {
 		m.state = stateNewProjectName
 		return m, nil
 	}
-	m.pendingProjectName = name
+	m.creation.name = name
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 1 {
 		return m.openDomainPicker(roots[0], name)
@@ -338,7 +334,7 @@ func (m model) startNewDomainOnly() (tea.Model, tea.Cmd) {
 func (m model) startDeleteProject() (tea.Model, tea.Cmd) {
 	sel := m.list.SelectedItem()
 	if _, ok := sel.(githubItem); ok {
-		m.statusMsg = dimStyle.Render("Repository not cloned locally - nothing to delete")
+		m.diagnostic = app.Diagnostic{Severity: app.Info, Summary: "Repository not cloned locally - nothing to delete"}
 		return m, nil
 	}
 	proj, ok := m.actionProject()
@@ -373,7 +369,7 @@ func (m model) startAddRoot() (tea.Model, tea.Cmd) {
 func (m model) startRemoveRoot() (tea.Model, tea.Cmd) {
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 0 {
-		m.statusMsg = errorStyle.Render("no roots to remove")
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no roots to remove"}
 		return m, nil
 	}
 	m.genericPicker = newRootPicker("Select root to remove:", roots, "↑/↓  •  enter  •  esc")
@@ -404,7 +400,7 @@ func (m model) startMoveProject() model {
 
 func (m model) startCloneFlow(repo gh.Repo) model {
 	m.domainIntent = domainForClone
-	m.pendingGHRepo = repo
+	m.creation.repo = repo
 	m.pendingLocation = core.Location{}
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 1 {
@@ -420,7 +416,7 @@ func (m model) startCloneFlow(repo gh.Repo) model {
 }
 
 func (m model) startEditor() (tea.Model, tea.Cmd) {
-	m.editorScr = newEditorScreen(m.presets, m.templates, m.termW, m.termH)
+	m.editorScr = newEditorScreenWithPreferences(m.presets, m.templates, m.termW, m.termH, m.preferences)
 	m.editorScr.cfg = m.cfg.Clone()
 	m.state = stateEditor
 	return m, nil

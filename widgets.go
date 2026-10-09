@@ -3,9 +3,8 @@ package main
 import (
 	"strings"
 
-	"github.com/richardnascimento18/devdock/internal/preset"
-
 	"github.com/charmbracelet/x/ansi"
+	"github.com/richardnascimento18/devdock/internal/preset"
 	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
@@ -122,7 +121,7 @@ func renderHelpOverlay(termW, termH, offset int, actions []actionBinding) string
 	var lines []string
 	width := min(70, max(termW-8, 1))
 	for _, section := range helpSections {
-		lines = append(lines, promptStyle.Render(section.title))
+		lines = append(lines, promptStyle.Render(ui.SafeBlock(section.title)))
 		for _, entry := range section.entries {
 			line := entry.key + "  " + entry.desc
 			lines = append(lines, strings.Split(ansi.Hardwrap(line, width, true), "\n")...)
@@ -131,7 +130,7 @@ func renderHelpOverlay(termW, termH, offset int, actions []actionBinding) string
 	}
 	lines = append(lines, promptStyle.Render("Actions"))
 	for _, action := range actions {
-		lines = append(lines, strings.Split(ansi.Hardwrap(paletteActionDescription(action), width, true), "\n")...)
+		lines = append(lines, strings.Split(ansi.Hardwrap(ui.SafeText(paletteActionDescription(action)), width, true), "\n")...)
 	}
 	lines = append(lines, "", hintStyle.Render("q / ctrl+c quit main view · ? / esc close help"))
 	rows := max(termH-8, 1)

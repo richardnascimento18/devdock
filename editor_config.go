@@ -6,13 +6,13 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/richardnascimento18/devdock/internal/config"
+	"github.com/richardnascimento18/devdock/internal/app"
 )
 
 type configurationEditor struct {
 	defaultPreset textinput.Model
 	typing        bool
-	statusMsg     string
+	diagnostic    app.Diagnostic
 }
 
 func newConfigurationEditor(value string) configurationEditor {
@@ -48,21 +48,21 @@ func (e editorScreen) updateConfigurationEditor(msg tea.Msg) (editorScreen, tea.
 					found = found || p.Name == proposed.DefaultPreset
 				}
 				if !found {
-					e.ce.statusMsg = errorStyle.Render(fmt.Sprintf("unknown preset %q; choose an existing preset or leave blank", proposed.DefaultPreset))
+					e.ce.diagnostic = app.Diagnostic{Severity: app.Error, Summary: fmt.Sprintf("unknown preset %q; choose an existing preset or leave blank", proposed.DefaultPreset)}
 					return e, nil
 				}
 			}
-			committed, changed, err := config.Commit(e.cfg, proposed)
+			committed, changed, err := e.preferences.CommitConfig(e.cfg, proposed)
 			if err != nil {
-				e.ce.statusMsg = errorStyle.Render("save failed: " + err.Error())
+				e.ce.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "save failed: " + err.Error()}
 				return e, nil
 			}
 			e.cfg = committed
 			if changed {
 				e.revision++
-				e.statusMsg = successStyle.Render("✓  configuration saved")
+				e.diagnostic = app.Diagnostic{Severity: app.Success, Summary: "✓  configuration saved"}
 			} else {
-				e.statusMsg = dimStyle.Render("Configuration unchanged")
+				e.diagnostic = app.Diagnostic{Severity: app.Info, Summary: "Configuration unchanged"}
 			}
 			e.layer = editorLayerList
 			return e, nil

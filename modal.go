@@ -1,9 +1,10 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/x/ansi"
 	"github.com/richardnascimento18/devdock/internal/ui"
-	"strings"
 )
 
 type modalScreen struct{ scroll int }
@@ -12,20 +13,22 @@ type modalContent struct{ title, body, hint string }
 func (c modalContent) View(width, height, offset int) string {
 	return ui.ModalAt(c.title, c.body, c.hint, width, height, offset)
 }
-func (m model) flowModal() bool {
-	switch m.state {
-	case stateList, stateHelp, statePalette, stateEditor, statePTYExecution,
-		stateBulkPreflight, stateBulkMoving, stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
-		return false
-	default:
-		return true
-	}
-}
-func (m model) currentModal() modalContent {
+func (m model) flowModal() bool { return m.state.kind() == routeOverlay }
+func (m model) currentModal() (content modalContent) {
+	// The retained creation draft owns its failure, including while navigating
+	// back through its choices. A retry or a fresh creation clears it.
+	defer func() {
+		switch m.state {
+		case statePickPreset, statePickTemplate, stateAskCreateGitHub, stateAskRepoPrivacy:
+			if m.creation.failure.Summary != "" {
+				content.body = diagnosticView(m.creation.failure) + "\n\n" + content.body
+			}
+		}
+	}()
 	w, h := m.termW, m.termH
 	switch m.state {
 	case stateStatusDetails:
-		return modalContent{"Status details", m.statusDetails, "esc back"}
+		return modalContent{"Status details", ui.SafeBlock(m.statusDetails), "esc back"}
 	case stateBulkConfirm, stateBulkResult:
 		return m.bulkModal()
 	case stateDeleteDomain:
@@ -41,13 +44,13 @@ func (m model) currentModal() modalContent {
 	case stateAskCreateGitHub, stateAskRepoPrivacy:
 		return m.yesNoScr.content(w, h)
 	case stateGitHubAuth:
-		if m.githubAuthScr.err != "" {
-			return modalContent{"GitHub connection failed", "! " + m.githubAuthScr.err, "esc back"}
+		if m.auth.screen.err != "" {
+			return modalContent{"GitHub connection failed", "! " + ui.SafeBlock(m.auth.screen.err), "esc back"}
 		}
-		if m.githubAuthScr.verificationURI == "" || m.githubAuthScr.done {
+		if m.auth.screen.verificationURI == "" || m.auth.screen.done {
 			return modalContent{"Connect GitHub", m.activityView(), "esc cancel"}
 		}
-		return m.githubAuthScr.content(w, h)
+		return m.auth.screen.content(w, h)
 	case stateDeleteTmuxSession:
 		return m.confirmDelTmux.content(w, h)
 	case statePickRoot, statePickRootForDomain, stateRemoveRoot, statePickRootForClone,

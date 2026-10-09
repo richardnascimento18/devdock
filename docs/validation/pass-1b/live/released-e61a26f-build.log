@@ -1,4 +1,0 @@
-bash scripts/build-release.sh
-Built version 1.1.0-beta.1 at commit e61a26f5b4ad69b0d7c0891e28532d7577f64e1b
-PASS: isolated TUI startup, project rendering, flat view, root switching, favorite toggle, editor, OAuth screen, cancellation, shutdown
-Captured terminal bytes: 29574

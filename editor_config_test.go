@@ -119,7 +119,7 @@ func TestConfigurationEditorTransaction(t *testing.T) {
 						t.Fatal("no-op rewrote file or failed")
 					}
 				} else if scenario != "cancel" {
-					if m.editorScr.layer != editorLayerConfig || m.editorScr.ce.defaultPreset.Value() != value || m.editorScr.ce.statusMsg == "" {
+					if m.editorScr.layer != editorLayerConfig || m.editorScr.ce.defaultPreset.Value() != value || m.editorScr.ce.diagnostic.Summary == "" {
 						t.Fatal("failed save lost draft or error")
 					}
 				}

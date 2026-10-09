@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+python3 scripts/toolchain.py
 if [[ -n "${GOBIN:-}" ]]; then export PATH="$GOBIN:$PATH"; fi
 unformatted=$(gofmt -l .)
 if [[ -n "$unformatted" ]]; then printf 'Run gofmt on:\n%s\n' "$unformatted"; exit 1; fi
@@ -12,7 +13,14 @@ go mod tidy
 diff -u "$module_snapshot/go.mod" go.mod
 diff -u "$module_snapshot/go.sum" go.sum
 go mod verify
+cp tools/go.mod "$module_snapshot/tools.go.mod"
+cp tools/go.sum "$module_snapshot/tools.go.sum"
+go -C tools mod tidy
+diff -u "$module_snapshot/tools.go.mod" tools/go.mod
+diff -u "$module_snapshot/tools.go.sum" tools/go.sum
+go -C tools mod verify
 python3 -m unittest discover -s scripts -p 'test_*.py'
+python3 scripts/privacy.py --tracked
 actionlint
 python3 scripts/version.py "$(cat VERSION)"
 go test ./...

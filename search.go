@@ -1,25 +1,26 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/richardnascimento18/devdock/internal/ui"
 	"github.com/sahilm/fuzzy"
-	"strings"
 )
 
 func (m model) applySearch() model {
 	selected := rowIdentity(m.list.SelectedItem())
 	base := m.allItems
 	if m.activeTab != TabSearch {
-		query, active := m.lastFilter, m.isFiltered
-		m.lastFilter = ""
+		query, active := m.query.value, m.isFiltered
+		m.query.value = ""
 		m.isFiltered = false
 		m = m.refreshTabList()
 		base = m.list.Items()
-		m.lastFilter, m.isFiltered = query, active
+		m.query.value, m.isFiltered = query, active
 	}
-	query := strings.TrimSpace(m.lastFilter)
+	query := strings.TrimSpace(m.query.value)
 	if query == "" {
 		m.list.SetItems(base)
 	} else {
@@ -32,7 +33,7 @@ func (m model) applySearch() model {
 		for _, match := range matches {
 			filtered = append(filtered, base[match.Index])
 		}
-		if !m.searching && len(filtered) == 0 && m.activeTab == TabSearch && isSafePathName(query) {
+		if !m.query.editing && len(filtered) == 0 && m.activeTab == TabSearch && isSafePathName(query) {
 			filtered = append(filtered, createProjectItem{name: query})
 		}
 		m.list.SetItems(filtered)
@@ -47,38 +48,38 @@ func (m model) applySearch() model {
 }
 
 func (m model) beginSearch() (tea.Model, tea.Cmd) {
-	m.searchRestore = m.lastFilter
-	m.searchInput.SetValue(m.lastFilter)
-	m.searching = true
-	m.focus = ui.Projects
-	return m, m.searchInput.Focus()
+	m.query.restore = m.query.value
+	m.query.input.SetValue(m.query.value)
+	m.query.editing = true
+	m.navigation.focus = ui.Projects
+	return m, m.query.input.Focus()
 }
 
 func (m model) updateSearch(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if key, ok := msg.(tea.KeyMsg); ok {
 		switch key.String() {
 		case "alt+1", "alt+2", "alt+3":
-			m.searching = false
-			m.searchInput.Blur()
-			m.isFiltered = strings.TrimSpace(m.lastFilter) != ""
+			m.query.editing = false
+			m.query.input.Blur()
+			m.isFiltered = strings.TrimSpace(m.query.value) != ""
 			next, cmd, _ := m.updateDashboardNavigation(key)
 			return next, cmd
 		case "ctrl+p":
-			m.searching = false
-			m.searchInput.Blur()
+			m.query.editing = false
+			m.query.input.Blur()
 			return m.openPalette()
 		case "ctrl+c":
 			return m, tea.Quit
 		case "esc":
-			m.lastFilter = m.searchRestore
-			m.searching = false
-			m.searchInput.Blur()
-			m.isFiltered = m.lastFilter != ""
+			m.query.value = m.query.restore
+			m.query.editing = false
+			m.query.input.Blur()
+			m.isFiltered = m.query.value != ""
 			return m.applySearch(), nil
 		case "enter":
-			m.searching = false
-			m.searchInput.Blur()
-			m.isFiltered = strings.TrimSpace(m.lastFilter) != ""
+			m.query.editing = false
+			m.query.input.Blur()
+			m.isFiltered = strings.TrimSpace(m.query.value) != ""
 			return m.applySearch(), nil
 		case "up", "down":
 			var cmd tea.Cmd
@@ -87,8 +88,8 @@ func (m model) updateSearch(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	var cmd tea.Cmd
-	m.searchInput, cmd = m.searchInput.Update(msg)
-	m.lastFilter = m.searchInput.Value()
-	m.isFiltered = strings.TrimSpace(m.lastFilter) != ""
+	m.query.input, cmd = m.query.input.Update(msg)
+	m.query.value = m.query.input.Value()
+	m.isFiltered = strings.TrimSpace(m.query.value) != ""
 	return m.applySearch(), cmd
 }

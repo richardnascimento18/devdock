@@ -1,19 +1,18 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/richardnascimento18/devdock/internal/core"
-
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
+	"github.com/richardnascimento18/devdock/internal/core"
 )
 
 func (m model) startCreateGroup() (tea.Model, tea.Cmd) {
 	m.groupFlow = groupWorkflow{}
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 0 {
-		m.statusMsg = errorStyle.Render("no roots configured")
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no roots configured"}
 		return m, nil
 	}
 	// Determine which root/domain to use from context
@@ -28,10 +27,10 @@ func (m model) startCreateGroup() (tea.Model, tea.Cmd) {
 }
 
 func (m model) openDomainPickerForGroup() (tea.Model, tea.Cmd) {
-	domains := m.workspaceDomains[m.pendingRoot]
+	domains := m.navigation.domains[m.pendingRoot]
 	if len(domains) == 0 {
 		m.state = stateList
-		m.statusMsg = errorStyle.Render("no domains in this root — create a domain first (N)")
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no domains in this root — create a domain first (N)"}
 		return m, nil
 	}
 	opts := make([]string, len(domains))
@@ -77,16 +76,7 @@ func (m model) updateCreateGroup(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputScr.err = "name cannot be empty"
 				return m, nil
 			}
-			if err := m.workspaceTree.CreateGroups(m.groupFlow.parent, strings.Split(name, "/")); err != nil {
-				m.inputScr.err = err.Error()
-				return m, nil
-			}
-
-			m.pendingDomain = ""
-			m = m.rescan()
-			m.state = stateList
-			m.statusMsg = successStyle.Render(fmt.Sprintf("✓  group \"%s\" created", name))
-			return m, nil
+			return m.beginScopeMutation(mutationGroup, name)
 		}
 	}
 
@@ -103,7 +93,7 @@ func (m model) startDeleteGroup() (tea.Model, tea.Cmd) {
 	m.groupFlow = groupWorkflow{}
 	roots := m.cfg.ActiveRoots()
 	if len(roots) == 0 {
-		m.statusMsg = errorStyle.Render("no roots configured")
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no roots configured"}
 		return m, nil
 	}
 	if len(roots) == 1 {
@@ -117,11 +107,11 @@ func (m model) startDeleteGroup() (tea.Model, tea.Cmd) {
 }
 
 func (m model) openGroupPickerForDelete() (tea.Model, tea.Cmd) {
-	domains := m.workspaceDomains[m.pendingRoot]
+	domains := m.navigation.domains[m.pendingRoot]
 	var groups []string
 	m.groupFlow.deleteLocations = nil
 	for _, d := range domains {
-		for _, loc := range m.workspaceTree.Locations(m.pendingRoot, d) {
+		for _, loc := range m.navigation.tree.Locations(m.pendingRoot, d) {
 			if len(loc.GroupPath) > 0 {
 				groups = append(groups, loc.Breadcrumb())
 				m.groupFlow.deleteLocations = append(m.groupFlow.deleteLocations, loc)
@@ -129,7 +119,7 @@ func (m model) openGroupPickerForDelete() (tea.Model, tea.Cmd) {
 		}
 	}
 	if len(groups) == 0 {
-		m.statusMsg = errorStyle.Render("no groups found in this root")
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no groups found in this root"}
 		m.state = stateList
 		return m, nil
 	}

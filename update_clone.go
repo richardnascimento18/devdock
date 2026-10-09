@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
 	"github.com/richardnascimento18/devdock/internal/config"
-	gh "github.com/richardnascimento18/devdock/internal/github"
 )
 
 func (m model) updatePickRootForClone(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -19,7 +20,7 @@ func (m model) updatePickRootForClone(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if k.String() == "enter" {
 			if m.genericPicker.cursor < 0 || m.genericPicker.cursor >= len(m.cfg.ActiveRoots()) {
 				m.state = stateList
-				m.statusMsg = errorStyle.Render("no root selected")
+				m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "no root selected"}
 				return m, nil
 			}
 			m.pendingRoot = m.cfg.ActiveRoots()[m.genericPicker.cursor]
@@ -68,7 +69,7 @@ func (m model) updatePickDomainForClone(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) beginClone(domain string) (tea.Model, tea.Cmd) {
 	m.pendingDomain = domain
-	m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Cloning %s...", m.pendingGHRepo.Name))
+	m.spinnerScr = newSpinnerScreen(fmt.Sprintf("Cloning %s...", m.creation.repo.Name))
 	m.state = stateCloningRepo
-	return m, gh.CmdCloneRepo(m.pendingGHRepo.CloneURL, m.currentLocation(), m.pendingGHRepo.Name)
+	return m, cmdCloneRepo(m.context(), m.workspaces, m.creation.repo.CloneURL, m.currentLocation(), m.creation.repo.Name)
 }

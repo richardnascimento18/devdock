@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/richardnascimento18/devdock/internal/detect"
-	"github.com/richardnascimento18/devdock/internal/ui"
 	"strings"
+
+	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
 var theme = ui.Default
@@ -41,7 +41,7 @@ func RenderTitle() string { return titleStyle.Render("DevDock") }
 func RenderLanguageTags(langs []string) string {
 	var parts []string
 	for _, label := range langs {
-		parts = append(parts, ui.Foreground(theme.Info).Render(detect.Tech(label).Badge))
+		parts = append(parts, ui.Foreground(theme.Info).Render(ui.SafeText(ui.Tech(label).Badge)))
 	}
 	return strings.Join(parts, " · ")
 }
@@ -50,7 +50,7 @@ func RenderGroupBreadcrumb(path []string) string {
 	if len(path) == 0 {
 		return ""
 	}
-	return dimStyle.Render(" " + compactBreadcrumb(path) + " › ")
+	return dimStyle.Render(ui.SafeText(" " + compactBreadcrumb(path) + " › "))
 }
 
 func compactBreadcrumb(path []string) string {
@@ -69,5 +69,5 @@ const asciiTitle = `██████╗ ███████╗██╗   �
 ╚═════╝ ╚══════╝  ╚═══╝  ╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝`
 
 func (m model) showBrandMark() bool {
-	return m.termW >= 110 && m.termH >= 36 && (m.scanInFlight && len(m.rawProjects) == 0 || len(m.list.Items()) == 0 && m.lastFilter == "")
+	return m.termW >= 110 && m.termH >= 36 && (m.scan.inFlight && len(m.navigation.projects) == 0 || len(m.list.Items()) == 0 && m.query.value == "")
 }

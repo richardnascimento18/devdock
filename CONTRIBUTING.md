@@ -2,27 +2,39 @@
 
 ## Scope and package ownership
 
-Pass 1 stabilizes the current model and interface. Recursive hierarchy redesign, bulk selection, new responsive panes, visual themes, and major features require later approved passes.
+DevDock manages recursive development workspaces. Preserve public workflows, persisted compatibility, and foreground-only terminal styling. Architecture work must improve ownership or testability without expanding product scope.
 
 - The root package owns Bubble Tea presentation and typed workflows. External work returns commands/messages with operation identities; Update must not perform network/process work or rescan the workspace synchronously.
 - `internal/core` owns workspace validation, discovery, creation, deletion, and collision-safe moves.
 - `internal/detect` classifies projects using a scan-local cache.
 - `internal/config`, `preset`, `template`, and `state` own validation and persistence of their data. `internal/fileutil` supplies atomic writes.
-- `internal/github`, `tmux`, and `pty` own external integrations. GitHub HTTP/auth and tmux execution have small injectable boundaries for testing.
+- `internal/app` coordinates workspace, preference and scaffold operations with plain Go requests/results and injected effects. Startup resolves its paths once.
+- `internal/git` owns local Git; `internal/github` owns HTTP/API and OAuth. Association uses canonical remote identity.
+- `internal/process`, `tmux`, and `pty` own context-aware execution. `internal/terminal` interprets bounded PTY output. These packages do not import Bubble Tea.
+- `internal/ui` owns foreground-only presentation, safe display text, responsive layout and technology badges.
 - Editor files divide collection orchestration, preset/window editing, panes, and template steps. Proposed collections are cloned and fully validated before disk persistence; active state changes afterward.
+
+See [application boundaries](docs/architecture/application.md), [TUI ownership](docs/architecture/tui.md) and [workspace invariants](docs/architecture/workspace-model.md).
 
 Keep changes incremental and protected by behavioral tests, especially for destructive operations, persistence, async cancellation, and failure propagation. Avoid introducing interfaces without an external boundary or concrete testing need.
 
 ## Local workflow
 
-Use Linux, Go 1.26+, Bash, Python 3, Git, and a C compiler for race testing. Dependency metadata and rooted filesystem APIs have a technical floor of Go 1.25; Go 1.26 is the deliberately supported minimum because the maintained toolchain pair is 1.26/1.27 and current analysis tools require 1.26. There is no claim of supported 1.25 builds. Use tmux to verify workspace attachment. Install pinned tools with `GOBIN=/tmp/devdock-tools make tools`; `GOBIN=/tmp/devdock-tools make check` adds that directory to PATH. Actions sets GOBIN to `$RUNNER_TEMP/devdock-tools` through GITHUB_ENV and adds it through GITHUB_PATH. Install ShellCheck locally for actionlint parity with hosted Ubuntu runners.
+Use Linux, a supported patched Go compiler, Bash, Python 3, Git, and a C compiler for race testing. Dependency metadata and rooted filesystem APIs have a technical floor of Go 1.25; Go 1.26 is the deliberately supported minimum because the maintained toolchain pair is 1.26/1.27 and current analysis tools require 1.26. There is no claim of supported 1.25 builds. Use tmux to verify workspace attachment. Install pinned tools with `GOBIN=/tmp/devdock-tools make tools`; `GOBIN=/tmp/devdock-tools make check` adds that directory to PATH. Actions sets GOBIN to `$RUNNER_TEMP/devdock-tools` through GITHUB_ENV and adds it through GITHUB_PATH. Install ShellCheck locally for actionlint parity with hosted Ubuntu runners.
 
 ```sh
 make fmt
 make check
 ```
 
-`make check` runs gofmt verification, `go mod tidy` consistency, `go mod verify`, version-script tests, actionlint, version validation, `go test ./...`, `go test -race ./...`, `go vet ./...`, `staticcheck ./...`, `govulncheck ./...`, and `go build ./...`. Vulnerability checking requires network access. CI runs the suite on Linux with the latest Go 1.26 and 1.27 patches and cross-builds both release architectures.
+`make check` runs gofmt verification, `go mod tidy` consistency, `go mod verify`, version-script tests, actionlint, version validation, `go test ./...`, `go test -race ./...`, `go vet ./...`, `staticcheck ./...`, `govulncheck ./...`, and `go build ./...`. Vulnerability checking requires network access. CI runs the suite on Linux with exact Go 1.26.9 and 1.27.2 and cross-builds both release architectures.
+
+Analysis tools have a separate `tools/go.mod`/`go.sum`; their dependencies do not
+enter the application module. Staticcheck and govulncheck share the pinned
+`golang.org/x/tools v0.51.0` export reader needed for Go 1.27. Install with
+`make tools`, which uses that reviewed module graph. Checks verify both module
+graphs. CI uses `GOTOOLCHAIN=local` so the minimum-compiler matrix cannot silently
+switch to the recommended toolchain in the application's `go.mod`.
 
 Tests must use `t.TempDir()` and isolated configuration. Use fake HTTP/auth clients, tmux runners, and Git command runners rather than real services or your own filesystem. PTY tests intentionally run short local child commands. Do not disable checks, loosen validation, or discard tests to make a change pass.
 
@@ -33,9 +45,7 @@ Permanent branches:
 - `staging`: integration branch and next release candidate.
 - `production`: stable/default branch containing officially released code.
 
-Legacy `main` was deleted after the successful Pass 1B rehearsal; no main branch is used in the permanent workflow.
-
-After Pass 1, do not develop directly on either branch. Create a purpose-specific branch from staging: `feat/…`, `fix/…`, `refactor/…`, `test/…`, `ci/…`, `docs/…`, `build/…`, `perf/…`, or `chore/…`. Use Conventional Commits, for example `fix(pty): preserve child exit errors`.
+Do not develop directly on either branch. Create a purpose-specific branch from staging: `feat/…`, `fix/…`, `refactor/…`, `test/…`, `ci/…`, `docs/…`, `build/…`, `perf/…`, or `chore/…`. Use Conventional Commits, for example `fix(pty): preserve child exit errors`.
 
 1. Commit coherent changes, run relevant checks, and push your development branch.
 2. Open a PR targeting `staging`. Require green **Required validation**; reviews are optional for this solo-maintainer workflow.
@@ -51,9 +61,7 @@ For an emergency hotfix, branch `fix/…` from production, merge the correction 
 
 ## Required GitHub settings (owner actions)
 
-The Pass 1B bootstrap configures repository rulesets and the publication environment through GitHub APIs and verifies them. OAuth registration remains an owner action. Use the settings below when restoring/recreating the repository; the live staging ruleset is 24336971 and production ruleset is 24337571, both active with no bypass actors. Both require PRs, conversation resolution, and block deletion/force pushes. Staging requires strict/up-to-date Required validation; production requires Production validation and Production source validation. Integration and production check names are distinct. Required approving reviews are zero for the solo maintainer. The production-release environment has a production-only branch policy and no required human approval.
-
-Bootstrap staging from the exact reviewed Pass 1 HEAD. Create production only from corrected, green staging with DEVDOCK_RELEASES_ENABLED unset or false. Publication must remain disabled during that creation; the baseline is not a release. If importing an older production branch without VERSION, the owner must establish a reviewed baseline VERSION before normal promotion policy can pass.
+Configure repository rulesets and the publication environment through the protected owner workflow. OAuth App registration remains an owner action. Verify actual settings when restoring the repository rather than relying on historical ruleset IDs.
 
 For **both** staging and production, configure GitHub branch protection or rulesets:
 
@@ -70,7 +78,7 @@ Create the GitHub environment **production-release**, limit deployment branches 
 
 ## Version and release lifecycle
 
-`VERSION` contains one reviewed SemVer without `v` or build metadata. Historical v1.0.0-beta and v1.1.0-beta tags/releases remain unchanged; the first CI/CD rehearsal is 1.1.0-beta.1, advancing the existing lineage. Later rehearsals advance the beta identifier explicitly. Versions are explicit; Conventional Commits describe changes but do not drive automatic increments. The Python validator rejects malformed versions and compares prerelease ordering. A production candidate must be greater than the production base version. Keep beta/prerelease status until later passes and release-candidate hardening justify a stable release.
+`VERSION` contains one reviewed SemVer without `v` or build metadata. Historical tags/releases remain unchanged. Advance the existing version lineage explicitly. Versions are explicit; Conventional Commits describe changes but do not drive automatic increments. The Python validator rejects malformed versions and compares prerelease ordering. A production candidate must be greater than the production base version. Keep beta/prerelease status until later passes and release-candidate hardening justify a stable release.
 
 Publication is gated by the repository variable **DEVDOCK_RELEASES_ENABLED** being exactly `true`; unset, false, or any other value skips the write-permission publication job. Keep it false while bootstrapping production and enable it only after protections, environment, and public OAuth Client ID are verified. It is also the emergency release kill switch; cancel an already-running publication job if immediate interruption is needed. No source edit is needed to toggle it.
 
@@ -105,3 +113,48 @@ Builtin template paths use rooted filesystem handles and must be strict descenda
 Persistence uses a same-directory temporary file, fsync, close, and atomic rename. Validation/persistence failures leave active editor/config preferences unchanged. State-save failures remain visible after TUI shutdown. Directory fsync is not promised; atomicity does not guarantee survival of the latest rename after sudden power loss. Workspace mutations and metadata persistence cannot be one filesystem transaction; failures are reported and later scans reconcile missing paths.
 
 Root permission or scan failures return partial results with errors. Cancelled OAuth/PTY flows use contexts and operation identities; stale messages cannot mutate the new screen. GitHub error bodies are not echoed, protecting tokens from accidental logging.
+
+## Local evidence and public privacy
+
+Keep execution reports, complete logs, benchmarks, environment information and
+review artifacts under ignored `/.devdock-work/` (validation, reports, logs,
+review, artifacts). Never force-add it. Keep `/docs/` for lasting user/contributor
+documentation; keep README about public use, not pass acceptance or execution.
+
+Stage explicit files and run `python3 scripts/privacy.py --staged` before each
+commit. It reports locations and categories, never matched values. Review
+findings rather than suppressing them. Generic examples and product fixtures
+remain appropriate. Scan the full tracked tree with `--tracked` in CI.
+
+Use `scripts/package-source.sh` for committed source archives. It packages one
+explicit commit with `git archive`, excluding local refs, reflogs, `.git`, dirty
+files and ignored evidence. Do not bundle `--all` or archive a raw checkout for
+public review. Historical commit identities are retained; do not rewrite them.
+
+## Compiler security policy
+
+The language/module compatibility floor remains `go 1.26.0`. Supported compilers
+are Go 1.26.9+ and 1.27.2+ within those maintained series; patch-zero builds are
+not supported. CI pins 1.26.9 and 1.27.2, and release builds pin 1.27.2. The
+`toolchain go1.27.2` directive recommends the default compiler but cannot prevent
+`GOTOOLCHAIN=local` or an explicit older compiler. Check/release scripts enforce
+the supported patched floor separately. Source builds should run that check too.
+
+Basis: [Go release history](https://go.dev/doc/devel/release) lists security fixes
+in 1.26.9 and 1.27.2 on 2026-10-08; Go maintains the latest two series. Reassess
+patch pins and floors when upstream publishes security updates; do not infer
+safety from the language directive or a historical scan. `govulncheck` must use
+current advisory data; a failed network/database fetch is not a clean scan.
+
+## Untrusted terminal text
+
+Use `ui.SafeText` for external single-line labels and `ui.SafeBlock` for plain
+diagnostic/command paragraphs, before applying trusted styles or ANSI clipping.
+C0 controls become visible control pictures, C1 and bidi controls become visible
+code-point labels, malformed UTF-8 becomes U+FFFD. Only SafeBlock permits LF.
+Ordinary wide characters, combining accents and emoji remain; consecutive marks
+are capped at 16 and each display value at 4096 input runes. Identities, paths,
+editable values and persisted data remain original. `ui.InputView` renders a
+detached input copy. `ui.Fit` clips styled output by grapheme/display width.
+Do not sanitize already styled composition or permit SGR/OSC from external data.
+PTY controls are interpreted locally and never forwarded to the user's terminal.

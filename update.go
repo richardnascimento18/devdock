@@ -5,14 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/richardnascimento18/devdock/internal/config"
-	"github.com/richardnascimento18/devdock/internal/core"
-	gh "github.com/richardnascimento18/devdock/internal/github"
-	"github.com/richardnascimento18/devdock/internal/preset"
-	tmpl "github.com/richardnascimento18/devdock/internal/template"
-	"github.com/richardnascimento18/devdock/internal/tmux"
-
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/richardnascimento18/devdock/internal/app"
+	"github.com/richardnascimento18/devdock/internal/core"
+	"github.com/richardnascimento18/devdock/internal/preset"
 )
 
 // ---------------------------------------------------------------------------
@@ -20,8 +16,11 @@ import (
 // ---------------------------------------------------------------------------
 
 type moveProjectDoneMsg struct {
+	id         uint64
 	newProject core.Project
 	err        error
+	rejected   bool
+	status     core.MoveStatus
 }
 
 // ---------------------------------------------------------------------------
@@ -35,7 +34,7 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 				next.modalScroll = 0
 			}
 			if rowIdentity(next.list.SelectedItem()) != rowIdentity(m.list.SelectedItem()) {
-				next.inspectorScroll = 0
+				next.navigation.inspectorScroll = 0
 			}
 			if next.scopeIdentity() != m.scopeIdentity() || next.activeTab != m.activeTab {
 				next.selected = nil
@@ -45,16 +44,16 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 				next.editorRootReturn = false
 				next.state = stateEditor
 				next.editorScr.cfg = next.cfg.Clone()
-				next.editorScr.statusMsg = next.statusMsg
+				next.editorScr.diagnostic = next.diagnostic
 			}
 			var commands []tea.Cmd
 			if cmd != nil {
 				commands = append(commands, cmd)
 			}
-			if next.scanRequested {
+			if next.scan.requested {
 				commands = append(commands, next.scanCommand())
 			}
-			if next.tmuxRefreshRequested {
+			if next.tmux.requested {
 				commands = append(commands, next.tmuxRefreshCommand())
 			}
 			if tick := next.scheduleAnimation(); tick != nil {
@@ -69,7 +68,7 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		if m.state != statePTYExecution || flow.id != m.ptyScr.operationID {
 			if started, ok := flow.msg.(ptyStepStartMsg); ok {
 				if err := started.session.Close(); err != nil {
-					m.statusMsg = errorStyle.Render(err.Error())
+					m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: err.Error()}
 				}
 			}
 			return m, nil
@@ -109,6 +108,12 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case scopeDoneMsg:
+		return m.handleScopeDone(msg)
+	case createPreflightMsg:
+		return m.handleCreatePreflight(msg)
+	case createDoneMsg:
+		return m.handleCreateDone(msg)
 	case deleteDoneMsg:
 		return m.handleDeleteDone(msg)
 	case tmuxSessionsMsg:
@@ -117,17 +122,15 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		return m.handleTmuxKilled(msg)
 	case scanResultMsg:
 		return m.handleScanResult(msg)
-	case gh.ReposLoadedMsg:
+	case ReposLoadedMsg:
 		return m.handleGitHubReposLoaded(msg)
-	case gh.DeviceStartedMsg:
+	case DeviceStartedMsg:
 		return m.handleDeviceStarted(msg)
-	case gh.AuthDoneMsg:
+	case AuthDoneMsg:
 		return m.handleGitHubAuthDone(msg)
-	case gh.RepoCreatedMsg:
+	case RepoCreatedMsg:
 		return m.handleGitHubRepoCreated(msg)
-	case gitLinkedMsg:
-		return m.handleGitLinked(msg)
-	case gh.CloneDoneMsg:
+	case CloneDoneMsg:
 		return m.handleGitCloneDone(msg)
 	case bulkPreflightMsg:
 		return m.handleBulkPreflight(msg)
@@ -139,181 +142,73 @@ func (m model) Update(msg tea.Msg) (result tea.Model, cmd tea.Cmd) {
 		return m.handleAnimationTick(msg)
 	}
 
-	switch m.state {
-	case stateNewProjectName:
-		return m.updateNewProjectName(msg)
-	case statePickRoot:
-		return m.updatePickRoot(msg)
-	case statePickDomain:
-		return m.updateDomainPicker(msg)
-	case stateNewDomainName:
-		return m.updateNewDomainName(msg)
-	case stateCreateDomainOnly:
-		return m.updateCreateDomainOnly(msg)
-	case statePickRootForDomain:
-		return m.updatePickRootForDomain(msg)
-	case statePickPreset:
-		return m.updatePickPreset(msg)
-	case stateAskCreateGitHub:
-		return m.updateAskCreateGitHub(msg)
-	case stateAskRepoPrivacy:
-		return m.updateAskRepoPrivacy(msg)
-	case stateBulkPreflight:
-		if key, ok := msg.(tea.KeyMsg); ok && key.String() == "esc" {
-			m.state = stateList
-			m.bulk = bulkWorkflow{}
-		}
-		return m, nil
-	case stateBulkMoving, stateCreatingGitHub, stateCloningRepo, stateMovingProject, stateDeletingWorkspace:
-		return m, nil
-	case statePickTemplate:
-		return m.updatePickTemplate(msg)
-	case statePTYExecution:
-		return m.updatePTYExecution(msg)
-	case stateDeleteProject:
-		return m.updateDeleteProject(msg)
-	case stateDeleteDomain:
-		return m.updateDeleteDomain(msg)
-	case stateAddRoot:
-		return m.updateAddRoot(msg)
-	case stateRemoveRoot:
-		return m.updateRemoveRoot(msg)
-	case stateGitHubAuth:
-		return m.updateGitHubAuth(msg)
-	case statePickRootForClone:
-		return m.updatePickRootForClone(msg)
-	case statePickDomainForClone:
-		return m.updatePickDomainForClone(msg)
-	case stateMovePickRoot:
-		return m.updateMovePickRoot(msg)
-	case stateMovePickDomain:
-		return m.updateMovePickDomain(msg)
-	case stateMovePickPlacement:
-		return m.updatePlacement(msg)
-	case stateStatusDetails:
-		if key, ok := msg.(tea.KeyMsg); ok && (key.String() == "esc" || key.String() == "enter") {
-			m.state = stateList
-		}
-		return m, nil
-	case stateBulkConfirm, stateBulkResult:
-		return m.updateBulk(msg)
-	case stateHelp:
-		return m.updateHelp(msg)
-	case statePalette:
-		return m.updatePalette(msg)
-	case stateCreateGroup:
-		return m.updateCreateGroup(msg)
-	case stateConfirmDeleteGroup:
-		return m.updateConfirmDeleteGroup(msg)
-	case stateDeleteGroup:
-		return m.updateDeleteGroup(msg)
-	case stateEditor:
-		return m.updateEditor(msg)
-	case stateDeleteTmuxSession:
-		return m.updateDeleteTmuxSession(msg)
-	default:
-		return m.updateList(msg)
-	}
+	return m.routeInput(msg)
 }
 
 // ---------------------------------------------------------------------------
 // Background message handlers
 // ---------------------------------------------------------------------------
 
-func (m model) handleGitHubReposLoaded(msg gh.ReposLoadedMsg) (tea.Model, tea.Cmd) {
-	if msg.ID != m.repoLoadID || !m.cfg.IsGitHubConnected() {
+func (m model) handleGitHubReposLoaded(msg ReposLoadedMsg) (tea.Model, tea.Cmd) {
+	if msg.ID != m.repositories.id || !m.cfg.IsGitHubConnected() {
 		return m, nil
 	}
-	m.repoLoading = false
+	m.repositories.loading = false
 	if msg.Err != nil {
-		m.statusMsg = errorStyle.Render("✗  GitHub: " + msg.Err.Error())
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  GitHub: " + msg.Err.Error()}
 		return m, nil
 	}
 	m.githubRepos = msg.Repos
 	m = m.rescan()
-	m.statusMsg = successStyle.Render(fmt.Sprintf("✓  GitHub: %d repos loaded", len(msg.Repos)))
+	m.diagnostic = app.Diagnostic{Severity: app.Success, Summary: fmt.Sprintf("✓  GitHub: %d repos loaded", len(msg.Repos))}
 	if m.state == stateGitHubAuth {
 		m.state = stateList
 	}
 	return m, nil
 }
 
-func (m model) handleGitHubAuthDone(msg gh.AuthDoneMsg) (tea.Model, tea.Cmd) {
-	if m.state != stateGitHubAuth || msg.ID != m.authID {
+func (m model) handleGitHubAuthDone(msg AuthDoneMsg) (tea.Model, tea.Cmd) {
+	if m.state != stateGitHubAuth || msg.ID != m.auth.id {
 		return m, nil
 	}
 	if msg.Err != nil {
-		m.githubAuthScr.err = msg.Err.Error()
+		m.auth.screen.err = msg.Err.Error()
 		return m, nil
 	}
 	proposed := m.cfg.Clone()
 	proposed.GitHubToken = msg.Token
 	proposed.GitHubUsername = msg.Username
-	if err := config.Save(proposed); err != nil {
-		m.githubAuthScr.err = "save credentials: " + err.Error()
+	if err := m.preferences.Config.Save(proposed); err != nil {
+		m.auth.screen.err = "save credentials: " + err.Error()
 		return m, nil
 	}
 	m.cfg = proposed
-	m.githubAuthScr.done = true
+	m.auth.screen.done = true
 	m.cancelAuth()
 	return m, m.fetchRepos()
 }
 
-func (m model) handleGitHubRepoCreated(msg gh.RepoCreatedMsg) (tea.Model, tea.Cmd) {
+func (m model) handleGitHubRepoCreated(msg RepoCreatedMsg) (tea.Model, tea.Cmd) {
 	if m.state != stateCreatingGitHub {
 		return m, nil
 	}
 	if msg.Err != nil {
-		m.statusMsg = errorStyle.Render("✗  GitHub repo creation failed: " + msg.Err.Error())
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  GitHub repo creation failed: " + msg.Err.Error()}
 		m.state = stateList
 		return m, nil
 	}
 
-	m.pendingGHRepo = msg.Repo
+	m.creation.repo = msg.Repo
 
-	if m.pendingTemplate != nil {
-		vars := tmpl.Vars{
-			ProjectName: m.pendingProjectName,
-			Domain:      m.pendingDomain,
-			Root:        m.pendingRoot,
-		}
-		projectPath, workDir, err := core.PrepareProject(m.currentLocation(), vars.ProjectName, m.pendingTemplate.CreatesProjectFolder)
-		if err != nil {
-			m.statusMsg = errorStyle.Render("create project: " + err.Error())
-			m.state = stateList
-			return m, nil
-		}
-		vars.ProjectPath = projectPath
-		m.ptyScr = newPTYScreen(m.termW, m.termH, m.pendingTemplate, projectPath, vars,
-			m.pendingTemplate.Steps, workDir, msg.Repo)
-		m.pendingLaunchPreset = m.pendingPreset
-		m.operationID++
-		m.ptyScr.operationID = m.operationID
-		m.state = statePTYExecution
-		return m, m.ptyScr.startNextStep()
-	}
-
-	p, err := core.CreateProject(m.currentLocation(), m.pendingProjectName)
-	if err != nil {
-		m.statusMsg = errorStyle.Render("✗  project create error: " + err.Error())
-		m.state = stateList
-		return m, nil
-	}
-	if err := tmpl.WriteDevDockMarkerFile(p.Path); err != nil {
-		m.statusMsg = errorStyle.Render(err.Error())
-		m.state = stateList
-		return m, nil
-	}
-	p.GitHubRepo = msg.Repo.FullName
-	return m, func() tea.Msg { return gitLinkedMsg{project: p, err: gh.InitRepoWithRemote(p.Path, msg.Repo.CloneURL)} }
+	return m.beginLocalCreation()
 }
 
-func (m model) handleGitCloneDone(msg gh.CloneDoneMsg) (tea.Model, tea.Cmd) {
+func (m model) handleGitCloneDone(msg CloneDoneMsg) (tea.Model, tea.Cmd) {
 	if m.state != stateCloningRepo {
 		return m, nil
 	}
 	if msg.Err != nil {
-		m.statusMsg = errorStyle.Render("✗  clone failed: " + msg.Err.Error())
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  clone failed: " + msg.Err.Error()}
 		m.state = stateList
 		return m, nil
 	}
@@ -321,14 +216,19 @@ func (m model) handleGitCloneDone(msg gh.CloneDoneMsg) (tea.Model, tea.Cmd) {
 	m.state = stateList
 	m.uiState.AddRecent(msg.Project)
 	m.saveState()
-	m.pendingLaunch = msg.Project
-	m.pendingLaunchReady = true
-	m.pendingLaunchPreset = preset.ByName(m.presets, m.presetSel.SelectedName())
+	m.launch.project = msg.Project
+	m.launch.ready = true
+	m.launch.preset = preset.ByName(m.presets, m.presetSel.SelectedName())
 	return m, tea.Quit
 }
 
 func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd) {
-	if m.state != stateMovingProject {
+	if m.state != stateMovingProject || msg.id != m.operationID {
+		return m, nil
+	}
+	if msg.rejected {
+		m.state = stateMovePickPlacement
+		m.genericPicker.err = fmt.Sprintf("%s: %v", msg.status, msg.err)
 		return m, nil
 	}
 	if msg.err != nil {
@@ -338,7 +238,7 @@ func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd
 			m.saveFilesystemState()
 			m = m.rescan()
 		}
-		m.statusMsg = errorStyle.Render("✗  move failed: " + msg.err.Error())
+		m.diagnostic = app.Diagnostic{Severity: app.Error, Summary: "✗  move failed: " + msg.err.Error()}
 		m.state = stateList
 		return m, nil
 	}
@@ -349,7 +249,7 @@ func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd
 		return m, nil
 	}
 	m = m.rescan()
-	m.statusMsg = successStyle.Render(fmt.Sprintf("✓  moved \"%s\"", msg.newProject.Name))
+	m.diagnostic = app.Diagnostic{Severity: app.Success, Summary: fmt.Sprintf("✓  moved \"%s\"", msg.newProject.Name)}
 	m.state = stateList
 	return m, nil
 }
@@ -359,7 +259,7 @@ func (m model) handleMoveProjectDone(msg moveProjectDoneMsg) (tea.Model, tea.Cmd
 // ---------------------------------------------------------------------------
 
 func (m model) openMoveDestDomainPicker() model {
-	domains := m.workspaceDomains[m.pendingRoot]
+	domains := m.navigation.domains[m.pendingRoot]
 	opts := append(append([]string{}, domains...), createNewDomainOption)
 	m.genericPicker = newGenericPicker(
 		fmt.Sprintf("Move \"%s\" — destination domain:", m.moveTarget.Name),
@@ -377,10 +277,10 @@ func (m model) openMovePlacementPicker(destRoot, destDomain string) model {
 }
 
 func (m model) openDomainPickerForClone() model {
-	domains := m.workspaceDomains[m.pendingRoot]
+	domains := m.navigation.domains[m.pendingRoot]
 	opts := append(append([]string{}, domains...), createNewDomainOption)
 	m.genericPicker = newGenericPicker(
-		fmt.Sprintf("Clone \"%s\" — select domain:", m.pendingGHRepo.Name),
+		fmt.Sprintf("Clone \"%s\" — select domain:", m.creation.repo.Name),
 		opts, "↑/↓  •  enter  •  esc",
 	)
 	m.state = statePickDomainForClone
@@ -388,10 +288,10 @@ func (m model) openDomainPickerForClone() model {
 }
 
 func (m model) openDomainPicker(root, projectName string) (model, tea.Cmd) {
-	domains := m.workspaceDomains[root]
+	domains := m.navigation.domains[root]
 	// Collisions belong to the selected location, not the entire domain.
 	existing := map[string]bool{}
-	m.pendingProjectName = projectName
+	m.creation.name = projectName
 	m.pendingRoot = root
 	m.domainPicker = newDomainPickerScreen(projectName, domains, existing)
 	m.state = statePickDomain
@@ -399,7 +299,7 @@ func (m model) openDomainPicker(root, projectName string) (model, tea.Cmd) {
 }
 
 func (m model) openRootPickerForProject(projectName string) model {
-	m.pendingProjectName = projectName
+	m.creation.name = projectName
 	m.genericPicker = newRootPicker(fmt.Sprintf("Select root for %q:", projectName), m.cfg.ActiveRoots(), "↑/↓ • enter • esc")
 	m.state = statePickRoot
 	return m
@@ -436,7 +336,7 @@ func (m model) updateEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyMsg); ok {
 		if k.String() == "enter" && m.editorScr.layer == editorLayerList && !m.editorScr.deleting && m.editorScr.tab == editorTabSettings && m.editorScr.cursor > 0 {
 			m.editorRootReturn = true
-			m.statusMsg = ""
+			m.diagnostic = app.Diagnostic{}
 			if m.editorScr.cursor == 1 {
 				return m.startAddRoot()
 			}
@@ -479,7 +379,7 @@ func isSafePathName(name string) bool { return core.ValidName(name) }
 // ---------------------------------------------------------------------------
 
 func (m model) updateDeleteTmuxSession(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m.tmuxDeleting {
+	if m.tmux.deleting {
 		return m, nil
 	}
 	if k, ok := msg.(tea.KeyMsg); ok {
@@ -495,8 +395,8 @@ func (m model) updateDeleteTmuxSession(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			name := m.confirmDelTmux.sessionName
-			m.tmuxDeleting = true
-			return m, func() tea.Msg { return tmuxKilledMsg{name: name, err: tmux.KillSession(name)} }
+			m.tmux.deleting = true
+			return m, func() tea.Msg { return tmuxKilledMsg{name: name, err: m.tmuxClient.KillSession(name)} }
 		}
 	}
 	var cmd tea.Cmd
@@ -504,28 +404,4 @@ func (m model) updateDeleteTmuxSession(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) loading() bool {
-	return m.state == stateBulkPreflight || m.state == stateBulkMoving || m.state == stateCreatingGitHub || m.state == stateCloningRepo || m.state == stateMovingProject || m.state == stateDeletingWorkspace
-}
-
-type gitLinkedMsg struct {
-	project core.Project
-	err     error
-}
-
-func (m model) handleGitLinked(msg gitLinkedMsg) (tea.Model, tea.Cmd) {
-	if m.state != stateCreatingGitHub {
-		return m, nil
-	}
-	if msg.err != nil {
-		m.statusMsg = errorStyle.Render("git setup failed: " + msg.err.Error())
-		m.state = stateList
-		return m.rescan(), nil
-	}
-	m.uiState.AddRecent(msg.project)
-	m.saveState()
-	m.pendingLaunch = msg.project
-	m.pendingLaunchReady = true
-	m.pendingLaunchPreset = m.pendingPreset
-	return m, tea.Quit
-}
+func (m model) loading() bool { return m.state.kind() == routeOperation }

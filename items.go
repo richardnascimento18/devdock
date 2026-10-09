@@ -9,6 +9,7 @@ import (
 	"github.com/richardnascimento18/devdock/internal/core"
 	gh "github.com/richardnascimento18/devdock/internal/github"
 	"github.com/richardnascimento18/devdock/internal/state"
+	"github.com/richardnascimento18/devdock/internal/ui"
 )
 
 type item struct {
@@ -20,11 +21,11 @@ type item struct {
 
 func (i item) Title() string {
 	prefix := visualIndent(i.indent)
-	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(i.project.Name)
-	domain := domainStyle.Render(" (" + i.project.Domain + ")")
+	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(ui.SafeText(i.project.Name))
+	domain := domainStyle.Render(ui.SafeText(" (" + i.project.Domain + ")"))
 	line := prefix + name + domain + RenderGroupBreadcrumb(i.project.GroupPath)
 	if i.showRoot {
-		line += " " + rootTagStyle.Render("("+config.RootName(i.project.Root)+")")
+		line += " " + rootTagStyle.Render(ui.SafeText("("+config.RootName(i.project.Root)+")"))
 	}
 	if i.verified && i.project.GitHubRepo != "" {
 		line += " " + ghStyle.Render("(GITHUB)") + " " + clonedStyle.Render("(cloned)")
@@ -50,7 +51,7 @@ func (f flatItem) FilterValue() string { return f.item.FilterValue() }
 type githubItem struct{ repo gh.Repo }
 
 func (g githubItem) Title() string {
-	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Secondary).Render(g.repo.Name)
+	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Secondary).Render(ui.SafeText(g.repo.Name))
 	return name + " " + ghStyle.Render("(GITHUB)") + " " + notClonedStyle.Render("(not cloned)")
 }
 func (g githubItem) Description() string { return "" }
@@ -60,7 +61,7 @@ type createProjectItem struct{ name string }
 
 func (c createProjectItem) Title() string {
 	return lipgloss.NewStyle().Foreground(theme.Info).Bold(true).
-		Render(fmt.Sprintf("✦  create new project \"%s\"", c.name))
+		Render(ui.SafeText(fmt.Sprintf("✦  create new project \"%s\"", c.name)))
 }
 func (c createProjectItem) Description() string { return "" }
 func (c createProjectItem) FilterValue() string { return c.name }
@@ -68,10 +69,10 @@ func (c createProjectItem) FilterValue() string { return c.name }
 type recentItem struct{ entry state.RecentEntry }
 
 func (r recentItem) Title() string {
-	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(r.entry.Name)
-	domain := domainStyle.Render(" (" + r.entry.Domain + ")")
-	ts := dimStyle.Render("  " + r.entry.OpenedAt.Format("Jan 02  15:04"))
-	return name + domain + RenderGroupBreadcrumb(r.entry.GroupPath) + " " + rootTagStyle.Render(r.entry.Root) + ts
+	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(ui.SafeText(r.entry.Name))
+	domain := domainStyle.Render(ui.SafeText(" (" + r.entry.Domain + ")"))
+	ts := dimStyle.Render(ui.SafeText("  " + r.entry.OpenedAt.Format("Jan 02  15:04")))
+	return name + domain + RenderGroupBreadcrumb(r.entry.GroupPath) + " " + rootTagStyle.Render(ui.SafeText(r.entry.Root)) + ts
 }
 func (r recentItem) Description() string { return "" }
 func (r recentItem) FilterValue() string {
@@ -86,11 +87,11 @@ type favoriteItem struct {
 
 func (f favoriteItem) Title() string {
 	star := lipgloss.NewStyle().Foreground(theme.Favorite).Bold(true).Render("★ ")
-	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(f.project.Name)
-	domain := domainStyle.Render(" (" + f.project.Domain + ")")
+	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(ui.SafeText(f.project.Name))
+	domain := domainStyle.Render(ui.SafeText(" (" + f.project.Domain + ")"))
 	line := star + name + domain + RenderGroupBreadcrumb(f.project.GroupPath)
 	if f.showRoot {
-		line += " " + rootTagStyle.Render("("+config.RootName(f.project.Root)+")")
+		line += " " + rootTagStyle.Render(ui.SafeText("("+config.RootName(f.project.Root)+")"))
 	}
 	if f.verified && f.project.GitHubRepo != "" {
 		line += " " + ghStyle.Render("(GITHUB)") + " " + clonedStyle.Render("(cloned)")
@@ -123,7 +124,7 @@ func (g groupItem) Title() string {
 	if g.totalCount == 0 {
 		count = " (no projects)"
 	}
-	return visualIndent(g.depth) + groupHeaderStyle.Render(icon+" "+g.name) + countBadgeStyle.Render(count) + " " + dimStyle.Render(g.location.Domain+" › "+compactBreadcrumb(g.location.GroupPath)) + " " + rootTagStyle.Render(g.location.Root)
+	return visualIndent(g.depth) + groupHeaderStyle.Render(ui.SafeText(icon+" "+g.name)) + countBadgeStyle.Render(ui.SafeText(count)) + " " + dimStyle.Render(ui.SafeText(g.location.Domain+" › "+compactBreadcrumb(g.location.GroupPath))) + " " + rootTagStyle.Render(ui.SafeText(g.location.Root))
 }
 func (g groupItem) Description() string { return "" }
 func (g groupItem) FilterValue() string {
@@ -148,7 +149,7 @@ func (t tmuxSessionItem) displayName() string {
 
 func (t tmuxSessionItem) Title() string {
 	bullet := lipgloss.NewStyle().Foreground(theme.Success).Bold(true).Render("● ")
-	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(t.displayName())
+	name := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(ui.SafeText(t.displayName()))
 	return bullet + name
 }
 func (t tmuxSessionItem) Description() string { return "" }

@@ -8,10 +8,12 @@ jobs:
     name: Go ${{ matrix.go }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      GOTOOLCHAIN: local
     strategy:
       fail-fast: false
       matrix:
-        go: ['1.26.x', '1.27.x']
+        go: ['1.26.9', '1.27.2']
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -21,6 +23,9 @@ jobs:
           go-version: ${{ matrix.go }}
           check-latest: true
           cache: true
+          cache-dependency-path: |
+            go.sum
+            tools/go.sum
       - name: Configure validation tool directory
         run: |
           tool_dir="$RUNNER_TEMP/devdock-tools"
