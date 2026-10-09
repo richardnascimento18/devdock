@@ -115,11 +115,15 @@ func (s *Screen) Write(data []byte) {
 					s.utf8 = s.utf8[:0]
 				} else {
 					s.utf8 = append(s.utf8, b)
-					if utf8.FullRune(s.utf8) {
-						r, _ := utf8.DecodeRune(s.utf8)
+					// Consume only decoded bytes: an invalid prefix must not
+					// swallow a following valid UTF-8 lead byte in this chunk.
+					remaining := s.utf8
+					for utf8.FullRune(remaining) {
+						r, size := utf8.DecodeRune(remaining)
 						s.writeRune(r)
-						s.utf8 = s.utf8[:0]
+						remaining = remaining[size:]
 					}
+					s.utf8 = append(s.utf8[:0], remaining...)
 					continue
 				}
 			}

@@ -80,3 +80,18 @@ func TestMaximumLineRedrawAndReset(t *testing.T) {
 		t.Fatal("reset retained parser state")
 	}
 }
+
+func TestMalformedUTF8RetainsFollowingUnicode(t *testing.T) {
+	for _, input := range []string{"\xe2é", "\xf0\x9fé"} {
+		want := string([]rune(input))
+		for chunk := 1; chunk <= len(input); chunk++ {
+			var screen Screen
+			for start := 0; start < len(input); start += chunk {
+				screen.Write([]byte(input[start:min(start+chunk, len(input))]))
+			}
+			if got := strings.Join(screen.Lines(), "\n"); got != want {
+				t.Fatalf("chunk %d: %q, want %q", chunk, got, want)
+			}
+		}
+	}
+}
