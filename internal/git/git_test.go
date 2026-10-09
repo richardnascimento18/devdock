@@ -80,3 +80,25 @@ func TestCancelledDiscoveryDoesNotRunGit(t *testing.T) {
 		t.Fatal("cancelled discovery succeeded")
 	}
 }
+
+func TestConfiguredWorktreeWithoutLocalGitfile(t *testing.T) {
+	repository := t.TempDir()
+	testutil.Git(t, repository, "init")
+	project := filepath.Join(repository, "workspace")
+	if err := os.Mkdir(project, 0755); err != nil {
+		t.Fatal(err)
+	}
+	testutil.Git(t, repository, "config", "core.worktree", project)
+	// Git can identify a worktree root beneath its metadata directory without
+	// a .git entry in the worktree itself. Ancestor metadata must remain a candidate.
+	if !IsGitInitialized(project) {
+		t.Fatal("configured worktree root not recognized")
+	}
+	alias := filepath.Join(t.TempDir(), "alias")
+	if err := os.Symlink(project, alias); err != nil {
+		t.Fatal(err)
+	}
+	if !IsGitInitialized(alias) {
+		t.Fatal("configured worktree symlink alias not recognized")
+	}
+}

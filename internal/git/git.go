@@ -108,14 +108,12 @@ func (c Client) Initialized(parent context.Context, projectPath string) bool {
 	if parent.Err() != nil {
 		return false
 	}
-	// An independent worktree normally has a .git directory or gitfile. Missing
-	// metadata cannot identify this directory as a repository root; asking Git
-	// would only discover a parent repository, which we reject below anyway.
-	// Explicit external metadata still needs authoritative Git discovery.
-	if os.Getenv("GIT_DIR") == "" && os.Getenv("GIT_WORK_TREE") == "" {
-		if _, err := os.Lstat(filepath.Join(projectPath, ".git")); os.IsNotExist(err) {
-			return false
-		}
+	// .git files/directories identify candidates, including linked worktrees.
+	// Ancestor metadata may configure core.worktree to point at this directory.
+	// Git still decides the actual root; a parent repository never suffices.
+	// Explicit external metadata bypasses the filesystem candidate check.
+	if os.Getenv("GIT_DIR") == "" && os.Getenv("GIT_WORK_TREE") == "" && !repositoryCandidate(projectPath) {
+		return false
 	}
 
 	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
@@ -145,4 +143,31 @@ func (c Client) Init(ctx context.Context, path, remote string) error {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	return initRepo(ctx, path, remote, c.Run)
+}
+
+func repositoryCandidate(projectPath string) bool {
+	path, err := filepath.Abs(projectPath)
+	if err != nil {
+		return true
+	} // Let Git diagnose paths we cannot inspect.
+	if physical, err := filepath.EvalSymlinks(path); err == nil {
+		path = physical
+	}
+	for {
+		metadata := filepath.Join(path, ".git")
+		info, err := os.Stat(metadata)
+		if err == nil && info.IsDir() {
+			// An empty .git directory cannot be a repository. HEAD is required;
+			// other corruption still goes to Git for authoritative validation.
+			_, err = os.Lstat(filepath.Join(metadata, "HEAD"))
+		}
+		if !os.IsNotExist(err) {
+			return true
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return false
+		}
+		path = parent
+	}
 }
