@@ -12,25 +12,46 @@ import (
 const maxRows = 2000
 const maxColumns = 4096
 
+type line struct {
+	runes []rune
+	text  string
+	dirty bool
+}
+
 type Screen struct {
-	lines    []string
+	lines    []line
 	row, col int
 	mode     uint8
 	sequence []byte
 	utf8     []byte
 }
 
-func (s *Screen) Lines() []string { return s.lines }
-func (s *Screen) Reset()          { *s = Screen{} }
+// Lines snapshots the output. Only changed rows require rune-to-string copies.
+// Cursor columns retain the existing rune-based redraw protocol; this is not
+// complete terminal display-cell emulation for wide/combining characters.
+func (s *Screen) Lines() []string {
+	result := make([]string, len(s.lines))
+	for i := range s.lines {
+		row := &s.lines[i]
+		if row.dirty {
+			row.text = string(row.runes)
+			row.dirty = false
+		}
+		result[i] = row.text
+	}
+	return result
+}
+func (s *Screen) Reset() { *s = Screen{} }
 
 func (s *Screen) ensureLine() {
 	if s.row >= maxRows {
 		shift := min(s.row-maxRows+1, len(s.lines))
+		clear(s.lines[:shift])
 		s.lines = s.lines[shift:]
 		s.row = maxRows - 1
 	}
 	for len(s.lines) <= s.row {
-		s.lines = append(s.lines, "")
+		s.lines = append(s.lines, line{})
 	}
 }
 func (s *Screen) writeRune(r rune) {
@@ -41,14 +62,12 @@ func (s *Screen) writeRune(r rune) {
 	if s.col >= maxColumns {
 		return
 	}
-	line := []rune(s.lines[s.row])
-	if s.col == 0 {
-		line = nil
-	} else if s.col <= len(line) {
-		line = line[:s.col]
+	row := &s.lines[s.row]
+	if s.col <= len(row.runes) {
+		row.runes = row.runes[:s.col]
 	}
-	line = append(line, r)
-	s.lines[s.row] = string(line)
+	row.runes = append(row.runes, r)
+	row.dirty = true
 	s.col++
 }
 
@@ -62,7 +81,7 @@ func (s *Screen) Write(data []byte) {
 			switch b {
 			case '[':
 				s.mode = 2
-				s.sequence = nil
+				s.sequence = s.sequence[:0]
 			case ']', 'P', '^', '_':
 				s.mode = 3
 			}
@@ -70,12 +89,12 @@ func (s *Screen) Write(data []byte) {
 			if b >= 0x40 && b <= 0x7e {
 				s.control(b)
 				s.mode = 0
-				s.sequence = nil
+				s.sequence = s.sequence[:0]
 			} else if len(s.sequence) < 64 {
 				s.sequence = append(s.sequence, b)
 			} else {
 				s.mode = 0
-				s.sequence = nil
+				s.sequence = s.sequence[:0]
 			}
 		case 3: // control string
 			if b == 7 {
@@ -93,13 +112,13 @@ func (s *Screen) Write(data []byte) {
 			if len(s.utf8) > 0 {
 				if b < 0x80 {
 					s.writeRune(utf8.RuneError)
-					s.utf8 = nil
+					s.utf8 = s.utf8[:0]
 				} else {
 					s.utf8 = append(s.utf8, b)
 					if utf8.FullRune(s.utf8) {
 						r, _ := utf8.DecodeRune(s.utf8)
 						s.writeRune(r)
-						s.utf8 = nil
+						s.utf8 = s.utf8[:0]
 					}
 					continue
 				}
@@ -118,7 +137,7 @@ func (s *Screen) Write(data []byte) {
 				if utf8.FullRune(s.utf8) {
 					r, _ := utf8.DecodeRune(s.utf8)
 					s.writeRune(r)
-					s.utf8 = nil
+					s.utf8 = s.utf8[:0]
 				}
 			case b >= 0x20 && b != 0x7f:
 				s.writeRune(rune(b))
@@ -142,10 +161,13 @@ func (s *Screen) control(final byte) {
 		s.col = 0
 	case 'K':
 		s.ensureLine()
-		s.lines[s.row] = ""
+		row := &s.lines[s.row]
+		row.runes = row.runes[:0]
+		row.text, row.dirty = "", false
 		s.col = 0
 	case 'J':
 		if s.row < len(s.lines) {
+			clear(s.lines[s.row:])
 			s.lines = s.lines[:s.row]
 		}
 	}
